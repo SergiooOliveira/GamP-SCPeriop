@@ -399,3 +399,59 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
+
+## Core .NET Ignore Rules
+[Bb]in/
+[Oo]bj/
+.vs/
+.vscode/
+
+## User-specific files
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+## Blazor WebAssembly Specifics
+# Ignore the "output" folder if you publish locally to test
+/publish/
+/wwwroot/_framework/
+
+# If you use a "release" or "dist" folder for deployment
+dist/
+release/
+
+## OS Specifics
+.DS_Store
+Thumbs.db
+
+## Environment Configs (Optional but Recommended)
+# If you have a local config file with secrets for development
+appsettings.Local.json## Core .NET Ignore Rules
+[Bb]in/
+[Oo]bj/
+.vs/
+.vscode/
+
+## User-specific files
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+## Blazor WebAssembly Specifics
+# Ignore the "output" folder if you publish locally to test
+/publish/
+/wwwroot/_framework/
+
+# If you use a "release" or "dist" folder for deployment
+dist/
+release/
+
+## OS Specifics
+.DS_Store
+Thumbs.db
+
+## Environment Configs (Optional but Recommended)
+# If you have a local config file with secrets for development
+appsettings.Local.json
