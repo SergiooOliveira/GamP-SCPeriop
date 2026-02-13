@@ -1,3 +1,5 @@
 <Solution>
+  <Project Path="../GamP-SCPeriop.Server/GamP-SCPeriop.Server.csproj" Id="e1379b58-f427-4200-a631-808bd38300f5" />
+  <Project Path="../Gamp-SCPeriop.Shared/Gamp-SCPeriop.Shared.csproj" Id="73bd4ab4-f396-424a-93c5-fbd93f00fb38" />
   <Project Path="GamP-SCPeriop.csproj" />
 </Solution>

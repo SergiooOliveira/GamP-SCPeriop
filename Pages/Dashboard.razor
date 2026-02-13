@@ -1,0 +1,73 @@
+﻿@page "/dashboard"
+@using GamP_SCPeriop.Shared
+@using Blazored.LocalStorage
+@inject HttpClient Http
+@inject NavigationManager Nav
+@inject ILocalStorageService LocalStorage
+
+<h3>🎓 Manager Dashboard</h3>
+<p>Overview of all supervised students</p>
+
+@if (students == null)
+{
+    <p><em>Loading students...</em></p>
+}
+else if (students.Count == 0)
+{
+    <div class="alert alert-info">No students registered yet.</div>
+}
+else
+{
+    <table class="table table-striped table-hover shadow-sm">
+        <thead class="bg-primary text-white">
+            <tr>
+                <th>Username</th>
+                <th>Email</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var student in students)
+            {
+                <tr>
+                    <td>@student.Username</td>
+                    <td>@student.Email</td>
+                    <td>
+                        <span class="badge bg-success">Active</span>
+                    </td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary">
+                            View Details
+                        </button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<User> students;
+    private User currentUser;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var hasUser = await LocalStorage.ContainKeyAsync("user");
+        if (!hasUser)
+        {
+            Nav.NavigateTo("/login");
+            return;
+        }
+
+        currentUser = await LocalStorage.GetItemAsync<User>("user");
+
+        if (!currentUser.IsSupervisor)
+        {
+            Nav.NavigateTo("/my-profile");
+            return;
+        }
+
+        students = await Http.GetFromJsonAsync<List<User>>("api/users/students");
+    }
+}

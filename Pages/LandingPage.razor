@@ -1,14 +1,23 @@
 ﻿@page "/login"
+@using Gamp_SCPeriop.Shared
 @layout EmptyLayout
+@inject ILocalStorageService LocalStorage
+
+@inject HttpClient Http
+@inject NavigationManager Nav
 
 <body>
-    <form @onsubmit="HandleLogin">
+    <EditForm Model="loginModel" onValidSubmit="HandleLogin">
+        <DataAnnotationsValidator />
+
         <div class="container">
-            <label for="uname"><b>Username</b></label>
-            <input type="text" placeholder="Enter Username" @bind-value="username" required>
+            <label for="uname"><b>Email</b></label>
+            <InputText @bind-value="loginModel.Email" class="form-control" placeholder="Enter Email" required />
+            <ValidationMessage For="@(() => loginModel.Email)" />
 
             <label for="psw"><b>Password</b></label>
-            <input type="password" placeholder="Enter Password" @bind-value="password" required>
+            <InputText type="password" @bind-value="loginModel.Password" class="form-control" placeholder="Enter Password" required />
+            <ValidationMessage For="@(() => loginModel.Password)" />
 
             <button type="submit">Login</button>
             <label>
@@ -20,16 +29,50 @@
             <button type="button" class="cancelbtn">Cancel</button>
             <span class="psw">Forgot <a href="#">password?</a></span>
         </div>
-    </form>
+    </EditForm>
+
+    @if (!string.IsNullOrEmpty(error))
+    {
+        <div class="alert alert-danger mt-3">@error</div>
+    }
 </body>
 
 @code {
-    private string username = "";
-    private string password = "";
 
-    private void HandleLogin()
+    private UserLoginDTO loginModel = new UserLoginDTO();
+    private string error = "";
+
+    private async Task HandleLogin()
     {
         // Handle form submission logic here
-        Console.WriteLine($"Username: {username}, Password: {password}");
+        var response = await Http.PostAsJsonAsync("/api/auth/login", loginModel);
+        var rawText = await response.Content.ReadAsStringAsync();
+
+        if (response.IsSuccessStatusCode)
+        {
+            try
+            {
+                var options = new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                var loggedInUser = System.Text.Json.JsonSerializer.Deserialize<User>(rawText, options);
+
+                if (loggedInUser != null)
+                {
+                    await LocalStorage.SetItemAsync("user", loggedInUser);
+
+                    if (loggedInUser.IsSupervisor)
+                        Nav.NavigateTo("/dashboard");
+                    else
+                        Nav.NavigateTo("/my-profile");
+                }
+            }
+            catch
+            {
+                error = $"JSON Error. The server actually sent this: {rawText}";
+            }
+        }
+        else
+        {
+            error = $"Login Failed ({response.StatusCode}): {rawText}";
+        }
     }
 }
