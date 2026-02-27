@@ -1,0 +1,6 @@
+@GamP_SCPeriop.Server_HostAddress = http://localhost:5270
+
+GET {{GamP_SCPeriop.Server_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

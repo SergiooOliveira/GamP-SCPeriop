@@ -1,0 +1,29 @@
+﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using GamP_SCPeriop.Server.Data;
+using GamP_SCPeriop.Shared;
+
+namespace GamP_SCPeriop.Server.Controllers
+{
+    [Route("api/[controller]")]
+    [ApiController]
+    public class UserController : Controller
+    {
+        private readonly DBContext _context;
+
+        public UserController(DBContext context)
+        {
+            _context = context;
+        }
+
+        [HttpGet("students")]
+        public async Task<ActionResult<List<User>>> GetStudents()
+        {
+            var students = await _context.Users
+                .Where(u => u.IsSupervised == true)
+                .ToListAsync();
+
+            return Ok(students);
+        }
+    }
+}
