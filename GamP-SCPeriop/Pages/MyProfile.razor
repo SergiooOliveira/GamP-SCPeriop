@@ -21,7 +21,7 @@
                     {
                         <div class="mb-3">
                             <label class="text-muted fw-bold">Username</label>
-                            <h4>@currentUser.Username</h4>
+                            <h4>@currentUser.DisplayShortName</h4>
                         </div>
                         <div class="mb-3">
                             <label class="text-muted fw-bold">Email</label>
@@ -53,7 +53,7 @@
 
         currentUser = await LocalStorage.GetItemAsync<User>("user");
 
-        if (currentUser.IsSupervisor)
+        if (currentUser.Role == UserRole.Supervisor)
         {
             Nav.NavigateTo("/dashboard");
         }

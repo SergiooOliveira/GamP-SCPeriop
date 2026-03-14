@@ -9,9 +9,9 @@ namespace GamP_SCPeriop.Server.Controllers
     [ApiController]
     public class UserController : Controller
     {
-        private readonly DBContext _context;
+        private readonly AppDbContext _context;
 
-        public UserController(DBContext context)
+        public UserController(AppDbContext context)
         {
             _context = context;
         }
@@ -20,7 +20,7 @@ namespace GamP_SCPeriop.Server.Controllers
         public async Task<ActionResult<List<User>>> GetStudents()
         {
             var students = await _context.Users
-                .Where(u => u.IsSupervised == true)
+                .Where(u => u.Role == UserRole.Supervisionado)
                 .ToListAsync();
 
             return Ok(students);

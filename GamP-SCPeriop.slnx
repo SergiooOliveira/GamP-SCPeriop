@@ -1,5 +1,5 @@
 <Solution>
   <Project Path="GamP-SCPeriop.Server/GamP-SCPeriop.Server.csproj" />
-  <Project Path="Gamp-SCPeriop.Shared/Gamp-SCPeriop.Shared.csproj" />
+  <Project Path="Gamp-SCPeriop.Shared/Gamp-SCPeriop.Shared.csproj" DisplayName="GamP-SCPeriop.Shared" />
   <Project Path="GamP-SCPeriop/GamP-SCPeriop.csproj" />
 </Solution>

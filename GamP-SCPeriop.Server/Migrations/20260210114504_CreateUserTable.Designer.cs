@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace GamP_SCPeriop.Server.Migrations
 {
-    [DbContext(typeof(DBContext))]
+    [DbContext(typeof(AppDbContext))]
     [Migration("20260210114504_CreateUserTable")]
     partial class CreateUserTable
     {

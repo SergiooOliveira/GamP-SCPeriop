@@ -59,7 +59,7 @@
                 {
                     await LocalStorage.SetItemAsync("user", loggedInUser);
 
-                    if (loggedInUser.IsSupervisor)
+                    if (loggedInUser.Role == UserRole.Supervisor)
                         Nav.NavigateTo("/dashboard");
                     else
                         Nav.NavigateTo("/my-profile");

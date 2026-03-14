@@ -31,7 +31,7 @@ else
             @foreach (var student in students)
             {
                 <tr>
-                    <td>@student.Username</td>
+                    <td>@student.DisplayShortName</td>
                     <td>@student.Email</td>
                     <td>
                         <span class="badge bg-success">Active</span>
@@ -62,7 +62,7 @@ else
 
         currentUser = await LocalStorage.GetItemAsync<User>("user");
 
-        if (!currentUser.IsSupervisor)
+        if (currentUser.Role == UserRole.Supervisionado)
         {
             Nav.NavigateTo("/my-profile");
             return;
