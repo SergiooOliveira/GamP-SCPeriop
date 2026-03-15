@@ -15,7 +15,10 @@ builder.Services.AddCors(options =>
 
 // Add services to the container.
 
-builder.Services.AddControllers();
+//builder.Services.AddControllers();
+builder.Services.AddControllersWithViews();
+builder.Services.AddRazorPages();
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
@@ -43,19 +46,29 @@ using (var scope = app.Services.CreateScope())
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
+    app.UseWebAssemblyDebugging();
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
 app.UseHttpsRedirection();
 
-app.UseCors(policy =>
-    policy.AllowAnyOrigin()
-          .AllowAnyMethod()
-          .AllowAnyHeader());
+app.UseBlazorFrameworkFiles();
+app.UseStaticFiles();
+app.UseRouting();
+
+app.UseCors("AllowBlazorClient");
+
+//app.UseCors(policy =>
+//    policy.AllowAnyOrigin()
+//          .AllowAnyMethod()
+//          .AllowAnyHeader());
 
 app.UseAuthorization();
 
+app.MapRazorPages();
 app.MapControllers();
+
+app.MapFallbackToFile("index.html");
 
 app.Run();
