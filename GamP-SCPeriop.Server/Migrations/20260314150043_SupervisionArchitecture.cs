@@ -79,7 +79,7 @@ namespace GamP_SCPeriop.Server.Migrations
                     table.ForeignKey(
                         name: "FK_Enrollments_Pathways_PathwayId",
                         column: x => x.PathwayId,
-                        principalTable: "Pathsways",
+                        principalTable: "Pathway",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
@@ -177,7 +177,7 @@ namespace GamP_SCPeriop.Server.Migrations
                 name: "Enrollments");
 
             migrationBuilder.DropTable(
-                name: "Pathsways");
+                name: "Pathway");
 
             migrationBuilder.DropColumn(
                 name: "FullName",

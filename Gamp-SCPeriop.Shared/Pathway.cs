@@ -11,5 +11,7 @@ namespace GamP_SCPeriop.Shared
 
         public int MinimumPassScore { get; set; } = 50;
         public int MinimumApprovalScore { get; set; } = 80;
+
+        public List<Module> Modules { get; set; } = new();
     }
 }

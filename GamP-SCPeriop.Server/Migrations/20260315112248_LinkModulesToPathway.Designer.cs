@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GamP_SCPeriop.Server.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260314150043_SupervisionArchitecture")]
-    partial class SupervisionArchitecture
+    [Migration("20260315112248_LinkModulesToPathway")]
+    partial class LinkModulesToPathway
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -67,7 +67,10 @@ namespace GamP_SCPeriop.Server.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<int>("EnrollmentId")
+                    b.Property<int?>("EnrollmentId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("PathwayId")
                         .HasColumnType("int");
 
                     b.Property<string>("Title")
@@ -77,6 +80,8 @@ namespace GamP_SCPeriop.Server.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("EnrollmentId");
+
+                    b.HasIndex("PathwayId");
 
                     b.ToTable("Modules");
                 });
@@ -129,7 +134,7 @@ namespace GamP_SCPeriop.Server.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Pathway");
+                    b.ToTable("Pathways");
                 });
 
             modelBuilder.Entity("GamP_SCPeriop.Shared.User", b =>
@@ -195,7 +200,11 @@ namespace GamP_SCPeriop.Server.Migrations
                 {
                     b.HasOne("GamP_SCPeriop.Shared.Enrollment", null)
                         .WithMany("Modules")
-                        .HasForeignKey("EnrollmentId")
+                        .HasForeignKey("EnrollmentId");
+
+                    b.HasOne("GamP_SCPeriop.Shared.Pathway", null)
+                        .WithMany("Modules")
+                        .HasForeignKey("PathwayId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
@@ -217,6 +226,11 @@ namespace GamP_SCPeriop.Server.Migrations
             modelBuilder.Entity("GamP_SCPeriop.Shared.Module", b =>
                 {
                     b.Navigation("Components");
+                });
+
+            modelBuilder.Entity("GamP_SCPeriop.Shared.Pathway", b =>
+                {
+                    b.Navigation("Modules");
                 });
 
             modelBuilder.Entity("GamP_SCPeriop.Shared.User", b =>
