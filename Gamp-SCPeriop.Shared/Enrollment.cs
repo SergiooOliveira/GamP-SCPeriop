@@ -17,7 +17,5 @@ namespace GamP_SCPeriop.Shared
 
         public int ProgressPercentage { get; set; } = 0;
         public DateTime EndDate { get; set; }
-
-        public List<Module> Modules { get; set; } = new();
     }
 }

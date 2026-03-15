@@ -1,11 +1,13 @@
 ﻿@page "/my-profile"
+@using GamP_SCPeriop.Shared
 @inject Blazored.LocalStorage.ILocalStorageService LocalStorage
 @inject NavigationManager Nav
+@inject HttpClient Http
 
 <div class="container mt-4">
     <div class="row">
-        <div class="col-md-8 mx-auto">
-            <div class="card shadow-sm">
+        <div class="col-md-4"> @* Profile on the left *@
+            <div class="card shadow-sm mb-4">
                 <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
                     <h3 class="mb-0">My Profile</h3>
                     <button class="btn btn-sm btn-light text-danger" @onclick="Logout">
@@ -15,7 +17,7 @@
                 <div class="card-body">
                     @if (currentUser == null)   
                     {
-                        <p><em>Loading profile...</em></p>
+                        <p>Waiting</p>
                     }
                     else
                     {
@@ -28,18 +30,70 @@
                             <h4>@currentUser.Email</h4>
                         </div>
 
-                        <div class="alert alert-success mt-4">
+                        <div class="alert alert-success">
                             <strong>Status:</strong> You are registered as an active Student (Supervised).
                         </div>
                     }
                 </div>
             </div>
         </div>
+
+        <div class="col-md-8"> @* Pathways on the right *@
+            <h3>My Pathways</h3>
+            @if (pathways == null)
+            {
+                <p>Loading Pathways</p>
+            }
+            else
+            {
+                @foreach (var pathway in pathways)
+                {
+                    var isOpen = openPathways.Contains(pathway.Id);
+                    <div class="card shadow-sm mb-3 border-0" style="border-radius: 15px;">
+                        <div class="card-header bg-white d-flex justify-content-between align-items-center no-select" @onclick="() => TogglePathway(pathway.Id)" style="cursor: pointer; border-radius: 15px;">
+                            <div>
+                                <span class="me-2">@(isOpen ? "▼" : "▶")</span>
+                                <strong class="fs-5">@pathway.Title</strong>
+                                <div class="text-muted small">Professor: João Silva</div>
+                            </div>
+                            <div class="d-flex align-items-center">
+                                <span class="badge bg-light text-primary me-2">Em curso</span>
+                                <div class="progress" style="width: 100px; height: 8px;">
+                                    <div class="progress-bar" style="width: 15%"></div>
+                                </div>
+                                <span class="ms-2 small">15%</span>
+                            </div>
+                        </div>
+                        @if (isOpen)
+                        {
+                            <div class="card-body pt-0">
+                                @foreach (var module in pathway.Modules)
+                                {
+                                    <div class="d-flex justify-content-between align-items-center py-3 border-bottom">
+                                        <div>
+                                            <div class="fw-bold">@module.Title</div>
+                                            <div class="text-success small">Concluído</div>
+                                        </div>
+                                        <div class="d-flex align-items-center">
+                                            <span class="badge rounded-pill bg-success-subtle text-success me-3">Aprovado</span>
+                                            <i class="bi bi-eye text-primary"></i>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+            }
+        </div>
     </div>
 </div>
 
 @code {
     private User currentUser;
+    private List<Pathway>? pathways;
+
+    private HashSet<int> openPathways = new HashSet<int>();
 
     protected override async Task OnInitializedAsync()
     {
@@ -57,11 +111,25 @@
         {
             Nav.NavigateTo("/dashboard");
         }
+
+        pathways = await Http.GetFromJsonAsync<List<Pathway>>("api/Pathway");
     }
 
     private async Task Logout()
     {
         await LocalStorage.RemoveItemAsync("user");
         Nav.NavigateTo("/login");
+    }
+
+    private void TogglePathway(int id)
+    {
+        if (openPathways.Contains(id))
+        {
+            openPathways.Remove(id);
+        }
+        else
+        {
+            openPathways.Add(id);
+        }
     }
 }

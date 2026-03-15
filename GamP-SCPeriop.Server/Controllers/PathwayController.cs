@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using GamP_SCPeriop.Shared;
 using GamP_SCPeriop.Server.Data;
-using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
 
 namespace GamP_SCPeriop.Server.Controllers
 {
@@ -33,7 +33,18 @@ namespace GamP_SCPeriop.Server.Controllers
 
             return Ok(newPathway);
         }
-        
+
         #endregion
+
+        [HttpGet]
+        public async Task<ActionResult<List<Pathway>>> GetFullPathways()
+        {
+            var pathways = await _context.Pathways
+                .Include(p => p.Modules)
+                    .ThenInclude(m => m.Components)
+                .ToListAsync();
+
+            return Ok(pathways);
+        }
     }
 }
