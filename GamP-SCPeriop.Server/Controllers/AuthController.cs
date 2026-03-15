@@ -2,7 +2,6 @@
 using Microsoft.EntityFrameworkCore;
 using GamP_SCPeriop.Server.Data;
 using GamP_SCPeriop.Shared;
-using Gamp_SCPeriop.Shared;
 
 namespace GamP_SCPeriop.Server.Controllers
 {

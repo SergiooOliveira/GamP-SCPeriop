@@ -26,7 +26,7 @@
   <ItemGroup>
 	<ProjectReference Include="..\GamP-SCPeriop\GamP-SCPeriop.csproj" />
 	  
-    <ProjectReference Include="..\Gamp-SCPeriop.Shared\GamP-SCPeriop.Shared.csproj" />
+    <ProjectReference Include="..\GamP-SCPeriop.Shared\GamP-SCPeriop.Shared.csproj" />
   </ItemGroup>
 
 </Project>

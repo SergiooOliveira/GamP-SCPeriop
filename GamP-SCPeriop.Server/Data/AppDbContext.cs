@@ -19,7 +19,7 @@ namespace GamP_SCPeriop.Server.Data
         #region Database Tables
 
         public DbSet<User> Users { get; set; }
-        public DbSet<Pathway> Pathsways { get; set; }
+        public DbSet<Pathway> Pathways { get; set; }
         public DbSet<Enrollment> Enrollments { get; set; }
         public DbSet<Module> Modules { get; set; }
         public DbSet<ModuleComponent> ModuleComponents { get; set; }

@@ -47,7 +47,7 @@ namespace GamP_SCPeriop.Server.Migrations
                 defaultValue: 0);
 
             migrationBuilder.CreateTable(
-                name: "Pathsways",
+                name: "Pathways",
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
@@ -58,7 +58,7 @@ namespace GamP_SCPeriop.Server.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Pathsways", x => x.Id);
+                    table.PrimaryKey("PK_Pathways", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
@@ -77,7 +77,7 @@ namespace GamP_SCPeriop.Server.Migrations
                 {
                     table.PrimaryKey("PK_Enrollments", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_Enrollments_Pathsways_PathwayId",
+                        name: "FK_Enrollments_Pathways_PathwayId",
                         column: x => x.PathwayId,
                         principalTable: "Pathsways",
                         principalColumn: "Id",
