@@ -1,5 +1,6 @@
 ﻿@page "/my-profile"
 @using GamP_SCPeriop.Shared
+@layout EmptyLayout
 @inject Blazored.LocalStorage.ILocalStorageService LocalStorage
 @inject NavigationManager Nav
 @inject HttpClient Http
@@ -69,8 +70,11 @@
                             <div class="card-body pt-0">
                                 @foreach (var module in pathway.Modules)
                                 {
-                                    <div class="d-flex justify-content-between align-items-center py-3 border-bottom">
+                                    var isModuleOpen = openModules.Contains(module.Id);
+
+                                    <div class="d-flex justify-content-between align-items-center py-3 border-bottom no-select" @onclick="() => ToggleModule(module.Id)" style="cursor: pointer; border-radius: 15px;">
                                         <div>
+                                            <span class="me-2">@(isModuleOpen ? "▼" : "▶")</span>
                                             <div class="fw-bold">@module.Title</div>
                                             <div class="text-success small">Concluído</div>
                                         </div>
@@ -79,6 +83,22 @@
                                             <i class="bi bi-eye text-primary"></i>
                                         </div>
                                     </div>
+
+                                    @if (isModuleOpen)
+                                    {
+                                        <ul class="list-group list-group-flush ms-4">
+                                            @foreach (var component in module.Components)
+                                            {
+                                                <li class="">
+                                                    <span><i class="bi bi-file-earmark-pdf me-2"></i>@component.Title</span>
+                                                    @if (!string.IsNullOrEmpty(component.PdfFilePath))
+                                                    {
+                                                        <button class="btn btn-sm btn-outline-secondary">Open Pdf</button>
+                                                    }
+                                                </li>
+                                            }
+                                        </ul>
+                                    }
                                 }
                             </div>
                         }
@@ -90,29 +110,38 @@
 </div>
 
 @code {
-    private User currentUser;
-    private List<Pathway>? pathways;
+    private User? currentUser;
+    private List<Pathway>? pathways;    
 
     private HashSet<int> openPathways = new HashSet<int>();
+    private HashSet<int> openModules = new HashSet<int>();
 
     protected override async Task OnInitializedAsync()
     {
-        var hasUser = await LocalStorage.ContainKeyAsync("user");
-
-        if (!hasUser)
+        try
         {
-            Nav.NavigateTo("/login");
-            return;
+            var hasUser = await LocalStorage.ContainKeyAsync("user");
+
+            if (!hasUser)
+            {
+                Nav.NavigateTo("/login");
+                return;
+            }
+
+            currentUser = await LocalStorage.GetItemAsync<User>("user");
+
+            if (currentUser?.Role == UserRole.Supervisor)
+            {
+                Nav.NavigateTo("/dashboard");
+                return;
+            }
+
+            pathways = await Http.GetFromJsonAsync<List<Pathway>>("api/Pathway");
         }
-
-        currentUser = await LocalStorage.GetItemAsync<User>("user");
-
-        if (currentUser.Role == UserRole.Supervisor)
+        catch (Exception ex)
         {
-            Nav.NavigateTo("/dashboard");
+            Console.WriteLine($"Critical error: {ex.Message}");
         }
-
-        pathways = await Http.GetFromJsonAsync<List<Pathway>>("api/Pathway");
     }
 
     private async Task Logout()
@@ -130,6 +159,18 @@
         else
         {
             openPathways.Add(id);
+        }
+    }
+
+    private void ToggleModule(int id)
+    {
+        if (openModules.Contains(id))
+        {
+            openModules.Remove(id);
+        }
+        else
+        {
+            openModules.Add(id);
         }
     }
 }
