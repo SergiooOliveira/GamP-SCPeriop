@@ -1,5 +1,6 @@
 ﻿@page "/my-profile"
 @using GamP_SCPeriop.Shared
+@using static GamP_SCPeriop.Helpers.UIHelpers
 @layout TopNavBarLayout
 @inject Blazored.LocalStorage.ILocalStorageService LocalStorage
 @inject NavigationManager Nav
@@ -24,7 +25,7 @@
                                 <i class="bi @(isOpen ? "bi-chevron-down" : "bi-chevron-right") me-3 text-muted"></i>
                                 <div>
                                     <h5 class="fw-bold mb-0">@pathway.Title</h5>
-                                    <small class="text-muted">Professor: João Silva</small>
+                                    <small class="text-muted" style="font-size: 0.7rem;">João Silva</small>
                                 </div>                                
                             </div>
 
@@ -32,50 +33,31 @@
                                 <small class="text-muted mb-1" style="font-size: 0.7rem;">15, Abril 2025</small>
                                 
                                 <div class="d-flex align-items-center gap-2">
-                                    <small class="text-muted">Em curso</small>
+                                    <small class="text-muted">@pathway.Status</small>
 
                                     <div class="bg-light" style="width: 60px; height: 6px; border-radius: 10px; overflow: hidden;">
-                                        <div class="bg-primary h-100" style="width: 15%;"></div>
+                                        <div class="bg-primary h-100" style="width: @(pathway.TotalProgress)%;"></div>
                                     </div>
                                         
-                                    <small class="text-primary">15%</small>
+                                    <small class="text-primary">@(pathway.TotalProgress)%</small>
                                 </div>                                                                    
                             </div>
                         </div>
                         @if (isOpen)
                         {
-                            <div class="px-4 pb-3">
+                            <div class="px-4 pb-2">
                                 @foreach (var module in pathway.Modules)
                                 {
-                                    var isModuleOpen = openModules.Contains(module.Id);
-
-                                    <div class="d-flex justify-content-between align-items-center py-3 border-top no-select" @onclick="() => ToggleModule(module.Id)" style="cursor: pointer; border-radius: 15px;">
+                                    <div class="d-flex justify-content-between align-items-center py-3 border-top no-select" @onclick='() => Nav.NavigateTo($"/module/{module.Id}")' style="cursor: pointer;">
                                         <div>
-                                            <span class="me-2">@(isModuleOpen ? "▼" : "▶")</span>
-                                            <div class="fw-bold">@module.Title</div>
-                                            <div class="text-success small">Concluído</div>
+                                            <div class="fw-bold fs-6 mb-0">@module.Title</div>
+                                            <small class="text-success" style="font-size: 0.75rem;">@module.Status</small>
                                         </div>
-                                        <div class="d-flex align-items-center">
-                                            <span class="badge rounded-pill bg-success-subtle text-success me-3">Aprovado</span>
-                                            <i class="bi bi-eye text-primary"></i>
+
+                                        <div>                                            
+                                            <i class="bi bi-eye text-primary fs-5"></i>
                                         </div>
                                     </div>
-
-                                    @if (isModuleOpen)
-                                    {
-                                        <ul class="list-group list-group-flush ms-4">
-                                            @foreach (var component in module.Components)
-                                            {
-                                                <li class="">
-                                                    <span><i class="bi bi-file-earmark-pdf me-2"></i>@component.Title</span>
-                                                    @if (!string.IsNullOrEmpty(component.PdfFilePath))
-                                                    {
-                                                        <button class="btn btn-sm btn-outline-secondary">Open Pdf</button>
-                                                    }
-                                                </li>
-                                            }
-                                        </ul>
-                                    }
                                 }
                             </div>
                         }

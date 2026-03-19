@@ -1,0 +1,11 @@
+﻿.detail-header-card {
+    background-color: white;
+    border-radius: 28px;
+    overflow: hidden;
+    border: none;
+}
+
+.detail-header-bottom {
+    background-color: #f0f7f9;
+    padding: 15px 25px;
+}
