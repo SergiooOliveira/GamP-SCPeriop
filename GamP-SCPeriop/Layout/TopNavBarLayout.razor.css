@@ -1,0 +1,24 @@
+﻿.max-width-container {
+    max-width: 500px;
+    margin: 0 auto;
+}
+
+.user-pill {
+    background: white;
+    border-radius: 50px;
+    padding: 4px 4px 4px 4px;
+    display: flex;
+    align-items: center;
+}
+
+.avatar {
+    width: 32px;
+    height: 32px;
+    background: #6c8ebf;
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+}

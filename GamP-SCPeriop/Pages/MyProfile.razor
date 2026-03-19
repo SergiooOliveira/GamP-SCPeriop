@@ -1,46 +1,14 @@
 ﻿@page "/my-profile"
 @using GamP_SCPeriop.Shared
-@layout EmptyLayout
+@layout TopNavBarLayout
 @inject Blazored.LocalStorage.ILocalStorageService LocalStorage
 @inject NavigationManager Nav
 @inject HttpClient Http
 
 <div class="container mt-4">
     <div class="row">
-        <div class="col-md-4"> @* Profile on the left *@
-            <div class="card shadow-sm mb-4">
-                <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
-                    <h3 class="mb-0">My Profile</h3>
-                    <button class="btn btn-sm btn-light text-danger" @onclick="Logout">
-                        <span class="bi bi-box-arrow-right"></span> Logout
-                    </button>
-                </div>
-                <div class="card-body">
-                    @if (currentUser == null)   
-                    {
-                        <p>Waiting</p>
-                    }
-                    else
-                    {
-                        <div class="mb-3">
-                            <label class="text-muted fw-bold">Username</label>
-                            <h4>@currentUser.DisplayShortName</h4>
-                        </div>
-                        <div class="mb-3">
-                            <label class="text-muted fw-bold">Email</label>
-                            <h4>@currentUser.Email</h4>
-                        </div>
-
-                        <div class="alert alert-success">
-                            <strong>Status:</strong> You are registered as an active Student (Supervised).
-                        </div>
-                    }
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-8"> @* Pathways on the right *@
-            <h3>My Pathways</h3>
+        <div class="max-width-container mt-3 px-2">
+            <h4 class="fw-bold mb-4">My Pathways</h4>
             @if (pathways == null)
             {
                 <p>Loading Pathways</p>
@@ -50,29 +18,38 @@
                 @foreach (var pathway in pathways)
                 {
                     var isOpen = openPathways.Contains(pathway.Id);
-                    <div class="card shadow-sm mb-3 border-0" style="border-radius: 15px;">
-                        <div class="card-header bg-white d-flex justify-content-between align-items-center no-select" @onclick="() => TogglePathway(pathway.Id)" style="cursor: pointer; border-radius: 15px;">
-                            <div>
-                                <span class="me-2">@(isOpen ? "▼" : "▶")</span>
-                                <strong class="fs-5">@pathway.Title</strong>
-                                <div class="text-muted small">Professor: João Silva</div>
-                            </div>
+                    <div class="card shadow-sm mb-3 border-0" style="border-radius: 25px;">
+                        <div class="p-4 d-flex justify-content-between align-items-center no-select" @onclick="() => TogglePathway(pathway.Id)" style="cursor: pointer;">
                             <div class="d-flex align-items-center">
-                                <span class="badge bg-light text-primary me-2">Em curso</span>
-                                <div class="progress" style="width: 100px; height: 8px;">
-                                    <div class="progress-bar" style="width: 15%"></div>
-                                </div>
-                                <span class="ms-2 small">15%</span>
+                                <i class="bi @(isOpen ? "bi-chevron-down" : "bi-chevron-right") me-3 text-muted"></i>
+                                <div>
+                                    <h5 class="fw-bold mb-0">@pathway.Title</h5>
+                                    <small class="text-muted">Professor: João Silva</small>
+                                </div>                                
+                            </div>
+
+                            <div class="text-end d-flex flex-column align-items-end">
+                                <small class="text-muted mb-1" style="font-size: 0.7rem;">15, Abril 2025</small>
+                                
+                                <div class="d-flex align-items-center gap-2">
+                                    <small class="text-muted">Em curso</small>
+
+                                    <div class="bg-light" style="width: 60px; height: 6px; border-radius: 10px; overflow: hidden;">
+                                        <div class="bg-primary h-100" style="width: 15%;"></div>
+                                    </div>
+                                        
+                                    <small class="text-primary">15%</small>
+                                </div>                                                                    
                             </div>
                         </div>
                         @if (isOpen)
                         {
-                            <div class="card-body pt-0">
+                            <div class="px-4 pb-3">
                                 @foreach (var module in pathway.Modules)
                                 {
                                     var isModuleOpen = openModules.Contains(module.Id);
 
-                                    <div class="d-flex justify-content-between align-items-center py-3 border-bottom no-select" @onclick="() => ToggleModule(module.Id)" style="cursor: pointer; border-radius: 15px;">
+                                    <div class="d-flex justify-content-between align-items-center py-3 border-top no-select" @onclick="() => ToggleModule(module.Id)" style="cursor: pointer; border-radius: 15px;">
                                         <div>
                                             <span class="me-2">@(isModuleOpen ? "▼" : "▶")</span>
                                             <div class="fw-bold">@module.Title</div>

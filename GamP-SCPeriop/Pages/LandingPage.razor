@@ -6,36 +6,52 @@
 @inject HttpClient Http
 @inject NavigationManager Nav
 
-<body>
-    <EditForm Model="loginModel" onValidSubmit="HandleLogin">
-        <DataAnnotationsValidator />
+<div class="d-flex align-items-center justify-content-center vh-100 bg-light">
+    <div class="card shadow-lg border-0" style="width: 100%; max-width: 450px; border-radius: 15px;">
+        <div class="card-body p-5">
+            <div class="text-center mb-4">
+                <h2 class="fw-bold text-primary">Welcome Back</h2>
+                <p class="text-muted">Please sign in to your account</p>
+            </div>
 
-        <div class="container">
-            <label for="uname"><b>Email</b></label>
-            <InputText @bind-value="loginModel.Email" class="form-control" placeholder="Enter Email" required />
-            <ValidationMessage For="@(() => loginModel.Email)" />
+            <EditForm Model="loginModel" onValidSubmit="HandleLogin">
+                <DataAnnotationsValidator />
 
-            <label for="psw"><b>Password</b></label>
-            <InputText type="password" @bind-value="loginModel.Password" class="form-control" placeholder="Enter Password" required />
-            <ValidationMessage For="@(() => loginModel.Password)" />
+                <div class="form-floating mb-3">                    
+                    <InputText id="emailInput" @bind-value="loginModel.Email" class="form-control form-control-lg" required />
+                    <label for="emailInput"><b>Email adress</b></label>
+                    <ValidationMessage For="@(() => loginModel.Email)" class="text-danger small mt-1"/>
+                </div>
+                <div class="form-floating mb-4">                    
+                    <InputText type="password" id="passwordInput" @bind-value="loginModel.Password" class="form-control form-control-lg" required />
+                    <label for="passwordInput"><b>Password</b></label>
+                    <ValidationMessage For="@(() => loginModel.Password)" class="text-danger small mt-1"/>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="rememberMe" checked />
+                        <label class="form-check-label text-muted" for="rememberMe">
+                            Remember me
+                        </label>
+                    </div>
+                    <a href="#" class="text-decoration-none small">Forgot password?</a>
+                </div>
 
-            <button type="submit">Login</button>
-            <label>
-                <input type="checkbox" checked="checked" name="remember"> Remember me
-            </label>
+                <button type="submit" class="btn btn-primary btn-lg w-100 mb-3" style="border-radius: 10px;">
+                    Login
+                </button>
+
+                @if (!string.IsNullOrEmpty(error))
+                {
+                    <div class="alert alert-danger mt-3 mb-0" style="border-radius: 10px;">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>@error
+                    </div>
+                }
+            </EditForm>
         </div>
+    </div>
+</div>
 
-        <div class="container" style="background-color:#f1f1f1">
-            <button type="button" class="cancelbtn">Cancel</button>
-            <span class="psw">Forgot <a href="#">password?</a></span>
-        </div>
-    </EditForm>
-
-    @if (!string.IsNullOrEmpty(error))
-    {
-        <div class="alert alert-danger mt-3">@error</div>
-    }
-</body>
 
 @code {
 

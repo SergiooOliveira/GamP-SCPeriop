@@ -1,0 +1,39 @@
+﻿@inherits LayoutComponentBase
+@inject Blazored.LocalStorage.ILocalStorageService LocalStorage
+
+<div class="page">
+    <header class="sticky-top bg-light p-3 no-select">
+        <div class="d-flex justify-content-between align-items-center max-width-container">
+            <div>
+                <small class="text-muted d-block">Universidade</small>
+                <small class="text-muted fw-bold">do minho</small>
+            </div>
+
+            @if (currentUser != null)
+            {
+                <div class="user-pill shadow-sm">
+                    <div class="text-end me-2">
+                        <div class="fw-bold small">@currentUser.DisplayShortName</div>
+                        <small class="text-muted">Supervisionado</small>
+                    </div>
+                    <div class="avatar">@currentUser.DisplayShortName[0]</div>
+                </div>
+            }
+        </div>
+    </header>
+
+    <main class="p-3">
+        <div class="">
+            @Body
+        </div>
+    </main>
+</div>
+
+@code {
+    private User? currentUser;
+
+    protected override async Task OnInitializedAsync()
+    {
+        currentUser = await LocalStorage.GetItemAsync<User>("user");
+    }
+}
