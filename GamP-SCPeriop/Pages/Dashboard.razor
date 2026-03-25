@@ -1,15 +1,12 @@
 ﻿@page "/dashboard"
 @using GamP_SCPeriop.Shared
 @using Blazored.LocalStorage
-@layout EmptyLayout
+@layout TopNavBarLayout
 @inject HttpClient Http
 @inject NavigationManager Nav
 @inject ILocalStorageService LocalStorage
 
-<h3>🎓 Manager Dashboard</h3>
-<p>Overview of all supervised students</p>
-
-@if (students == null)
+@* @if (students == null)
 {
     <p><em>Loading students...</em></p>
 }
@@ -18,57 +15,87 @@ else if (students.Count == 0)
     <div class="alert alert-info">No students registered yet.</div>
 }
 else
-{
-    <table class="table table-striped table-hover shadow-sm">
-        <thead class="bg-primary text-white">
-            <tr>
-                <th>Username</th>
-                <th>Email</th>
-                <th>Status</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var student in students)
-            {
-                <tr>
-                    <td>@student.DisplayShortName</td>
-                    <td>@student.Email</td>
-                    <td>
-                        <span class="badge bg-success">Active</span>
-                    </td>
-                    <td>
-                        <button class="btn btn-sm btn-outline-primary">
-                            View Details
-                        </button>
-                    </td>
-                </tr>
-            }
-        </tbody>
-    </table>
-}
+{ *@
+    <div class="max-width-container mt-3 px-3 pb-5">
+        <div class="d-flex justify-content-between align-items-end mb-3">
+            <h5 class="fw-bold mb-0">Pathways</h5>
+            <a href="#" class="text-primary text-decoration-none small">Ver todas</a>
+        </div>
+
+        <div class="d-flex overflow-auto gap-3 mb-4 pb-2" style="scrollbar-width: none;">
+        
+            <div class="card border-0 shadow-sm flex-shrink-0" style="width: 200px; border-radius: 15px; background-color: #E2ECEF;">
+                <div class="card-body">
+                    <h6 class="fw-bold mb-3">Anestesia</h6>
+                    <div class="mb-4">
+                        <span class="fs-3 fw-bold me-1">5</span>
+                        <span class="text-muted small">Supervisionados</span>
+                    </div>
+                    <button class="btn btn-primary w-100" style="border-radius: 10px; background-color: #6A96A6; border: none;">Ver Pathway</button>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm flex-shrink-0" style="width: 200px; border-radius: 15px; background-color: #F8F9FA;">
+                <div class="card-body">
+                    <h6 class="fw-bold mb-3">Instrumentação</h6>
+                    <div class="mb-4">
+                        <span class="fs-3 fw-bold me-1">3</span>
+                        <span class="text-muted small">Supervisionados</span>
+                    </div>
+                    <button class="btn btn-primary w-100" style="border-radius: 10px; background-color: #6A96A6; border: none;">Ver Pathway</button>
+                </div>
+            </div>
+        
+        </div>
+
+        <h5 class="fw-bold mb-3">Todos os Supervisionados</h5>
+    
+        <div class="card border-0 shadow-sm" style="border-radius: 15px; overflow: hidden;">
+            <div class="d-flex text-muted small p-3 bg-white border-bottom">
+                <div style="flex: 2;">Nome</div>
+                <div style="flex: 1.5;">Pathway</div>
+                <div style="flex: 1;" class="text-end">Progresso</div>
+            </div>
+
+            <div class="d-flex align-items-center p-3 bg-white border-bottom">
+                <div class="d-flex align-items-center" style="flex: 2;">
+                    <div class="rounded-circle bg-danger text-white d-flex justify-content-center align-items-center me-2" style="width: 35px; height: 35px;">
+                        <i class="bi bi-person-fill"></i>
+                    </div>
+                    <div>
+                        <div class="fw-bold" style="font-size: 0.9rem;">Nome Apelido</div>
+                        <div class="text-muted" style="font-size: 0.7rem;">Universidade do Minho</div>
+                    </div>
+                </div>
+                <div class="text-muted" style="font-size: 0.9rem; flex: 1.5;">
+                    Anestesia
+                </div>
+                <div style="flex: 1;" class="text-end">
+                    <span class="badge rounded-pill bg-primary-subtle text-primary">75%</span>
+                </div>
+            </div>
+
+            <div class="d-flex align-items-center p-3 bg-white">
+                <div class="d-flex align-items-center" style="flex: 2;">
+                    <div class="rounded-circle bg-success text-white d-flex justify-content-center align-items-center me-2" style="width: 35px; height: 35px;">
+                        <i class="bi bi-person-fill"></i>
+                    </div>
+                    <div>
+                        <div class="fw-bold" style="font-size: 0.9rem;">Nome Apelido</div>
+                        <div class="text-muted" style="font-size: 0.7rem;">Universidade do Minho</div>
+                    </div>
+                </div>
+                <div class="text-muted" style="font-size: 0.9rem; flex: 1.5;">
+                    Ensino Clínico I
+                </div>
+                <div style="flex: 1;" class="text-end">
+                    <span class="badge rounded-pill bg-success-subtle text-success">100%</span>
+                </div>
+            </div>
+        </div>
+    </div>
+@* } *@
 
 @code {
-    private List<User> students;
-    private User currentUser;
-
-    protected override async Task OnInitializedAsync()
-    {
-        var hasUser = await LocalStorage.ContainKeyAsync("user");
-        if (!hasUser)
-        {
-            Nav.NavigateTo("/login");
-            return;
-        }
-
-        currentUser = await LocalStorage.GetItemAsync<User>("user");
-
-        if (currentUser.Role == UserRole.Supervisionado)
-        {
-            Nav.NavigateTo("/my-profile");
-            return;
-        }
-
-        students = await Http.GetFromJsonAsync<List<User>>("api/user/students");
-    }
+    
 }

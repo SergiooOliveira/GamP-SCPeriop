@@ -1,10 +1,11 @@
 ﻿@page "/my-profile"
 @using GamP_SCPeriop.Shared
+@using Blazored.LocalStorage
 @using static GamP_SCPeriop.Helpers.UIHelpers
 @layout TopNavBarLayout
-@inject Blazored.LocalStorage.ILocalStorageService LocalStorage
-@inject NavigationManager Nav
 @inject HttpClient Http
+@inject NavigationManager Nav
+@inject ILocalStorageService LocalStorage
 
 <div class="container mt-4">
     <div class="row">
