@@ -124,3 +124,22 @@ code {
     max-width: 500px !important;
     margin: 0 auto;
 }
+
+/* Custom horizontal scrollbar */
+.horizontal-scroll-container {
+    overflow-x: auto;
+    padding-bottom: 10px;
+}
+
+.horizontal-scroll-container::-webkit-scrollbar {
+    height: 3px;
+}
+
+.horizontal-scroll-container::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.horizontal-scroll-container::-webkit-scrollbar-thumb {
+    background-color: #6A96A6;
+    border-radius: 10px;
+}

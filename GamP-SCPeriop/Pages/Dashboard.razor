@@ -22,80 +22,121 @@ else
             <a href="#" class="text-primary text-decoration-none small">Ver todas</a>
         </div>
 
-        <div class="d-flex overflow-auto gap-3 mb-4 pb-2" style="scrollbar-width: none;">
+        <div class="d-flex overflow-auto gap-3 mb-4 pb-2 horizontal-scroll-container">
         
-            <div class="card border-0 shadow-sm flex-shrink-0" style="width: 200px; border-radius: 15px; background-color: #E2ECEF;">
-                <div class="card-body">
-                    <h6 class="fw-bold mb-3">Anestesia</h6>
-                    <div class="mb-4">
-                        <span class="fs-3 fw-bold me-1">5</span>
-                        <span class="text-muted small">Supervisionados</span>
+        @if (pathwaySummaries.Any())
+        {
+            @foreach (var summary in pathwaySummaries)
+            {
+                <div class="card border-0 shadow-sm flex-shrink-0" style="width: 240px; border-radius: 20px; background-color: #E2ECEF;">
+                    <div class="card-body p-4">
+                        <h6 class="fw-bold mb-3 fs-5">@summary.Pathway.Title</h6>
+                        <div class="mb-4 d-flex align-items-baseline">
+                            <span class="fs-2 fw-bold me-2">@summary.StudentCount</span>
+                            <span class="text-muted small">Supervisionados</span>
+                        </div>
+                        <button class="btn w-100 text-white fw-semibold" style="border-radius: 12px; background-color: #6A96A6; border: none; padding: 10px;">Ver Pathway</button>
                     </div>
-                    <button class="btn btn-primary w-100" style="border-radius: 10px; background-color: #6A96A6; border: none;">Ver Pathway</button>
                 </div>
-            </div>
-
-            <div class="card border-0 shadow-sm flex-shrink-0" style="width: 200px; border-radius: 15px; background-color: #F8F9FA;">
-                <div class="card-body">
-                    <h6 class="fw-bold mb-3">Instrumentação</h6>
-                    <div class="mb-4">
-                        <span class="fs-3 fw-bold me-1">3</span>
-                        <span class="text-muted small">Supervisionados</span>
-                    </div>
-                    <button class="btn btn-primary w-100" style="border-radius: 10px; background-color: #6A96A6; border: none;">Ver Pathway</button>
-                </div>
-            </div>
-        
+            }
+        }
+        else
+        {
+            <p class="text-muted">A carregar pathways...</p>
+        }
         </div>
 
-        <h5 class="fw-bold mb-3">Todos os Supervisionados</h5>
+        <div class="mt-4">
+            <h5 class="fw-bold mb-0">Todos os Supervisionados</h5>
     
-        <div class="card border-0 shadow-sm" style="border-radius: 15px; overflow: hidden;">
-            <div class="d-flex text-muted small p-3 bg-white border-bottom">
-                <div style="flex: 2;">Nome</div>
-                <div style="flex: 1.5;">Pathway</div>
-                <div style="flex: 1;" class="text-end">Progresso</div>
-            </div>
+            <div class="card border-0 shadow-sm" style="border-radius: 20px; overflow: hidden;">
+                
+                <div class="d-flex text-muted small p-3 bg-white border-bottom">
+                    <div style="flex: 2;">Nome</div>
+                    <div style="flex: 1.5;">Pathway</div>
+                    <div style="flex: 1;" class="text-end">Progresso</div>
+                </div>
 
-            <div class="d-flex align-items-center p-3 bg-white border-bottom">
-                <div class="d-flex align-items-center" style="flex: 2;">
-                    <div class="rounded-circle bg-danger text-white d-flex justify-content-center align-items-center me-2" style="width: 35px; height: 35px;">
-                        <i class="bi bi-person-fill"></i>
-                    </div>
-                    <div>
-                        <div class="fw-bold" style="font-size: 0.9rem;">Nome Apelido</div>
-                        <div class="text-muted" style="font-size: 0.7rem;">Universidade do Minho</div>
-                    </div>
-                </div>
-                <div class="text-muted" style="font-size: 0.9rem; flex: 1.5;">
-                    Anestesia
-                </div>
-                <div style="flex: 1;" class="text-end">
-                    <span class="badge rounded-pill bg-primary-subtle text-primary">75%</span>
-                </div>
-            </div>
-
-            <div class="d-flex align-items-center p-3 bg-white">
-                <div class="d-flex align-items-center" style="flex: 2;">
-                    <div class="rounded-circle bg-success text-white d-flex justify-content-center align-items-center me-2" style="width: 35px; height: 35px;">
-                        <i class="bi bi-person-fill"></i>
-                    </div>
-                    <div>
-                        <div class="fw-bold" style="font-size: 0.9rem;">Nome Apelido</div>
-                        <div class="text-muted" style="font-size: 0.7rem;">Universidade do Minho</div>
-                    </div>
-                </div>
-                <div class="text-muted" style="font-size: 0.9rem; flex: 1.5;">
-                    Ensino Clínico I
-                </div>
-                <div style="flex: 1;" class="text-end">
-                    <span class="badge rounded-pill bg-success-subtle text-success">100%</span>
-                </div>
+                @if (supervisedEnrollments.Any())
+                {
+                    @foreach (var enrollment in supervisedEnrollments)
+                    {
+                        <div class="d-flex align-items-center px-4 py-3 bg-white border-bottom">
+                            <div class="d-flex align-items-center gap-3" style="flex: 2;">
+                                <div class="rounded-circle bg-secondary text-white d-flex justify-content-center align-items-center" style="width: 40px; height: 40px;">
+                                    <i class="bi bi-person-fill fs-5"></i>
+                                </div>
+                                <div>
+                                    <div class="fw-bold text-dark" style="font-size: 0.95rem;">@(enrollment.Student?.DisplayShortName ?? "Aluno Desconhecido")</div>
+                                    <div class="text-muted" style="font-size: 0.75rem;">Universidade do Minho</div>
+                                </div>
+                            </div>
+                            <div class="text-muted" style="font-size: 0.95rem; flex: 1.5;">
+                                @(enrollment.Pathway?.Title ?? "Sem Pathway")
+                            </div>
+                            <div style="flex: 1;" class="text-end">
+                                <span class="badge rounded-pill bg-primary-subtle text-primary border border-primary-subtle px-3 py-2">
+                                    @enrollment.ProgressPercentage%
+                                </span>
+                            </div>
+                        </div>
+                    }
+                }
+                else
+                {
+                    <div class="p-4 text-center text-muted">A carregar alunos...</div>
+                }
             </div>
         </div>
     </div>
 @* } *@
 
 @code {
+    private User? currentUser;
+    private List<Enrollment> supervisedEnrollments = new();
     
+    // Helper record to group data for the top cards
+    private record PathwaySummary(Pathway Pathway, int StudentCount);
+    private List<PathwaySummary> pathwaySummaries = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            // 1. Verify session
+            var hasUser = await LocalStorage.ContainKeyAsync("user");
+            if (!hasUser)
+            {
+                Nav.NavigateTo("/login");
+                return;
+            }
+
+            currentUser = await LocalStorage.GetItemAsync<User>("user");
+
+            if (currentUser?.Role != UserRole.Supervisor)
+            {
+                Nav.NavigateTo("/"); // Kick out non-supervisors
+                return;
+            }
+
+            // 2. Fetch data from the new API endpoint
+            var fetchedData = await Http.GetFromJsonAsync<List<Enrollment>>($"api/Enrollment/supervisor/{currentUser.Id}");
+            
+            if (fetchedData != null)
+            {
+                supervisedEnrollments = fetchedData;
+
+                // 3. Group the data for the carousel cards
+                pathwaySummaries = supervisedEnrollments
+                    .Where(e => e.Pathway != null)
+                    .GroupBy(e => e.Pathway!)
+                    .Select(g => new PathwaySummary(g.Key, g.Count()))
+                    .ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Critical error loading dashboard: {ex.Message}");
+        }
+    }
 }
