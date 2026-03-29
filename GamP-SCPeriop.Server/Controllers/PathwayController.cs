@@ -36,15 +36,17 @@ namespace GamP_SCPeriop.Server.Controllers
 
         #endregion
 
-        [HttpGet]
-        public async Task<ActionResult<List<Pathway>>> GetFullPathways()
+        [HttpGet("{id}")]
+        public async Task<ActionResult<Pathway>> GetPathway(int id)
         {
-            var pathways = await _context.Pathways
+            var pathway = await _context.Pathways
                 .Include(p => p.Modules)
                     .ThenInclude(m => m.Components)
-                .ToListAsync();
+                .FirstOrDefaultAsync(p => p.Id == id);
 
-            return Ok(pathways);
+            if (pathway == null) return NotFound();
+
+            return Ok(pathway);
         }
     }
 }

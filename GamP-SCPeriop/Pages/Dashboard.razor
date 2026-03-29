@@ -35,7 +35,11 @@ else
                             <span class="fs-2 fw-bold me-2">@summary.StudentCount</span>
                             <span class="text-muted small">Supervisionados</span>
                         </div>
-                        <button class="btn w-100 text-white fw-semibold" style="border-radius: 12px; background-color: #6A96A6; border: none; padding: 10px;">Ver Pathway</button>
+                        <button @onclick="@(() => Nav.NavigateTo($"/pathway/{summary.Pathway.Id}"))"
+                                class="btn w-100 text-white fw-semibold"
+                                style="border-radius: 12px; background-color: #6A96A6; border: none; padding: 10px;">
+                            Ver Pathway
+                        </button>
                     </div>
                 </div>
             }
