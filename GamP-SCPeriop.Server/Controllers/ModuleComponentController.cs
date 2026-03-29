@@ -1,6 +1,7 @@
 ﻿using GamP_SCPeriop.Server.Data;
 using GamP_SCPeriop.Shared;
 using Microsoft.AspNetCore.Mvc;
+using System.ComponentModel;
 
 namespace GamP_SCPeriop.Server.Controllers
 {
@@ -16,13 +17,20 @@ namespace GamP_SCPeriop.Server.Controllers
         }
 
         [HttpPost]
-        public async Task<ActionResult<ModuleComponent>> CreateComponent(ModuleComponent newModuleComponent)
+        public async Task<ActionResult<Component>> CreateComponent(ModuleComponentCreateDTO dto)
         {
-            _context.ModuleComponents.Add(newModuleComponent);
+            var component = new ModuleComponent
+            {
+                Title = dto.Title,
+                ModuleId = dto.ModuleId,
+                PdfFilePath = dto.PdfFilePath ?? string.Empty,
+                Status = 0 // Assuming 0 means "Not Started" or similar
+            };
 
+            _context.ModuleComponents.Add(component);
             await _context.SaveChangesAsync();
 
-            return Ok(newModuleComponent);
+            return Ok(component);
         }
     }
 }

@@ -16,12 +16,19 @@ namespace GamP_SCPeriop.Server.Controllers
         }
 
         [HttpPost]
-        public async Task<ActionResult<Module>> CreateModule(Module newModule)
+        public async Task<ActionResult<Module>> CreateModule(ModuleCreateDTO dto)
         {
-            _context.Modules.Add(newModule);
+            var module = new Module
+            {
+                Title = dto.Title,
+                PathwayId = dto.PathwayId
+                // Components list starts empty
+            };
+
+            _context.Modules.Add(module);
             await _context.SaveChangesAsync();
 
-            return Ok(newModule);
+            return Ok(module);
         }
     }
 }

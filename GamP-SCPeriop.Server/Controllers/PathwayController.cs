@@ -18,20 +18,22 @@ namespace GamP_SCPeriop.Server.Controllers
 
         #region Subject Management
 
-        /// <summary>
-        /// Call this method to create a new Pathway
-        /// </summary>
-        /// <param name="newPathway">New Pathway to add</param>
         [HttpPost]
-        public async Task<ActionResult<Pathway>> CreatePathway(Pathway newPathway)
+        public async Task<ActionResult<Pathway>> CreatePathway(PathwayCreateDTO dto)
         {
-            // Stage the new pathway in Entity Framework
-            _context.Pathways.Add(newPathway);
+            var pathway = new Pathway
+            {
+                Title = dto.Title,
+                MinimumPassScore = dto.MinimumPassScore,
+                MinimumApprovalScore = dto.MinimumApprovalScore
+                // Modules list starts empty automatically
+            };
 
-            // Commit  the staged changes to the SQL database
+            _context.Pathways.Add(pathway);
             await _context.SaveChangesAsync();
 
-            return Ok(newPathway);
+            // Returning the newly created pathway so the frontend gets the new ID
+            return Ok(pathway);
         }
 
         #endregion
