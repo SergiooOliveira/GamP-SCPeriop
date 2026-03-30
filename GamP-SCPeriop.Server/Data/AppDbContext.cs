@@ -37,6 +37,36 @@ namespace GamP_SCPeriop.Server.Data
         {
             base.OnModelCreating(modelBuilder);
 
+            modelBuilder.Entity<User>().HasData(
+                new User
+                {
+                    Id = 6,
+                    University = "IPCA",
+                    Password = "123",
+                    Email = "miguel@ipca.com",
+                    FullName = "Miguel Teixeira",
+                    Role = UserRole.Supervisor
+                },
+                new User
+                {
+                    Id = 7,
+                    University = "IPCA",
+                    Password = "123",
+                    Email = "a100@alunos.ipca.pt",
+                    FullName = "Rúben Peixoto",
+                    Role = UserRole.Supervisionado
+                },
+                new User
+                {
+                    Id = 8,
+                    University = "IPCA",
+                    Password = "123",
+                    Email = "professorTeste@ipca.pt",
+                    FullName = "Teste de nome",
+                    Role = UserRole.Supervisor
+                }
+            );
+
             // Links the Enrollment to the Student and
             // prevents auto-deletion of the enrollment
             // if the user is deleted

@@ -5,6 +5,9 @@
     <RootNamespace>GamP_SCPeriop.Shared</RootNamespace>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+	<StaticWebAssetFingerprintingEnabled>false</StaticWebAssetFingerprintingEnabled>
+	<StaticWebAssetsFingerprintContent>false</StaticWebAssetsFingerprintContent>
+	<AssemblyName>GamP-SCPeriop.Shared</AssemblyName>
   </PropertyGroup>
 
 </Project>

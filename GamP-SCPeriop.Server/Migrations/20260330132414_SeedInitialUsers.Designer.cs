@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GamP_SCPeriop.Server.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260315112248_LinkModulesToPathway")]
-    partial class LinkModulesToPathway
+    [Migration("20260330132414_SeedInitialUsers")]
+    partial class SeedInitialUsers
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -67,9 +67,6 @@ namespace GamP_SCPeriop.Server.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<int?>("EnrollmentId")
-                        .HasColumnType("int");
-
                     b.Property<int>("PathwayId")
                         .HasColumnType("int");
 
@@ -78,8 +75,6 @@ namespace GamP_SCPeriop.Server.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("EnrollmentId");
 
                     b.HasIndex("PathwayId");
 
@@ -167,6 +162,35 @@ namespace GamP_SCPeriop.Server.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Users");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 6,
+                            Email = "miguel@ipca.com",
+                            FullName = "Miguel Teixeira",
+                            Password = "123",
+                            Role = 0,
+                            University = "IPCA"
+                        },
+                        new
+                        {
+                            Id = 7,
+                            Email = "a100@alunos.ipca.pt",
+                            FullName = "Rúben Peixoto",
+                            Password = "123",
+                            Role = 1,
+                            University = "IPCA"
+                        },
+                        new
+                        {
+                            Id = 8,
+                            Email = "professorTeste@ipca.pt",
+                            FullName = "Teste de nome",
+                            Password = "123",
+                            Role = 0,
+                            University = "IPCA"
+                        });
                 });
 
             modelBuilder.Entity("GamP_SCPeriop.Shared.Enrollment", b =>
@@ -198,10 +222,6 @@ namespace GamP_SCPeriop.Server.Migrations
 
             modelBuilder.Entity("GamP_SCPeriop.Shared.Module", b =>
                 {
-                    b.HasOne("GamP_SCPeriop.Shared.Enrollment", null)
-                        .WithMany("Modules")
-                        .HasForeignKey("EnrollmentId");
-
                     b.HasOne("GamP_SCPeriop.Shared.Pathway", null)
                         .WithMany("Modules")
                         .HasForeignKey("PathwayId")
@@ -216,11 +236,6 @@ namespace GamP_SCPeriop.Server.Migrations
                         .HasForeignKey("ModuleId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-                });
-
-            modelBuilder.Entity("GamP_SCPeriop.Shared.Enrollment", b =>
-                {
-                    b.Navigation("Modules");
                 });
 
             modelBuilder.Entity("GamP_SCPeriop.Shared.Module", b =>

@@ -5,6 +5,8 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>GamP_SCPeriop.Server</RootNamespace>
+	<StaticWebAssetFingerprintingEnabled>false</StaticWebAssetFingerprintingEnabled>
+	<StaticWebAssetsFingerprintContent>false</StaticWebAssetsFingerprintContent>
   </PropertyGroup>
 
   <ItemGroup>
@@ -26,7 +28,7 @@
   <ItemGroup>
 	<ProjectReference Include="..\GamP-SCPeriop\GamP-SCPeriop.csproj" />
 	  
-    <ProjectReference Include="..\GamP-SCPeriop.Shared\GamP-SCPeriop.Shared.csproj" />
+    <ProjectReference Include="..\Gamp-SCPeriop.Shared\GamP-SCPeriop.Shared.csproj" />
   </ItemGroup>
 
 </Project>

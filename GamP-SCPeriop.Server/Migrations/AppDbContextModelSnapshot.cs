@@ -4,7 +4,6 @@ using GamP_SCPeriop.Server.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
-using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -12,11 +11,9 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GamP_SCPeriop.Server.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260315104537_SyncModels")]
-    partial class SyncModels
+    partial class AppDbContextModelSnapshot : ModelSnapshot
     {
-        /// <inheritdoc />
-        protected override void BuildTargetModel(ModelBuilder modelBuilder)
+        protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -67,7 +64,7 @@ namespace GamP_SCPeriop.Server.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<int>("EnrollmentId")
+                    b.Property<int>("PathwayId")
                         .HasColumnType("int");
 
                     b.Property<string>("Title")
@@ -76,7 +73,7 @@ namespace GamP_SCPeriop.Server.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("EnrollmentId");
+                    b.HasIndex("PathwayId");
 
                     b.ToTable("Modules");
                 });
@@ -162,6 +159,35 @@ namespace GamP_SCPeriop.Server.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Users");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 6,
+                            Email = "miguel@ipca.com",
+                            FullName = "Miguel Teixeira",
+                            Password = "123",
+                            Role = 0,
+                            University = "IPCA"
+                        },
+                        new
+                        {
+                            Id = 7,
+                            Email = "a100@alunos.ipca.pt",
+                            FullName = "Rúben Peixoto",
+                            Password = "123",
+                            Role = 1,
+                            University = "IPCA"
+                        },
+                        new
+                        {
+                            Id = 8,
+                            Email = "professorTeste@ipca.pt",
+                            FullName = "Teste de nome",
+                            Password = "123",
+                            Role = 0,
+                            University = "IPCA"
+                        });
                 });
 
             modelBuilder.Entity("GamP_SCPeriop.Shared.Enrollment", b =>
@@ -193,9 +219,9 @@ namespace GamP_SCPeriop.Server.Migrations
 
             modelBuilder.Entity("GamP_SCPeriop.Shared.Module", b =>
                 {
-                    b.HasOne("GamP_SCPeriop.Shared.Enrollment", null)
+                    b.HasOne("GamP_SCPeriop.Shared.Pathway", null)
                         .WithMany("Modules")
-                        .HasForeignKey("EnrollmentId")
+                        .HasForeignKey("PathwayId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
@@ -209,14 +235,14 @@ namespace GamP_SCPeriop.Server.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("GamP_SCPeriop.Shared.Enrollment", b =>
-                {
-                    b.Navigation("Modules");
-                });
-
             modelBuilder.Entity("GamP_SCPeriop.Shared.Module", b =>
                 {
                     b.Navigation("Components");
+                });
+
+            modelBuilder.Entity("GamP_SCPeriop.Shared.Pathway", b =>
+                {
+                    b.Navigation("Modules");
                 });
 
             modelBuilder.Entity("GamP_SCPeriop.Shared.User", b =>

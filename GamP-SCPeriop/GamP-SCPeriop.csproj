@@ -4,9 +4,15 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <OverrideHtmlAssetPlaceholders>true</OverrideHtmlAssetPlaceholders>
+    <OverrideHtmlAssetPlaceholders>false</OverrideHtmlAssetPlaceholders>
     <ServiceWorkerAssetsManifest>service-worker-assets.js</ServiceWorkerAssetsManifest>
+	<StaticWebAssetFingerprintingEnabled>false</StaticWebAssetFingerprintingEnabled>
+	<StaticWebAssetsFingerprintContent>false</StaticWebAssetsFingerprintContent>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Remove="Pages\PathwayBuilder.razor.css" />
+  </ItemGroup>
 	
   <ItemGroup>
     <PackageReference Include="Blazored.LocalStorage" Version="4.3.0" />
@@ -15,7 +21,7 @@
   </ItemGroup>
 	
   <ItemGroup>
-    <ProjectReference Include="..\GamP-SCPeriop.Shared\GamP-SCPeriop.Shared.csproj" />
+    <ProjectReference Include="..\Gamp-SCPeriop.Shared\GamP-SCPeriop.Shared.csproj" />
   </ItemGroup>
 
   <ItemGroup>
