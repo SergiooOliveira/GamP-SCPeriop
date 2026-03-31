@@ -4,6 +4,7 @@ using GamP_SCPeriop.Server.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GamP_SCPeriop.Server.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260331155404_SeedCurriculumData")]
+    partial class SeedCurriculumData
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -54,17 +57,6 @@ namespace GamP_SCPeriop.Server.Migrations
                     b.HasIndex("StudentId");
 
                     b.ToTable("Enrollments");
-
-                    b.HasData(
-                        new
-                        {
-                            Id = 1,
-                            EndDate = new DateTime(2026, 6, 30, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            PathwayId = 1,
-                            ProfessorId = 6,
-                            ProgressPercentage = 15,
-                            StudentId = 7
-                        });
                 });
 
             modelBuilder.Entity("GamP_SCPeriop.Shared.Module", b =>

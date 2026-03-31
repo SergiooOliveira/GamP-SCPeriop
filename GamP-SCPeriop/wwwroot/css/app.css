@@ -120,11 +120,6 @@ code {
     user-select: none;
 }
 
-.max-width-container {
-    max-width: 500px !important;
-    margin: 0 auto;
-}
-
 /* Custom horizontal scrollbar */
 .horizontal-scroll-container {
     overflow-x: auto;
@@ -142,4 +137,15 @@ code {
 .horizontal-scroll-container::-webkit-scrollbar-thumb {
     background-color: #6A96A6;
     border-radius: 10px;
+}
+
+.max-width-container {
+    /*max-width: 500px !important;*/
+    margin: 0 auto;
+}
+
+@include media-breakpoint-down(sm) {
+    .max-width-container {
+        margin: 0 auto;
+    }
 }

@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace GamP_SCPeriop.Shared
+namespace GamP_SCPeriop.Shared.Entity.Model
 {
     public class ModuleCreateDTO
     {

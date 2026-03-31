@@ -1,5 +1,6 @@
-﻿using Microsoft.EntityFrameworkCore;
-using GamP_SCPeriop.Shared;
+﻿using GamP_SCPeriop.Shared;
+using Microsoft.EntityFrameworkCore;
+using System.ComponentModel;
 
 namespace GamP_SCPeriop.Server.Data
 {
@@ -37,6 +38,7 @@ namespace GamP_SCPeriop.Server.Data
         {
             base.OnModelCreating(modelBuilder);
 
+            // Existing Users
             modelBuilder.Entity<User>().HasData(
                 new User
                 {
@@ -84,6 +86,41 @@ namespace GamP_SCPeriop.Server.Data
                 .WithMany()
                 .HasForeignKey(e => e.ProfessorId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            // --- NEW SEED DATA ---
+
+            // Seed Pathways
+            modelBuilder.Entity<Pathway>().HasData(
+                new Pathway { Id = 1, Title = "Enfermagem Cirúrgica", MinimumPassScore = 50, MinimumApprovalScore = 75 },
+                new Pathway { Id = 2, Title = "Anestesia Básica", MinimumPassScore = 50, MinimumApprovalScore = 80 }
+            );
+
+            // Seed Modules
+            modelBuilder.Entity<Module>().HasData(
+                new Module { Id = 1, PathwayId = 1, Title = "Módulo Teórico - Preparação" },
+                new Module { Id = 2, PathwayId = 1, Title = "Módulo Prático - Bloco Operatório" },
+                new Module { Id = 3, PathwayId = 2, Title = "Módulo Único - Fármacos" }
+            );
+
+            // Seed Components
+            modelBuilder.Entity<ModuleComponent>().HasData(
+                new ModuleComponent { Id = 1, ModuleId = 1, Title = "Guia de Higienização", PdfFilePath = "", Status = 0 },
+                new ModuleComponent { Id = 2, ModuleId = 2, Title = "Checklist Cirúrgica", PdfFilePath = "", Status = 0 }
+            );
+
+            // Seed Enrollments
+            modelBuilder.Entity<Enrollment>().HasData(
+                new Enrollment
+                {
+                    Id = 1,
+                    StudentId = 7,       // Rúben Peixoto
+                    ProfessorId = 6,     // Miguel Teixeira (Supervisor)
+                    PathwayId = 1,       // Enfermagem Cirúrgica
+                    ProgressPercentage = 15,
+                    // Using a fixed date so EF Core doesn't try to create a new migration every single time you compile
+                    EndDate = new DateTime(2026, 6, 30)
+                }
+            );
         }
 
         #endregion

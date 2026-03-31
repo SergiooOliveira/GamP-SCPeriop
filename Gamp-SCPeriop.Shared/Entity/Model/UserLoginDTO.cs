@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace GamP_SCPeriop.Shared
+namespace GamP_SCPeriop.Shared.Entity.Model
 {
     public class UserLoginDTO
     {
