@@ -55,30 +55,30 @@ else
     
             <div class="card border-0 shadow-sm" style="border-radius: 20px; overflow: hidden;">
                 
-                <div class="d-flex text-muted small p-3 bg-white border-bottom">
-                    <div style="flex: 2;">Nome</div>
-                    <div style="flex: 1.5;">Pathway</div>
-                    <div style="flex: 1;" class="text-end">Progresso</div>
+                <div class="row text-muted small p-3 bg-white border-bottom m-0">
+                    <div class="col-5 fw-bold px-2">Nome</div>
+                    <div class="col-4 fw-bold px-2">Pathway</div>
+                    <div class="col-3 text-end fw-bold px-2">Progresso</div>
                 </div>
 
                 @if (supervisedEnrollments.Any())
                 {
                     @foreach (var enrollment in supervisedEnrollments)
                     {
-                        <div class="d-flex align-items-center px-4 py-3 bg-white border-bottom">
-                            <div class="d-flex align-items-center gap-3" style="flex: 2;">
-                                <div class="rounded-circle bg-secondary text-white d-flex justify-content-center align-items-center" style="width: 40px; height: 40px;">
+                        <div class="row align-items-center p-3 bg-white border-bottom m-0">
+                            <div class="col-5 px-2 d-flex align-items-center gap-3" style="flex: 2;">
+                                <div class="rounded-circle bg-secondary text-white d-flex justify-content-center align-items-center flex-shrink-0" style="width: 40px; height: 40px;">
                                     <i class="bi bi-person-fill fs-5"></i>
                                 </div>
                                 <div>
-                                    <div class="fw-bold text-dark" style="font-size: 0.95rem;">@(enrollment.Student?.DisplayShortName ?? "Aluno Desconhecido")</div>
-                                    <div class="text-muted" style="font-size: 0.75rem;">Universidade do Minho</div>
+                                    <div class="fw-bold">@(enrollment.Student?.DisplayShortName ?? "Aluno Desconhecido")</div>
+                                    <div class="text-muted small">Universidade do Minho</div>
                                 </div>
                             </div>
-                            <div class="text-muted" style="font-size: 0.95rem; flex: 1.5;">
+                            <div class="col-4 px-2 text-muted small">
                                 @(enrollment.Pathway?.Title ?? "Sem Pathway")
                             </div>
-                            <div style="flex: 1;" class="text-end">
+                            <div class="col-3 text-end px-2">
                                 <span class="badge rounded-pill bg-primary-subtle text-primary border border-primary-subtle px-3 py-2">
                                     @enrollment.ProgressPercentage%
                                 </span>
