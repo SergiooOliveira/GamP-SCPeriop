@@ -11,43 +11,54 @@
     <div class="row">
         <div class="max-width-container mt-3 px-2">
             <h4 class="fw-bold mb-4">My Pathways</h4>
-            @if (pathways == null)
+            @if (enrollments == null)
             {
                 <p>Loading Pathways</p>
             }
+            else if (enrollments.Count == 0)
+            {
+                <p>No Pathways</p>
+            }
             else
             {
-                @foreach (var pathway in pathways)
+                @* Header *@
+                <div class="row text-muted small p-3 bg-white border-bottom m-0">
+                    <div class="col-5 fw-bold px-2">Nome</div>
+                    <div class="col-4 fw-bold px-2">Pathway</div>
+                    <div class="col-3 text-end fw-bold px-2">Progresso</div>
+                </div>
+
+                @foreach (var enrollment in enrollments)
                 {
-                    var isOpen = openPathways.Contains(pathway.Id);
+                    var isOpen = openPathways.Contains(enrollment.PathwayId);
                     <div class="card shadow-sm mb-3 border-0" style="border-radius: 25px;">
-                        <div class="p-4 d-flex justify-content-between align-items-center no-select" @onclick="() => TogglePathway(pathway.Id)" style="cursor: pointer;">
+                        <div class="p-4 d-flex justify-content-between align-items-center no-select" @onclick="() => TogglePathway(enrollment.PathwayId)" style="cursor: pointer;">
                             <div class="d-flex align-items-center">
                                 <i class="bi @(isOpen ? "bi-chevron-down" : "bi-chevron-right") me-3 text-muted"></i>
                                 <div>
-                                    <h5 class="fw-bold mb-0">@pathway.Title</h5>
-                                    <small class="text-muted" style="font-size: 0.7rem;">João Silva</small>
+                                    <h5 class="fw-bold mb-0">@enrollment.Pathway?.Title</h5>
+                                    <small class="text-muted" style="font-size: 0.7rem;">@(enrollment.Student?.DisplayShortName ?? "Aluno")</small>
                                 </div>                                
                             </div>
 
                             <div class="text-end d-flex flex-column align-items-end">
-                                <small class="text-muted mb-1" style="font-size: 0.7rem;">15, Abril 2025</small>
+                                <small class="text-muted mb-1" style="font-size: 0.7rem;">@enrollment.EndDate.ToString("dd, MMM yyyy")</small>
                                 
                                 <div class="d-flex align-items-center gap-2">
-                                    <small class="text-muted">@pathway.Status</small>
+                                    <small class="text-muted">@(enrollment.ProgressPercentage == 100 ? "Concluído" : "Em Curso")</small>
 
                                     <div class="bg-light" style="width: 60px; height: 6px; border-radius: 10px; overflow: hidden;">
-                                        <div class="bg-primary h-100" style="width: @(pathway.TotalProgress)%;"></div>
+                                        <div class="bg-primary h-100" style="width: @(enrollment.ProgressPercentage)%;"></div>
                                     </div>
                                         
-                                    <small class="text-primary">@(pathway.TotalProgress)%</small>
+                                    <small class="text-primary">@(enrollment.ProgressPercentage)%</small>
                                 </div>                                                                    
                             </div>
                         </div>
-                        @if (isOpen)
+                        @if (isOpen && enrollment.Pathway?.Modules != null)
                         {
                             <div class="px-4 pb-2">
-                                @foreach (var module in pathway.Modules)
+                                @foreach (var module in enrollment.Pathway.Modules)
                                 {
                                     <div class="d-flex justify-content-between align-items-center py-3 border-top no-select" @onclick='() => Nav.NavigateTo($"/module/{module.Id}")' style="cursor: pointer;">
                                         <div>
@@ -71,7 +82,8 @@
 
 @code {
     private User? currentUser;
-    private List<Pathway>? pathways;    
+    private List<Pathway>? pathways;
+    private List<Enrollment>? enrollments;
 
     private HashSet<int> openPathways = new HashSet<int>();
     private HashSet<int> openModules = new HashSet<int>();
@@ -96,7 +108,7 @@
                 return;
             }
 
-            pathways = await Http.GetFromJsonAsync<List<Pathway>>("api/Pathway");
+            enrollments = await Http.GetFromJsonAsync<List<Enrollment>>($"api/Enrollment/student/{currentUser.Id}");
         }
         catch (Exception ex)
         {

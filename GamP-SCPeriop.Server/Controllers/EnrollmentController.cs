@@ -34,6 +34,26 @@ namespace GamP_SCPeriop.Server.Controllers
             return Ok(enrollments);
         }
 
+        [HttpGet("student/{studentId}")]
+        public async Task<ActionResult<List<Enrollment>>> GetStudentEnrollments(int studentId)
+        {
+            var enrollments = await _context.Enrollments
+                .Where(e => e.StudentId == studentId)
+                .Include(e => e.Student)
+                .Include(e => e.Pathway)
+                    .ThenInclude(p => p.Modules) // Critical for your dropdown accordion!
+                .ToListAsync();
+
+            if (!enrollments.Any())
+            {
+                // Returning an empty list is better than a 404 for the UI, 
+                // so Blazor can cleanly show the "Ainda não estás inscrito" message.
+                return Ok(new List<Enrollment>());
+            }
+
+            return Ok(enrollments);
+        }
+
         [HttpPost]
         public async Task<ActionResult<Enrollment>> CreateEnrollment(EnrollmentDto dto)
         {
