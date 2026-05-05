@@ -17,6 +17,7 @@ namespace GamP_SCPeriop.Server.Controllers
             _context = context;
         }
 
+        #region HttpGet
         [HttpGet("supervisor/{supervisorId}")]
         public async Task<ActionResult<List<Enrollment>>> GetSupervisorEnrollments(int supervisorId)
         {
@@ -54,6 +55,39 @@ namespace GamP_SCPeriop.Server.Controllers
             return Ok(enrollments);
         }
 
+        [HttpGet("management")]
+        public async Task<ActionResult<List<StudentManagementDto>>> GetAllStudentsForManagement()
+        {
+            var studentsQuery = await _context.Users
+                .Where(u => u.Role == UserRole.Supervisionado) // Ensure we only grab actual students
+                .Select(student => new StudentManagementDto
+                {
+                    StudentId = student.Id,
+                    FullName = student.FullName,
+                    Email = student.Email,
+
+                    // If you track logins in your DB, map it here. Otherwise, leave null.
+                    LastAccess = null,
+
+                    // 1. Grab their active pathways and format them as tags
+                    ActivePathways = student.Enrollments.Select(e => new PathwayTagDto
+                    {
+                        PathwayId = e.Pathway.Id,
+                        Title = e.Pathway.Title
+                    }).ToList(),
+
+                    // 2. Safely calculate the average progress (prevents divide-by-zero errors)
+                    OverallProgress = student.Enrollments.Any()
+                        ? (int)student.Enrollments.Average(e => e.ProgressPercentage)
+                        : 0
+                })
+                .ToListAsync();
+
+            return Ok(studentsQuery);
+        }
+        #endregion
+
+        #region HttpPost
         [HttpPost]
         public async Task<ActionResult<Enrollment>> CreateEnrollment(EnrollmentDto dto)
         {
@@ -72,5 +106,6 @@ namespace GamP_SCPeriop.Server.Controllers
 
             return Ok(enrollment);
         }
+        #endregion
     }
 }
