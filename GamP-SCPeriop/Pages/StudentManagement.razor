@@ -119,8 +119,7 @@
                         <!-- Bind the select to our variable -->
                         <select class="form-select border-0 bg-light shadow-sm" style="border-radius: 10px;" @bind="selectedPathwayId">
                             <option value="0" selected disabled>Selecione um percurso...</option>
-        
-                            <!-- Loop through the real pathways from the database -->
+                            
                             @foreach (var pathway in unassignedPathways)
                             {
                                 <option value="@pathway.PathwayId">@pathway.Title</option>
