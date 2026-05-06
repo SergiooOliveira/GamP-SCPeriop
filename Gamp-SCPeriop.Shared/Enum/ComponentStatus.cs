@@ -2,15 +2,8 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace GamP_SCPeriop.Shared
+namespace GamP_SCPeriop.Shared.Enum
 {
-    public enum UserRole
-    {
-        Supervisor = 0,
-        Supervisionado = 1,
-        Admin = 2
-    }
-
     public enum ComponentStatus
     {
         Pending,        // Gray

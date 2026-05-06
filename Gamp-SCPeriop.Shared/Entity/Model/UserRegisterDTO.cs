@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using GamP_SCPeriop.Shared.Enum;
+using System.ComponentModel.DataAnnotations;
 
 namespace GamP_SCPeriop.Shared.Entity.Model
 {

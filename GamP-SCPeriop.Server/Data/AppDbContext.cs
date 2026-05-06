@@ -1,4 +1,5 @@
 ﻿using GamP_SCPeriop.Shared;
+using GamP_SCPeriop.Shared.Enum;
 using Microsoft.EntityFrameworkCore;
 using System.ComponentModel;
 

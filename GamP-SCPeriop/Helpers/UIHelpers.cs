@@ -1,4 +1,4 @@
-﻿using GamP_SCPeriop.Shared;
+﻿using GamP_SCPeriop.Shared.Enum;
 
 namespace GamP_SCPeriop.Helpers
 {
