@@ -105,8 +105,9 @@
                     <div class="rounded-circle bg-secondary text-white d-flex justify-content-center align-items-center mb-3 shadow-sm" style="width: 80px; height: 80px;">
                         <i class="bi bi-person-fill" style="font-size: 2.5rem;"></i>
                     </div>
-                    <h4 class="fw-bold mb-0">João Silva</h4>
-                    <p class="text-muted small mb-2">joao.silva@uminho.pt</p>
+    
+                    <h4 class="fw-bold mb-0">@(selectedStudent?.FullName ?? "A carregar...")</h4>
+                    <p class="text-muted small mb-2">@(selectedStudent?.Email)</p>
                 </div>
 
                 <!-- Modal Body (Action Area) -->
@@ -143,12 +144,28 @@
                     <div class="mt-4">
                         <h6 class="fw-bold mb-2">Percursos Atuais</h6>
                         <ul class="list-group list-group-flush small">
-                            <li class="list-group-item px-0 d-flex justify-content-between align-items-center border-0">
-                                <span><i class="bi bi-journal-text me-2 text-primary"></i> Anestesia</span>
-                                <span class="badge bg-light text-dark">Em Curso</span>
-                            </li>
+                            @if (selectedStudent?.ActivePathways == null || !selectedStudent.ActivePathways.Any())
+                            {
+                                <li class="list-group-item px-0 text-muted border-0">
+                                    <i class="bi bi-info-circle me-2"></i> Nenhum percurso atribuído.
+                                </li>
+                            }
+                            else
+                            {
+                                @foreach (var pathway in selectedStudent.ActivePathways)
+                                {
+                                    <li class="list-group-item px-0 d-flex justify-content-between align-items-center border-0">
+                                        <span><i class="bi bi-journal-text me-2 text-primary"></i> @pathway.Title</span>
+    
+                                        <span class="badge @(pathway.Status == "Concluído" ? "bg-success text-white" : "bg-light text-dark")">
+                                            @pathway.Status
+                                        </span>
+                                    </li>
+                                }
+                            }
                         </ul>
                     </div>
+
                 </div>
             </div>
         </div>
@@ -163,6 +180,7 @@
 
     // Modal action
     private int selectedStudentId;
+    private StudentManagementDto selectedStudent;
     private int selectedPathwayId;    
     private bool isSubmitting = false;
     private List<PathwayTagDto> availablePathways = new();
@@ -202,13 +220,13 @@
     private void OpenStudentProfile(int studentId)
     {
         selectedStudentId = studentId;
-    
+        
         // 1. Find the specific student we clicked on
-        var student = students.First(s => s.StudentId == studentId);
+        selectedStudent = students.First(s => s.StudentId == studentId);
     
         // 2. Filter the master list: Keep only pathways the student does NOT already have
         unassignedPathways = availablePathways
-            .Where(p => !student.ActivePathways.Any(ap => ap.PathwayId == p.PathwayId))
+            .Where(p => !selectedStudent.ActivePathways.Any(ap => ap.PathwayId == p.PathwayId))
             .ToList();
         
         showModal = true;

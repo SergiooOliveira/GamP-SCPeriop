@@ -8,5 +8,6 @@ namespace GamP_SCPeriop.Shared.Entity.Model
     {
         public int PathwayId { get; set; }
         public string Title { get; set; } = string.Empty;
+        public string Status { get; set; } = string.Empty;
     }
 }

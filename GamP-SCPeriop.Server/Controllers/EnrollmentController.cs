@@ -73,7 +73,8 @@ namespace GamP_SCPeriop.Server.Controllers
                     ActivePathways = student.Enrollments.Select(e => new PathwayTagDto
                     {
                         PathwayId = e.Pathway.Id,
-                        Title = e.Pathway.Title
+                        Title = e.Pathway.Title,
+                        Status = e.ProgressPercentage >= 100 ? "Concluido" : "Em curso"
                     }).ToList(),
 
                     // 2. Safely calculate the average progress (prevents divide-by-zero errors)
@@ -91,6 +92,14 @@ namespace GamP_SCPeriop.Server.Controllers
         [HttpPost]
         public async Task<ActionResult<Enrollment>> CreateEnrollment(EnrollmentDto dto)
         {
+            var alreadyEnrolled = await _context.Enrollments
+                .AnyAsync(e => e.StudentId == dto.StudentId && e.PathwayId == dto.PathwayId);
+
+            if (alreadyEnrolled)
+            {
+                return BadRequest("O aluno já se encontra inscrito neste percurso."); // 400 Bad Request
+            }
+
             // Map the DTO to your real Entity
             var enrollment = new Enrollment
             {
