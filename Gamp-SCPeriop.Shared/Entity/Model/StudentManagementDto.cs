@@ -19,11 +19,4 @@ namespace GamP_SCPeriop.Shared.Entity.Model
         // For the colorful tags in the table
         public List<PathwayTagDto> ActivePathways { get; set; } = new List<PathwayTagDto>();
     }
-
-    // A tiny helper DTO just for the tags
-    public class PathwayTagDto
-    {
-        public int PathwayId { get; set; }
-        public string Title { get; set; } = string.Empty;
-    }
 }

@@ -51,5 +51,20 @@ namespace GamP_SCPeriop.Server.Controllers
 
             return Ok(pathway);
         }
+
+        [HttpGet("available-options")]
+        public async Task<ActionResult<List<PathwayTagDto>>> GetAllPathways()
+        {
+            // Grab all pathways and map them straight into the DTO for the dropdown
+            var pathways = await _context.Pathways
+                .Select(p => new PathwayTagDto
+                {
+                    PathwayId = p.Id,
+                    Title = p.Title
+                })
+                .ToListAsync();
+
+            return Ok(pathways);
+        }
     }
 }

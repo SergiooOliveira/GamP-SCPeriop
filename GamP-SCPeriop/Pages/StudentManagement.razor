@@ -1,7 +1,10 @@
 ﻿@page "/students"
 @layout TopNavBarLayout
-@inject HttpClient Http
 @using GamP_SCPeriop.Shared.Entity.Model
+@using Blazored.LocalStorage
+@inject HttpClient Http
+@inject ILocalStorageService LocalStorage
+@inject NavigationManager Nav
 
 <div class="max-width-container container-fluid py-4">
     <!-- Header & Search Bar -->
@@ -113,12 +116,29 @@
                     <h6 class="fw-bold mb-3">Atribuir Novo Percurso</h6>
                     
                     <div class="d-flex gap-2">
-                        <select class="form-select border-0 bg-light shadow-sm" style="border-radius: 10px;">
-                            <option selected disabled>Selecione um percurso...</option>
-                            <option value="1">Urgências</option>
-                            <option value="2">Cuidados Intensivos</option>
+                        <!-- Bind the select to our variable -->
+                        <select class="form-select border-0 bg-light shadow-sm" style="border-radius: 10px;" @bind="selectedPathwayId">
+                            <option value="0" selected disabled>Selecione um percurso...</option>
+        
+                            <!-- Loop through the real pathways from the database -->
+                            @foreach (var pathway in unassignedPathways)
+                            {
+                                <option value="@pathway.PathwayId">@pathway.Title</option>
+                            }
                         </select>
-                        <button class="btn btn-primary px-4 shadow-sm" style="border-radius: 10px;">Adicionar</button>
+    
+                        <!-- Bind the click event to our method -->
+                        <button class="btn btn-primary px-4 shadow-sm" style="border-radius: 10px;"
+                                @onclick="AssignPathway" disabled="@isSubmitting">
+                            @if (isSubmitting)
+                            {
+                                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                            }
+                            else
+                            {
+                                <span>Adicionar</span>
+                            }
+                        </button>
                     </div>
 
                     <div class="mt-4">
@@ -137,9 +157,17 @@
 }
 
 @code {
+    private User currentUser;
     private bool showModal = false;
     private string searchQuery = "";
     private List<StudentManagementDto> students;
+
+    // Modal action
+    private int selectedStudentId;
+    private int selectedPathwayId;    
+    private bool isSubmitting = false;
+    private List<PathwayTagDto> availablePathways = new();
+    private List<PathwayTagDto> unassignedPathways = new();
 
     // This single line makes the search bar work instantly!
     private IEnumerable<StudentManagementDto> FilteredStudents =>
@@ -147,21 +175,76 @@
             ? students
             : students.Where(s => s.FullName.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ||
                                   s.Email.Contains(searchQuery, StringComparison.OrdinalIgnoreCase));
-
-    protected override async Task OnInitializedAsync()
+    
+                                  protected override async Task OnInitializedAsync()
     {
-        // Fetch the mapped DTOs from our new endpoint
+        // 1. SECURITY CHECK: Grab the user and boot them if they aren't logged in
+        var hasUser = await LocalStorage.ContainKeyAsync("user");
+        if (!hasUser)
+        {
+            Nav.NavigateTo("/login");
+            return;
+        }
+
+        currentUser = await LocalStorage.GetItemAsync<User>("user");
+
+        // (Optional) If students accidentally type /students, kick them back to dashboard
+        if (currentUser?.Role == UserRole.Supervisionado)
+        {
+            Nav.NavigateTo("/dashboard");
+            return;
+        }
+
+        // 2. Fetch the data for the UI
         students = await Http.GetFromJsonAsync<List<StudentManagementDto>>("api/Enrollment/management");
+        availablePathways = await Http.GetFromJsonAsync<List<PathwayTagDto>>("api/Pathway/available-options") ?? new();
     }
 
     private void OpenStudentProfile(int studentId)
     {
-        // The ID of the clicked student is passed here perfectly.
+        selectedStudentId = studentId;
+    
+        // 1. Find the specific student we clicked on
+        var student = students.First(s => s.StudentId == studentId);
+    
+        // 2. Filter the master list: Keep only pathways the student does NOT already have
+        unassignedPathways = availablePathways
+            .Where(p => !student.ActivePathways.Any(ap => ap.PathwayId == p.PathwayId))
+            .ToList();
+        
         showModal = true;
     }
 
     private void CloseModal()
     {
         showModal = false;
+    }
+
+    private async Task AssignPathway()
+    {
+        if (selectedPathwayId == 0) return; // Prevent empty submits
+
+        isSubmitting = true;
+
+        var payload = new EnrollmentDto
+        {
+            StudentId = selectedStudentId,
+            ProfessorId = currentUser.Id, // Assuming you have currentUser loaded on this page
+            PathwayId = selectedPathwayId,
+            ProgressPercentage = 0,
+            EndDate = DateTime.Now.AddMonths(6) // Set your default duration here
+        };
+
+        var response = await Http.PostAsJsonAsync("api/Enrollment", payload);
+
+        if (response.IsSuccessStatusCode)
+        {
+            // Close the modal and refresh the table to show the new data!
+            showModal = false;
+            selectedPathwayId = 0;
+            students = await Http.GetFromJsonAsync<List<StudentManagementDto>>("api/Enrollment/management");
+        }
+
+        isSubmitting = false;
     }
 }
