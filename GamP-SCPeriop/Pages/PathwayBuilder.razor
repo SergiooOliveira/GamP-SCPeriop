@@ -71,17 +71,71 @@
 
         <div class="mt-4 card shadow-sm p-4 border-0" style="border-radius: 15px;">
             <h5 class="mb-3 fw-bold text-primary">2. Gestão de Módulos</h5>
-    
+            
             @if (savedModules.Any())
             {
-                <div class="list-group mb-4 shadow-sm" style="border-radius: 10px;">
+                <div class="mb-4">
                     @foreach (var mod in savedModules)
                     {
-                        <button type="button" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center p-3"
-                                @onclick="() => OpenModuleModal(mod)">
-                            <span class="fw-bold text-dark">@mod.Title</span>
-                            <i class="bi bi-pencil-square text-muted"></i>
-                        </button>
+                        var isExpanded = expandedModuleId == mod.Id;
+
+                        <div class="card border-0 shadow-sm mb-3" style="border-radius: 10px; overflow: hidden;">
+                            
+                            <div class="card-header bg-white border-0 p-0 d-flex align-items-center pe-4">
+                                
+                                <button class="btn btn-link text-decoration-none fw-bold text-dark text-start flex-grow-1 p-3 px-4 shadow-none"
+                                        type="button"
+                                        @onclick="() => ToggleModule(mod.Id)">
+                                    <i class="bi bi-folder2-open text-primary me-3 fs-5"></i> @mod.Title
+                                </button>
+
+                                <div class="d-flex align-items-center gap-3">
+                                    
+                                    <button class="btn btn-sm text-danger border-0 p-1 shadow-none"
+                                            @onclick="() => DeleteActiveModule(mod.Id)"
+                                            title="Eliminar Módulo Completo">
+                                        <i class="bi bi-trash3 fs-5"></i>
+                                    </button>
+
+                                    <i class="bi @(isExpanded ? "bi-chevron-up" : "bi-chevron-down") text-muted"
+                                       style="cursor: pointer;"
+                                       @onclick="() => ToggleModule(mod.Id)"></i>
+                                </div>
+                                
+                            </div>
+
+                            @if (isExpanded)
+                            {
+                                <div class="card-body p-0 border-top">
+                                    <div class="list-group list-group-flush">
+                                        @foreach (var stageInfo in stagesToRender)
+                                        {
+                                            var count = mod.Components?.Count(c => c.Stage == stageInfo.Stage) ?? 0;
+                                            
+                                            <button type="button" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center px-4 py-3 border-0 border-bottom"
+                                                    style="background-color: #f8f9fa;"
+                                                    @onclick="() => OpenStageModal(mod, stageInfo)">
+                                                <div class="d-flex align-items-center">
+                                                    <i class="bi @stageInfo.Icon me-3 text-secondary fs-5"></i>
+                                                    <span class="fw-semibold text-dark">@stageInfo.Title</span>
+                                                </div>
+                                                <div class="d-flex align-items-center gap-3">
+                                                    @if (count > 0)
+                                                    {
+                                                        <span class="badge bg-success bg-opacity-10 text-success rounded-pill px-3 py-1 border border-success border-opacity-25">@count itens</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="badge bg-light text-muted border rounded-pill px-3 py-1">Vazio</span>
+                                                    }
+                                                    <i class="bi bi-chevron-right text-muted small"></i>
+                                                </div>
+                                            </button>
+                                        }
+                                    </div>
+                                </div>
+                            }
+                        </div>
                     }
                 </div>
             }
@@ -96,107 +150,127 @@
     }
 </div>
 
-@if (activeModalModule != null)
+@if (activeModalModule != null && activeModalStage.HasValue)
 {
     <div class="modal-backdrop fade show" style="background-color: rgba(0,0,0,0.6); position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1040;"></div>
-    <div class="modal fade show d-block" tabindex="-1" style="z-index: 1055; overflow-y: auto;">
+    <div class="modal fade show d-block" tabindex="-1" style="z-index: 1055;">
         <div class="modal-dialog modal-dialog-centered modal-lg">
             <div class="modal-content border-0 shadow" style="border-radius: 15px; background-color: #f4f7f6;">
                 
-                <div class="modal-header border-bottom-0 pb-2 pt-4 px-4">
-                    <h4 class="modal-title fw-bold text-primary">@activeModalModule.Title</h4>
-                    <button type="button" class="btn-close" @onclick="CloseModuleModal"></button>
+                <div class="modal-header border-bottom-0 pb-2 pt-4 px-4 bg-white" style="border-radius: 15px 15px 0 0;">
+                    <div>
+                        <span class="badge bg-secondary bg-opacity-10 text-secondary border mb-2">@activeModalModule.Title</span>
+                        <h4 class="modal-title fw-bold text-primary"><i class="bi @activeModalStage.Value.Icon me-2"></i>@activeModalStage.Value.Title</h4>
+                    </div>
+                    <button type="button" class="btn-close" @onclick="CloseStageModal"></button>
                 </div>
 
-                <div class="modal-body px-4">
-                    @foreach (var stageInfo in stagesToRender)
-                    {
-                        <div class="card border-0 shadow-sm mb-4" style="border-radius: 10px;">
-                            <div class="card-body p-4">
-                                
-                                <div class="d-flex justify-content-between align-items-center mb-3">
-                                    <h6 class="fw-bold text-dark mb-0 fs-5"><i class="bi @stageInfo.Icon me-2 text-primary"></i>@stageInfo.Title</h6>
-                                    
-                                    @if (stageInfo.CopyFromStage.HasValue)
-                                    {
-                                        <button class="btn btn-sm btn-outline-primary" @onclick="() => CopyComponentsFromStage(activeModalModule.Id, stageInfo.Stage, stageInfo.CopyFromStage.Value)" disabled="@isCopying">
-                                            <i class="bi bi-copy me-1"></i> Copiar Anterior
-                                        </button>
-                                    }
-                                </div>
-
-                                @if (activeModalModule.Components != null && activeModalModule.Components.Any(c => c.Stage == stageInfo.Stage))
+                <div class="modal-body px-4 py-4">
+                    
+                    <div class="d-flex justify-content-between align-items-end mb-3">
+                        <h6 class="fw-bold text-secondary text-uppercase small mb-0">Componentes Atuais</h6>
+                        
+                        @if (activeModalStage.Value.CopyFromStage.HasValue)
+                        {
+                            <button class="btn btn-sm btn-outline-primary" @onclick="CopyComponents" disabled="@isCopying">
+                                @if (isCopying)
                                 {
-                                    <div class="list-group mb-3">
-                                        @foreach (var comp in activeModalModule.Components.Where(c => c.Stage == stageInfo.Stage))
-                                        {
-                                            <div class="list-group-item d-flex justify-content-between align-items-center bg-white border" style="border-radius: 8px; margin-bottom: 5px;">
-                                                <div>
-                                                    <i class="bi @(string.IsNullOrEmpty(comp.PdfFilePath) ? "bi-card-text text-secondary" : "bi-link-45deg text-success") me-2"></i>
-                                                    <span class="fw-semibold text-dark">@comp.Title</span>
-                                                    @if (!string.IsNullOrEmpty(comp.PdfFilePath))
-                                                    {
-                                                        <div class="text-muted small ms-4 mt-1" style="font-size: 0.8rem;">@comp.PdfFilePath</div>
-                                                    }
-                                                </div>
-                                                <button class="btn btn-sm text-danger border-0" @onclick="() => DeleteComponent(comp.Id)">
-                                                    <i class="bi bi-trash3"></i>
-                                                </button>
-                                            </div>
-                                        }
-                                    </div>
+                                    <span class="spinner-border spinner-border-sm me-1" role="status"></span>
                                 }
-
-                                <div class="p-3 rounded" style="background-color: #f8f9fa; border: 1px dashed #ced4da;">
-                                    <div class="mb-2">
-                                        <input class="form-control form-control-sm border-0 shadow-sm" placeholder="Título (Ex: Manual de Ventilação, ou Critério de Avaliação)..." @bind="newComponentTitles[stageInfo.Stage]" />
+                                else
+                                {
+                                    <i class="bi bi-copy me-1"></i>
+                                }
+                                Copiar da Fase Anterior
+                            </button>
+                        }
+                    </div>
+                    @if (activeModalModule.Components != null && activeModalModule.Components.Any(c => c.Stage == activeModalStage.Value.Stage))
+                    {
+                        <div class="list-group mb-4 shadow-sm" style="border-radius: 8px;">
+                            @foreach (var comp in activeModalModule.Components.Where(c => c.Stage == activeModalStage.Value.Stage))
+                            {
+                                var currentComp = comp;
+                                <div class="list-group-item d-flex justify-content-between align-items-center py-3 border-0 border-bottom">
+                                    <div>
+                                        <i class="bi @(string.IsNullOrEmpty(currentComp.PdfFilePath) ? "bi-card-text text-secondary" : "bi-link-45deg text-success") fs-5 me-2"></i>
+                                        <span class="fw-semibold text-dark">@currentComp.Title</span>
                                     </div>
-                                    <div class="mb-2">
-                                        <input class="form-control form-control-sm border-0 shadow-sm" placeholder="URL ou Ficheiro (Opcional)..." @bind="newComponentFiles[stageInfo.Stage]" />
-                                    </div>
-                                    <div class="text-end">
-                                        <button class="btn btn-sm text-white px-3" style="background-color: #6A96A6;" @onclick="() => AddComponentToStage(stageInfo.Stage)">
-                                            <i class="bi bi-plus-lg me-1"></i> Adicionar
-                                        </button>
+                                    <div>
+                                        <button class="btn btn-sm text-primary me-2" @onclick="() => EditComponent(currentComp)"><i class="bi bi-pencil-square"></i></button>
+                                        <button class="btn btn-sm text-danger" @onclick="() => DeleteComponent(currentComp.Id)"><i class="bi bi-trash3"></i></button>
                                     </div>
                                 </div>
-
-                            </div>
+                            }
                         </div>
                     }
-                </div>
+                    else
+                    {
+                        <div class="alert alert-light text-center border mb-4" style="border-radius: 8px;">
+                            <span class="text-muted small">Nenhum item adicionado a esta fase.</span>
+                        </div>
+                    }
 
-                <div class="modal-footer border-top-0 d-flex justify-content-between px-4 pb-4">
-                    <button type="button" class="btn btn-outline-danger shadow-sm" @onclick="DeleteActiveModule">
-                        <i class="bi bi-trash3 me-2"></i>Eliminar Módulo Completo
-                    </button>
-                    <button type="button" class="btn btn-secondary px-4 shadow-sm" @onclick="CloseModuleModal">Concluído</button>
-                </div>
+                    <div class="p-4 rounded bg-white shadow-sm" style="border: 1px dashed #ced4da;">
+                        <h6 class="fw-bold mb-3 text-primary">@(componentToEdit.Id == 0 ? "Adicionar Novo Item" : "A Editar Item...")</h6>
+                        
+                        <div class="mb-3">
+                            <input class="form-control shadow-sm border-0 bg-light" placeholder="Título (Ex: Manual de Ventilação, ou Critério)..." @bind="componentToEdit.Title" />
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold text-muted mb-1">URL ou Anexo (Opcional)</label>
+                            
+                            <div class="input-group shadow-sm" style="border-radius: 8px; overflow: hidden;">
+                                <span class="input-group-text bg-light border-0"><i class="bi bi-link-45deg"></i></span>
+                                
+                                <input class="form-control border-0 bg-light" placeholder="Ex: https://youtube.com/..." @bind="componentToEdit.PdfFilePath" disabled="@isUploading" />
+                                
+                                <label class="btn btn-secondary border-0 m-0 d-flex align-items-center px-3" style="cursor: pointer; background-color: #6A96A6;">
+                                    <i class="bi bi-cloud-arrow-up me-2"></i> Explorar...
+                                    <InputFile OnChange="HandleFileUpload" class="d-none" accept=".pdf,.doc,.docx" />
+                                </label>
+                            </div>
 
+                            @if (isUploading)
+                            {
+                                <div class="form-text text-primary small mt-2 d-flex align-items-center fw-semibold">
+                                    <div class="spinner-border spinner-border-sm me-2" role="status"></div> A enviar ficheiro para o servidor...
+                                </div>
+                            }
+                        </div>
+                        
+                        <div class="text-end mt-4">
+                            @if (componentToEdit.Id != 0)
+                            {
+                                <button class="btn btn-light me-2 px-3" @onclick="ResetForm">Cancelar Edição</button>
+                            }
+                            <button class="btn text-white px-4 shadow-sm" style="background-color: #6A96A6;" @onclick="SaveComponent" disabled="@isSavingModal">
+                                <i class="bi bi-save me-2"></i> @(isSavingModal ? "A Guardar..." : "Guardar")
+                            </button>
+                        </div>
+                    </div>
+
+                </div>
             </div>
         </div>
     </div>
 }
 
-
 @code {
+    // ==========================================
+    // 1. STATE VARIABLES (Pathways & Modules)
+    // ==========================================
     private PathwayCreateDTO pathwayDto = new PathwayCreateDTO { MinimumPassScore = 50, MinimumApprovalScore = 75 };
     private Pathway? activePathway;
     private string newModuleTitle = string.Empty;
     private List<Module> savedModules = new();
-    private Dictionary<string, string> stageInputs = new();
-    private bool isCopying = false;
-
-    // Load Existing Pathway Variables
     private List<PathwayTagDto> existingPathways = new();
     private int selectedExistingPathwayId = 0;
+    private int expandedModuleId = 0; // Tracks which module accordion is currently open
+    private bool isCopying = false;
 
-    // Modal Variables
-    private ModuleComponent? componentToEdit;
-    private bool isSavingModal = false;
-    private Module? activeModalModule;
-    private Dictionary<ModuleStage, string> newComponentTitles = new();
-    private Dictionary<ModuleStage, string> newComponentFiles = new();
+    private bool isUploading = false;
 
     private List<(ModuleStage Stage, string Title, string Icon, ModuleStage? CopyFromStage)> stagesToRender = new()
     {
@@ -207,17 +281,25 @@
         (ModuleStage.PraticaSupervisionada, "Prática Supervisionada", "bi-person-check", ModuleStage.PraticaAssistida)
     };
 
+    // ==========================================
+    // 2. TARGETED MODAL VARIABLES
+    // ==========================================
+    private Module? activeModalModule; // The module currently opened in the modal
+    private (ModuleStage Stage, string Title, string Icon, ModuleStage? CopyFromStage)? activeModalStage; // The specific stage opened
+    private ModuleComponent componentToEdit = new(); // Holds the data for the inline form (handles both Create and Edit)
+    private bool isSavingModal = false;
+
+    // ==========================================
+    // 3. INITIALIZATION & PATHWAY MANAGEMENT
+    // ==========================================
     protected override async Task OnInitializedAsync()
     {
-        // Fetch the lightweight DTOs to populate the dropdown (Reusing the endpoint from the Student Management page!)
         existingPathways = await Http.GetFromJsonAsync<List<PathwayTagDto>>("api/Pathway/available-options") ?? new();
     }
 
     private async Task LoadExistingPathway()
     {
         if (selectedExistingPathwayId == 0) return;
-
-        // Fetch the full pathway, including its modules and components
         var response = await Http.GetAsync($"api/Pathway/{selectedExistingPathwayId}");
         if (response.IsSuccessStatusCode)
         {
@@ -225,23 +307,12 @@
             if (activePathway != null)
             {
                 savedModules = activePathway.Modules ?? new List<Module>();
-
-                // Initialize the input dictionaries for existing modules
-                foreach (var mod in savedModules)
-                {
-                    foreach (var stage in stagesToRender)
-                    {
-                        stageInputs[$"{mod.Id}-{stage.Stage}"] = string.Empty;
-                    }
-                }
             }
         }
     }
 
     private void CloseActivePathway()
     {
-        Console.WriteLine("Closing this pathway");
-        // Returns the user to the "Select/Create" screen
         activePathway = null;
         savedModules.Clear();
         selectedExistingPathwayId = 0;
@@ -254,11 +325,13 @@
         if (response.IsSuccessStatusCode)
         {
             activePathway = await response.Content.ReadFromJsonAsync<Pathway>();
-            // Re-fetch the dropdown list so the new pathway appears in it later
             existingPathways = await Http.GetFromJsonAsync<List<PathwayTagDto>>("api/Pathway/available-options") ?? new();
         }
     }
 
+    // ==========================================
+    // 4. MODULE & ACCORDION LOGIC
+    // ==========================================
     private async Task CreateModule()
     {
         if (string.IsNullOrWhiteSpace(newModuleTitle) || activePathway == null) return;
@@ -272,32 +345,31 @@
             {
                 savedMod.Components = new List<ModuleComponent>();
                 savedModules.Add(savedMod);
-                foreach (var stage in stagesToRender) { stageInputs[$"{savedMod.Id}-{stage.Stage}"] = string.Empty; }
                 newModuleTitle = string.Empty;
             }
         }
     }
 
-    private async Task CreateComponent(int moduleId, ModuleStage stage)
+    // --- DELETE ENTIRE MODULE ---
+    private async Task DeleteActiveModule(int moduleId)
     {
-        var inputKey = $"{moduleId}-{stage}";
-        if (!stageInputs.ContainsKey(inputKey) || string.IsNullOrWhiteSpace(stageInputs[inputKey])) return;
-
-        var dto = new ModuleComponentCreateDTO { ModuleId = moduleId, Title = stageInputs[inputKey], Stage = stage, PdfFilePath = "" };
-        var response = await Http.PostAsJsonAsync("api/ModuleComponent", dto);
-
+        // Assumes you have an [HttpDelete("{id}")] endpoint in ModuleController
+        var response = await Http.DeleteAsync($"api/Module/{moduleId}");
         if (response.IsSuccessStatusCode)
         {
-            var savedComp = await response.Content.ReadFromJsonAsync<ModuleComponent>();
-            if (savedComp != null)
-            {
-                var targetModule = savedModules.First(m => m.Id == moduleId);
-                targetModule.Components ??= new List<ModuleComponent>();
-                targetModule.Components.Add(savedComp);
-                stageInputs[inputKey] = string.Empty;
-                StateHasChanged();
-            }
+            var mod = savedModules.FirstOrDefault(m => m.Id == moduleId);
+            if (mod != null) savedModules.Remove(mod);
+            
+            // Close the accordion if they deleted the one they were looking at
+            if (expandedModuleId == moduleId) expandedModuleId = 0;
+            StateHasChanged();
         }
+    }
+    
+    private void ToggleModule(int moduleId)
+    {
+        // Toggles the accordion open/closed (Pure Blazor, no Bootstrap JS)
+        expandedModuleId = (expandedModuleId == moduleId) ? 0 : moduleId;
     }
 
     private async Task CopyComponentsFromStage(int moduleId, ModuleStage targetStage, ModuleStage sourceStage)
@@ -321,50 +393,99 @@
         StateHasChanged();
     }
 
-    // --- MODAL LOGIC ---
-    private void OpenComponentModal(int compId)
+    // ==========================================
+    // 5. TARGETED MODAL & COMPONENT LOGIC
+    // ==========================================
+    private void OpenStageModal(Module mod, (ModuleStage Stage, string Title, string Icon, ModuleStage? CopyFromStage) stageInfo)
     {
-        Console.WriteLine($"[DEBUG] Clicou no componente ID: {compId}");
-    
-        // Find the exact component securely using the ID
-        componentToEdit = savedModules
-            .SelectMany(m => m.Components ?? new List<ModuleComponent>())
-            .FirstOrDefault(c => c.Id == compId);
-        
+        activeModalModule = mod;
+        activeModalStage = stageInfo;
+        ResetForm(); // Always clear the inputs when opening a new modal
         StateHasChanged();
     }
 
-    private void CloseComponentModal()
+    private void CloseStageModal()
     {
-        componentToEdit = null;
+        activeModalModule = null;
+        activeModalStage = null;
     }
 
-    private async Task SaveComponentEdits()
+    private void ResetForm()
     {
-        if (componentToEdit == null) return;
+        // Prepares the form to create a NEW component
+        if (activeModalModule != null && activeModalStage.HasValue)
+        {
+            componentToEdit = new ModuleComponent
+            {
+                Id = 0,
+                ModuleId = activeModalModule.Id,
+                Stage = activeModalStage.Value.Stage,
+                Title = string.Empty,
+                PdfFilePath = string.Empty
+            };
+        }
+    }
+
+    private void EditComponent(ModuleComponent comp)
+    {
+        // Copies an existing component into the form for editing
+        componentToEdit = new ModuleComponent
+        {
+            Id = comp.Id,
+            ModuleId = comp.ModuleId,
+            Stage = comp.Stage,
+            Title = comp.Title,
+            PdfFilePath = comp.PdfFilePath
+        };
+    }
+
+    private async Task SaveComponent()
+    {
+        if (string.IsNullOrWhiteSpace(componentToEdit.Title) || activeModalModule == null) return;
         isSavingModal = true;
 
-        // Assumes you have an endpoint: [HttpPut("{id}")] in ModuleComponentController
-        var response = await Http.PutAsJsonAsync($"api/ModuleComponent/{componentToEdit.Id}", componentToEdit);
-        
-        if (response.IsSuccessStatusCode)
+        if (componentToEdit.Id == 0) // --- CREATE MODE (POST) ---
         {
-            CloseComponentModal();
-            StateHasChanged(); // The UI updates automatically because componentToEdit references the object in our list!
+            var dto = new ModuleComponentCreateDTO
+            {
+                ModuleId = componentToEdit.ModuleId,
+                Title = componentToEdit.Title,
+                Stage = componentToEdit.Stage,
+                PdfFilePath = componentToEdit.PdfFilePath
+            };
+
+            var response = await Http.PostAsJsonAsync("api/ModuleComponent", dto);
+            if (response.IsSuccessStatusCode)
+            {
+                var savedComp = await response.Content.ReadFromJsonAsync<ModuleComponent>();
+                if (savedComp != null)
+                {
+                    activeModalModule.Components ??= new List<ModuleComponent>();
+                    activeModalModule.Components.Add(savedComp);
+                }
+            }
         }
-        else
+        else // --- EDIT MODE (PUT) ---
         {
-            Console.WriteLine("Erro ao guardar edições. Falta o HttpPut no servidor?");
+            var response = await Http.PutAsJsonAsync($"api/ModuleComponent/{componentToEdit.Id}", componentToEdit);
+            if (response.IsSuccessStatusCode)
+            {
+                // Update the visual list instantly
+                var existing = activeModalModule.Components!.First(c => c.Id == componentToEdit.Id);
+                existing.Title = componentToEdit.Title;
+                existing.PdfFilePath = componentToEdit.PdfFilePath;
+            }
         }
-        
+
         isSavingModal = false;
+        ResetForm(); // Clear the form so they can quickly add another item
+        StateHasChanged();
     }
 
     private async Task DeleteComponent(int compId)
     {
         if (activeModalModule == null) return;
-        
-        // Assumes you have an endpoint: [HttpDelete("{id}")] in ModuleComponentController
+
         var response = await Http.DeleteAsync($"api/ModuleComponent/{compId}");
         if (response.IsSuccessStatusCode)
         {
@@ -374,68 +495,83 @@
         }
     }
 
-    private void OpenModuleModal(Module mod)
+    private async Task HandleFileUpload(InputFileChangeEventArgs e)
     {
-        activeModalModule = mod;
-        activeModalModule.Components ??= new List<ModuleComponent>();
+        isUploading = true;
+        StateHasChanged();
 
-        // Initialize the empty text boxes for all 5 stages
-        foreach (var stage in stagesToRender)
+        var file = e.File;
+        long maxAllowedSize = 10 * 1024 * 1024; // 10 MB limit
+
+        try
         {
-            newComponentTitles[stage.Stage] = string.Empty;
-            newComponentFiles[stage.Stage] = string.Empty;
+            using var content = new MultipartFormDataContent();
+            
+            // Read the file from the browser
+            var fileContent = new StreamContent(file.OpenReadStream(maxAllowedSize));
+            fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(file.ContentType);
+            
+            content.Add(fileContent, "file", file.Name);
+
+            // Send it to our new Backend Vault
+            var response = await Http.PostAsync("api/files/upload", content);
+
+            if (response.IsSuccessStatusCode)
+            {
+                // The backend hands us back the secure API URL (e.g., "api/files/download/abcd-1234.pdf")
+                var secureUrl = await response.Content.ReadAsStringAsync();
+                
+                // Automatically fill the text box with the new secure URL!
+                componentToEdit.PdfFilePath = secureUrl;
+            }
+            else
+            {
+                Console.WriteLine("Erro ao enviar ficheiro.");
+            }
         }
-        
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Erro: {ex.Message}");
+        }
+
+        isUploading = false;
         StateHasChanged();
     }
 
-    private void CloseModuleModal()
+    // --- COPY COMPONENTS ---
+    private async Task CopyComponents()
     {
-        activeModalModule = null;
-    }
-
-    // --- ADD / DELETE COMPONENT LOGIC ---
-    private async Task AddComponentToStage(ModuleStage stage)
-    {
-        if (activeModalModule == null || string.IsNullOrWhiteSpace(newComponentTitles[stage])) return;
-
-        var dto = new ModuleComponentCreateDTO
+        // Safety check to make sure there is actually a stage to copy from
+        if (activeModalModule == null || !activeModalStage.HasValue || !activeModalStage.Value.CopyFromStage.HasValue) return;
+        
+        isCopying = true;
+        StateHasChanged(); // Show the loading spinner
+        
+        var sourceStage = activeModalStage.Value.CopyFromStage.Value;
+        var targetStage = activeModalStage.Value.Stage;
+        
+        // Find all components in the previous stage of this specific module
+        var itemsToCopy = activeModalModule.Components?.Where(c => c.Stage == sourceStage).ToList() ?? new();
+        
+        foreach (var item in itemsToCopy)
         {
-            ModuleId = activeModalModule.Id,
-            Title = newComponentTitles[stage],
-            Stage = stage,
-            PdfFilePath = newComponentFiles.ContainsKey(stage) ? newComponentFiles[stage] : ""
-        };
-
-        var response = await Http.PostAsJsonAsync("api/ModuleComponent", dto);
-        if (response.IsSuccessStatusCode)
-        {
-            var savedComp = await response.Content.ReadFromJsonAsync<ModuleComponent>();
-            if (savedComp != null)
+            var dto = new ModuleComponentCreateDTO
             {
-                activeModalModule.Components!.Add(savedComp);
-                
-                // Clear the text boxes for this specific stage after saving
-                newComponentTitles[stage] = string.Empty;
-                newComponentFiles[stage] = string.Empty;
-                
-                StateHasChanged();
+                ModuleId = activeModalModule.Id,
+                Title = item.Title,
+                Stage = targetStage, // Save it into the NEW stage
+                PdfFilePath = item.PdfFilePath
+            };
+            
+            var response = await Http.PostAsJsonAsync("api/ModuleComponent", dto);
+            if (response.IsSuccessStatusCode)
+            {
+                var savedCopy = await response.Content.ReadFromJsonAsync<ModuleComponent>();
+                if (savedCopy != null) activeModalModule.Components!.Add(savedCopy);
             }
         }
-    }
-
-    // --- DELETE WHOLE MODULE LOGIC ---
-    private async Task DeleteActiveModule()
-    {
-        if (activeModalModule == null) return;
-
-        // Assumes you have an endpoint: [HttpDelete("{id}")] in ModuleController
-        var response = await Http.DeleteAsync($"api/Module/{activeModalModule.Id}");
-        if (response.IsSuccessStatusCode)
-        {
-            savedModules.Remove(activeModalModule);
-            CloseModuleModal();
-            StateHasChanged();
-        }
+        
+        isCopying = false;
+        StateHasChanged(); // Hide spinner and refresh list
     }
 }
