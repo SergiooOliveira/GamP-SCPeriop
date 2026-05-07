@@ -1,6 +1,9 @@
 ﻿@page "/supervisor/pathway-builder"
+@page "/supervisor/pathway-builder/{PathwayIdToLoad:int}"
 @layout TopNavBarLayout
 @inject HttpClient Http
+@inject NavigationManager Nav
+@inject Blazored.LocalStorage.ILocalStorageService LocalStorage
 @using GamP_SCPeriop.Shared.Entity.Model
 @using GamP_SCPeriop.Shared.Enum
 
@@ -64,7 +67,7 @@
                 <strong class="fs-5">@activePathway.Title</strong>
             </div>
             <div>
-                @* <span class="badge bg-success fs-6 me-2">ID: @activePathway.Id</span> *@
+                <span class="badge bg-success fs-6 me-2">ID: @activePathway.Id</span>
                 <button class="btn btn-sm btn-outline-success" @onclick="CloseActivePathway"><i class="bi bi-x-lg"></i></button>
             </div>
         </div>
@@ -270,6 +273,11 @@
     private int expandedModuleId = 0; // Tracks which module accordion is currently open
     private bool isCopying = false;
 
+    [Parameter]
+    public int? PathwayIdToLoad { get; set; }
+    [SupplyParameterFromQuery(Name = "from")]
+    public string? FromSource { get; set; }
+
     private bool isUploading = false;
 
     private List<(ModuleStage Stage, string Title, string Icon, ModuleStage? CopyFromStage)> stagesToRender = new()
@@ -294,7 +302,15 @@
     // ==========================================
     protected override async Task OnInitializedAsync()
     {
-        existingPathways = await Http.GetFromJsonAsync<List<PathwayTagDto>>("api/Pathway/available-options") ?? new();
+        var currentUser = await LocalStorage.GetItemAsync<User>("user");
+
+        existingPathways = await Http.GetFromJsonAsync<List<PathwayTagDto>>($"api/Pathway/supervisor/{currentUser.Id}") ?? new();
+
+        if (PathwayIdToLoad.HasValue && PathwayIdToLoad.Value > 0)
+        {
+            selectedExistingPathwayId = PathwayIdToLoad.Value;
+            await LoadExistingPathway();
+        }
     }
 
     private async Task LoadExistingPathway()
@@ -313,9 +329,21 @@
 
     private void CloseActivePathway()
     {
-        activePathway = null;
-        savedModules.Clear();
-        selectedExistingPathwayId = 0;
+        if (FromSource == "dashboard")
+        {
+            // Send them back where they came from
+            Nav.NavigateTo("/dashboard");
+        }
+        else
+        {
+            // Normal behavior: Reset to the "Select/Create" screen
+            activePathway = null;
+            savedModules.Clear();
+            selectedExistingPathwayId = 0;
+            
+            // This cleans the URL so the ID disappears
+            Nav.NavigateTo("/supervisor/pathway-builder");
+        }
     }
 
     private async Task CreatePathway()

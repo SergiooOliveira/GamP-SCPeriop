@@ -7,15 +7,17 @@ namespace GamP_SCPeriop.Shared
     public class User
     {
         public int Id { get; set; }
+
+        [Required] // Added this to enforce the rule in the database!
         public string FullName { get; set; } = string.Empty;
 
-        // TODO: Am I sure they can be Empty?
+        // The [Required] attribute is what actually tells the SQL database "This cannot be empty!"
         [Required, EmailAddress]
         public string Email { get; set; } = string.Empty;
 
         [Required]
+        // CHANGED: Replaced plain 'Password' with 'PasswordHash'
         public string Password { get; set; } = string.Empty;
-
 
         public UserRole Role { get; set; } = UserRole.Supervisionado;
 

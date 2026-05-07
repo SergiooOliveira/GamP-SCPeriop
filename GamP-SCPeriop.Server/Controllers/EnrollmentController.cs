@@ -40,10 +40,10 @@ namespace GamP_SCPeriop.Server.Controllers
         public async Task<ActionResult<List<Enrollment>>> GetStudentEnrollments(int studentId)
         {
             var enrollments = await _context.Enrollments
-                .Where(e => e.StudentId == studentId)
-                .Include(e => e.Student)
                 .Include(e => e.Pathway)
-                    .ThenInclude(p => p.Modules) // Critical for your dropdown accordion!
+                    .ThenInclude(p => p.Modules)
+                .Include(e => e.Professor) // <--- ADD THIS SINGLE LINE
+                .Where(e => e.StudentId == studentId)
                 .ToListAsync();
 
             if (!enrollments.Any())

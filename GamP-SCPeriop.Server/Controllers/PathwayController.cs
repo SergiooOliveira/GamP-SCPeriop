@@ -26,7 +26,8 @@ namespace GamP_SCPeriop.Server.Controllers
             {
                 Title = dto.Title,
                 MinimumPassScore = dto.MinimumPassScore,
-                MinimumApprovalScore = dto.MinimumApprovalScore
+                MinimumApprovalScore = dto.MinimumApprovalScore,
+                ProfessorId = dto.ProfessorId
                 // Modules list starts empty automatically
             };
 
@@ -52,17 +53,19 @@ namespace GamP_SCPeriop.Server.Controllers
             return Ok(pathway);
         }
 
-        [HttpGet("available-options")]
-        public async Task<ActionResult<List<PathwayTagDto>>> GetAllPathways()
+        [HttpGet("supervisor/{supervisorId}")]
+        public async Task<ActionResult<List<PathwayTagDto>>> GetSupervisorPathways(int supervisorId)
         {
-            // Grab all pathways and map them straight into the DTO for the dropdown
             var pathways = await _context.Pathways
+                .Where(p => p.ProfessorId == supervisorId)
                 .Select(p => new PathwayTagDto
                 {
                     PathwayId = p.Id,
                     Title = p.Title
                 })
                 .ToListAsync();
+
+            if (!pathways.Any()) return Ok(new List<PathwayTagDto>());
 
             return Ok(pathways);
         }

@@ -9,10 +9,10 @@
 
 <div class="max-width-container mt-3 px-3 pb-5">
     
-    <div class="d-flex justify-content-between align-items-end mb-3">
+@*     <div class="d-flex justify-content-between align-items-end mb-3">
         <h5 class="fw-bold mb-0">Pathways</h5>
         <a href="#" class="text-primary text-decoration-none small">Ver todas</a>
-    </div>
+    </div> *@
 
     <div class="d-flex overflow-auto gap-3 mb-4 pb-2 horizontal-scroll-container">
         @if (pathwaySummaries.Any())
@@ -21,12 +21,15 @@
             {
                 <div class="card border-0 shadow-sm flex-shrink-0" style="width: 240px; border-radius: 20px; background-color: #E2ECEF;">
                     <div class="card-body p-4">
-                        <h6 class="fw-bold mb-3 fs-5">@summary.Pathway.Title</h6>
+                        
+                        <h6 class="fw-bold mb-3 fs-5">@summary.Title</h6>
+                        
                         <div class="mb-4 d-flex align-items-baseline">
                             <span class="fs-2 fw-bold me-2">@summary.StudentCount</span>
                             <span class="text-muted small">Supervisionados</span>
                         </div>
-                        <button @onclick="@(() => Nav.NavigateTo($"/supervisor/pathway-builder/{summary.Pathway.Id}"))"
+                        
+                        <button @onclick='@(() => Nav.NavigateTo($"/supervisor/pathway-builder/{summary.Id}?from=dashboard"))'
                                 class="btn w-100 text-white fw-semibold"
                                 style="border-radius: 12px; background-color: #6A96A6; border: none; padding: 10px;">
                             Editar Pathway
@@ -37,8 +40,17 @@
         }
         else
         {
-            <p class="text-muted">A carregar pathways...</p>
+            <p class="text-muted flex-shrink-0 me-3">A carregar pathways...</p>
         }
+
+        <div class="card shadow-sm flex-shrink-0"
+             style="width: 240px; border-radius: 20px; background-color: transparent; border: 2px dashed #6A96A6; cursor: pointer; transition: all 0.2s;"
+             @onclick="OpenCreatePathwayModal">
+            <div class="card-body d-flex flex-column justify-content-center align-items-center text-center h-100" style="color: #6A96A6; min-height: 160px;">
+                <i class="bi bi-plus-circle mb-2" style="font-size: 2.5rem;"></i>
+                <h6 class="fw-bold mb-0 fs-5">Criar Novo<br>Pathway</h6>
+            </div>
+        </div>
     </div>
 
     <div class="mt-4">
@@ -199,13 +211,66 @@
     </div>
 }
 
+
+@if (showCreatePathwayModal)
+{
+    <div class="modal-backdrop fade show" style="background-color: rgba(0,0,0,0.5);"></div>
+    <div class="modal fade show d-block" tabindex="-1" @onclick="CloseCreatePathwayModal">
+        <div class="modal-dialog modal-dialog-centered" @onclick:stopPropagation="true">
+            <div class="modal-content border-0 shadow" style="border-radius: 20px;">
+                
+                <div class="modal-header border-0 pb-0 d-flex flex-column align-items-center mt-4">
+                    <button type="button" class="btn-close position-absolute top-0 end-0 m-3" @onclick="CloseCreatePathwayModal"></button>
+                    
+                    <div class="rounded-circle bg-primary bg-opacity-10 text-primary d-flex justify-content-center align-items-center mb-3 shadow-sm" style="width: 80px; height: 80px;">
+                        <i class="bi bi-diagram-3-fill" style="font-size: 2.5rem;"></i>
+                    </div>
+
+                    <h4 class="fw-bold mb-0 text-dark">Criar Novo Percurso</h4>
+                    <p class="text-muted small mb-2 text-center">Defina os critérios básicos para começar.</p>
+                </div>
+
+                <div class="modal-body px-4 pb-4 mt-2">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold text-secondary small mb-1">Título do Percurso</label>
+                        <input class="form-control border-0 shadow-sm bg-light" style="border-radius: 10px; padding: 12px;" placeholder="Ex: Enfermagem Cirúrgica..." @bind="pathwayDto.Title" />
+                    </div>
+
+                    <div class="row mb-4">
+                        <div class="col-6">
+                            <label class="form-label fw-semibold text-secondary small mb-1">Mín. Passar (%)</label>
+                            <input type="number" class="form-control border-0 shadow-sm bg-light" style="border-radius: 10px; padding: 12px;" @bind="pathwayDto.MinimumPassScore" />
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fw-semibold text-secondary small mb-1">Mín. Aprovação (%)</label>
+                            <input type="number" class="form-control border-0 shadow-sm bg-light" style="border-radius: 10px; padding: 12px;" @bind="pathwayDto.MinimumApprovalScore" />
+                        </div>
+                    </div>
+
+                    <button class="btn w-100 text-white fw-bold py-3 shadow-sm" style="border-radius: 10px; background-color: #6A96A6;"
+                            @onclick="CreatePathway" disabled="@isCreatingPathway">
+                        @if (isCreatingPathway)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true">A criar...</span>
+                        }
+                        else
+                        {
+                            <span>Criar e Editar Percurso <i class="bi bi-arrow-right ms-2"></i></span>
+                        }
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
     // --- STATE VARIABLES ---
     private User? currentUser;
-    
+
     // Top Cards Data
     private List<Enrollment> supervisedEnrollments = new();
-    private record PathwaySummary(Pathway Pathway, int StudentCount);
+    private record PathwaySummary(int Id, string Title, int StudentCount);
     private List<PathwaySummary> pathwaySummaries = new();
 
     // Table Data
@@ -220,6 +285,11 @@
     private bool isSubmitting = false;
     private List<PathwayTagDto> availablePathways = new();
     private List<PathwayTagDto> unassignedPathways = new();
+
+    // --- CREATE PATHWAY VARIABLES ---
+    private bool showCreatePathwayModal = false;
+    private bool isCreatingPathway = false;
+    private PathwayCreateDTO pathwayDto = new PathwayCreateDTO { MinimumPassScore = 50, MinimumApprovalScore = 75 };
 
     // --- COMPUTED PROPERTIES ---
     private IEnumerable<StudentManagementDto> FilteredStudents =>
@@ -249,21 +319,25 @@
 
     private async Task LoadDashboardData()
     {
-        // 1. Fetch data for Top Cards (Supervisor Specific)
+        // 1. Fetch ALL available pathways FIRST (This guarantees empty pathways are loaded!)
+        availablePathways = await Http.GetFromJsonAsync<List<PathwayTagDto>>($"api/Pathway/supervisor/{currentUser!.Id}") ?? new();
+
+        // 2. Fetch the Enrollments
         var fetchedData = await Http.GetFromJsonAsync<List<Enrollment>>($"api/Enrollment/supervisor/{currentUser!.Id}");
         if (fetchedData != null)
         {
             supervisedEnrollments = fetchedData;
-            pathwaySummaries = supervisedEnrollments
-                .Where(e => e.Pathway != null)
-                .GroupBy(e => e.Pathway!)
-                .Select(g => new PathwaySummary(g.Key, g.Count()))
-                .ToList();
         }
 
-        // 2. Fetch data for the Student Table and Modal
+        // 3. THE FIX: Build cards for EVERY pathway, counting enrollments if they exist!
+        pathwaySummaries = availablePathways.Select(p => new PathwaySummary(
+            p.PathwayId,
+            p.Title,
+            supervisedEnrollments.Count(e => e.PathwayId == p.PathwayId)
+        )).ToList();
+
+        // 4. Fetch data for the Student Table
         students = await Http.GetFromJsonAsync<List<StudentManagementDto>>("api/Enrollment/management");
-        availablePathways = await Http.GetFromJsonAsync<List<PathwayTagDto>>("api/Pathway/available-options") ?? new();
     }
 
     // --- MODAL LOGIC ---
@@ -271,7 +345,7 @@
     {
         selectedStudentId = studentId;
         selectedStudent = students?.FirstOrDefault(s => s.StudentId == studentId);
-        
+
         if (selectedStudent != null)
         {
             unassignedPathways = availablePathways
@@ -315,5 +389,46 @@
         }
 
         isSubmitting = false;
+    }
+
+    // --- CREATE PATHWAY LOGIC ---
+    private void OpenCreatePathwayModal()
+    {
+        // Reset the form every time we open it
+        pathwayDto = new PathwayCreateDTO { Title = "", MinimumPassScore = 50, MinimumApprovalScore = 75 };
+        showCreatePathwayModal = true;
+    }
+
+    private void CloseCreatePathwayModal()
+    {
+        showCreatePathwayModal = false;
+    }
+
+    private async Task CreatePathway()
+    {
+        if (string.IsNullOrWhiteSpace(pathwayDto.Title)) return;
+
+        isCreatingPathway = true;
+
+        Console.WriteLine($"Creating a new pathway with a currentUser.id: {currentUser.Id}");
+        pathwayDto.ProfessorId = currentUser.Id;
+
+        var response = await Http.PostAsJsonAsync("api/Pathway", pathwayDto);
+        if (response.IsSuccessStatusCode)
+        {
+            var createdPathway = await response.Content.ReadFromJsonAsync<Pathway>();
+            if (createdPathway != null)
+            {
+                // Close the modal and instantly warp to the builder page using the brand new ID!
+                showCreatePathwayModal = false;
+                Nav.NavigateTo($"/supervisor/pathway-builder/{createdPathway.Id}?from=dashboard");
+            }
+        }
+        else
+        {
+            Console.WriteLine("Erro ao criar percurso.");
+        }
+        
+        isCreatingPathway = false;
     }
 }

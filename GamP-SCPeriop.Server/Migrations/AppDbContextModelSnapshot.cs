@@ -58,12 +58,21 @@ namespace GamP_SCPeriop.Server.Migrations
                     b.HasData(
                         new
                         {
-                            Id = 1,
-                            EndDate = new DateTime(2026, 6, 30, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            Id = 3,
+                            EndDate = new DateTime(2026, 5, 20, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            PathwayId = 2,
+                            ProfessorId = 10,
+                            ProgressPercentage = 80,
+                            StudentId = 11
+                        },
+                        new
+                        {
+                            Id = 4,
+                            EndDate = new DateTime(2026, 12, 10, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             PathwayId = 1,
-                            ProfessorId = 6,
-                            ProgressPercentage = 15,
-                            StudentId = 7
+                            ProfessorId = 9,
+                            ProgressPercentage = 5,
+                            StudentId = 12
                         });
                 });
 
@@ -145,7 +154,7 @@ namespace GamP_SCPeriop.Server.Migrations
                             Id = 1,
                             ModuleId = 1,
                             PdfFilePath = "",
-                            Stage = 0,
+                            Stage = 1,
                             Status = 0,
                             Title = "Guia de Higienização"
                         },
@@ -154,9 +163,72 @@ namespace GamP_SCPeriop.Server.Migrations
                             Id = 2,
                             ModuleId = 2,
                             PdfFilePath = "",
-                            Stage = 0,
+                            Stage = 2,
                             Status = 0,
                             Title = "Checklist Cirúrgica"
+                        },
+                        new
+                        {
+                            Id = 3,
+                            ModuleId = 1,
+                            PdfFilePath = "https://example.com/manual.pdf",
+                            Stage = 1,
+                            Status = 0,
+                            Title = "Manual de Acolhimento"
+                        },
+                        new
+                        {
+                            Id = 4,
+                            ModuleId = 1,
+                            PdfFilePath = "",
+                            Stage = 2,
+                            Status = 0,
+                            Title = "Checklist de Segurança (OMS)"
+                        },
+                        new
+                        {
+                            Id = 5,
+                            ModuleId = 2,
+                            PdfFilePath = "",
+                            Stage = 4,
+                            Status = 0,
+                            Title = "Preparação da Sala Operatória"
+                        },
+                        new
+                        {
+                            Id = 6,
+                            ModuleId = 2,
+                            PdfFilePath = "",
+                            Stage = 5,
+                            Status = 0,
+                            Title = "Circulação na Sala"
+                        },
+                        new
+                        {
+                            Id = 7,
+                            ModuleId = 3,
+                            PdfFilePath = "https://example.com/farmacos.pdf",
+                            Stage = 1,
+                            Status = 0,
+                            Title = "Tabela de Fármacos de Emergência"
+                        },
+                        new
+                        {
+                            Id = 8,
+                            ModuleId = 3,
+                            PdfFilePath = "",
+                            Stage = 3,
+                            Status = 0,
+                            Title = "Preparação do Ventilação"
+                        },
+                        new
+                        {
+                            Id = 9,
+                            ModuleId = 3,
+                            PdfFilePath = "",
+                            Stage = 5,
+                            Status = 0,
+                            Title = "Entubação Endotraqueal"
                         });
                 });
 
@@ -174,6 +246,9 @@ namespace GamP_SCPeriop.Server.Migrations
                     b.Property<int>("MinimumPassScore")
                         .HasColumnType("int");
 
+                    b.Property<int>("ProfessorId")
+                        .HasColumnType("int");
+
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -188,6 +263,7 @@ namespace GamP_SCPeriop.Server.Migrations
                             Id = 1,
                             MinimumApprovalScore = 75,
                             MinimumPassScore = 50,
+                            ProfessorId = 9,
                             Title = "Enfermagem Cirúrgica"
                         },
                         new
@@ -195,6 +271,7 @@ namespace GamP_SCPeriop.Server.Migrations
                             Id = 2,
                             MinimumApprovalScore = 80,
                             MinimumPassScore = 50,
+                            ProfessorId = 10,
                             Title = "Anestesia Básica"
                         });
                 });
@@ -257,6 +334,42 @@ namespace GamP_SCPeriop.Server.Migrations
                             Password = "123",
                             Role = 0,
                             University = "IPCA"
+                        },
+                        new
+                        {
+                            Id = 9,
+                            Email = "armando.costa@hospital.pt",
+                            FullName = "Dr. Armando Costa",
+                            Password = "123",
+                            Role = 0,
+                            University = "Hospital Central"
+                        },
+                        new
+                        {
+                            Id = 10,
+                            Email = "beatriz.sousa@hospital.pt",
+                            FullName = "Enf. Beatriz Sousa",
+                            Password = "123",
+                            Role = 0,
+                            University = "Hospital Central"
+                        },
+                        new
+                        {
+                            Id = 11,
+                            Email = "a101@alunos.ipca.pt",
+                            FullName = "Ana Silva",
+                            Password = "123",
+                            Role = 1,
+                            University = "Universidade do Minho"
+                        },
+                        new
+                        {
+                            Id = 12,
+                            Email = "a102@alunos.ipca.pt",
+                            FullName = "Carlos Martins",
+                            Password = "123",
+                            Role = 1,
+                            University = "Universidade do Porto"
                         });
                 });
 
