@@ -1,4 +1,5 @@
 ﻿@page "/dashboard"
+@using GamP_SCPeriop.Shared.Entity.Model
 @using GamP_SCPeriop.Shared.Enum
 @using Blazored.LocalStorage
 @layout TopNavBarLayout
@@ -6,24 +7,14 @@
 @inject NavigationManager Nav
 @inject ILocalStorageService LocalStorage
 
-@* @if (students == null)
-{
-    <p><em>Loading students...</em></p>
-}
-else if (students.Count == 0)
-{
-    <div class="alert alert-info">No students registered yet.</div>
-}
-else
-{ *@
-    <div class="max-width-container mt-3 px-3 pb-5">
-        <div class="d-flex justify-content-between align-items-end mb-3">
-            <h5 class="fw-bold mb-0">Pathways</h5>
-            <a href="#" class="text-primary text-decoration-none small">Ver todas</a>
-        </div>
+<div class="max-width-container mt-3 px-3 pb-5">
+    
+    <div class="d-flex justify-content-between align-items-end mb-3">
+        <h5 class="fw-bold mb-0">Pathways</h5>
+        <a href="#" class="text-primary text-decoration-none small">Ver todas</a>
+    </div>
 
-        <div class="d-flex overflow-auto gap-3 mb-4 pb-2 horizontal-scroll-container">
-        
+    <div class="d-flex overflow-auto gap-3 mb-4 pb-2 horizontal-scroll-container">
         @if (pathwaySummaries.Any())
         {
             @foreach (var summary in pathwaySummaries)
@@ -35,10 +26,10 @@ else
                             <span class="fs-2 fw-bold me-2">@summary.StudentCount</span>
                             <span class="text-muted small">Supervisionados</span>
                         </div>
-                        <button @onclick="@(() => Nav.NavigateTo($"/pathway/{summary.Pathway.Id}"))"
+                        <button @onclick="@(() => Nav.NavigateTo($"/supervisor/pathway-builder/{summary.Pathway.Id}"))"
                                 class="btn w-100 text-white fw-semibold"
                                 style="border-radius: 12px; background-color: #6A96A6; border: none; padding: 10px;">
-                            Ver Pathway
+                            Editar Pathway
                         </button>
                     </div>
                 </div>
@@ -48,104 +39,281 @@ else
         {
             <p class="text-muted">A carregar pathways...</p>
         }
+    </div>
+
+    <div class="mt-4">
+        <div class="row mt-5 mb-4 align-items-center">
+            <div class="col-md-6">
+                <h4 class="fw-bold mb-0 text-dark">Gestão de Alunos</h4>
+            </div>
+            <div class="col-md-6 text-md-end mt-3 mt-md-0">
+                <div class="input-group shadow-sm" style="border-radius: 20px; overflow: hidden; max-width: 350px; float: right;">
+                    <span class="input-group-text bg-white border-0"><i class="bi bi-search text-muted"></i></span>
+                    <input type="text" class="form-control border-0 bg-white" placeholder="Pesquisar aluno..." @bind="searchQuery" @bind:event="oninput">
+                </div>
+            </div>
         </div>
 
-        <div class="mt-4">
-            <div class="d-flex justify-content-between align-items-end mb-3">
-                <h5 class="fw-bold mb-0">Todos os Supervisionados</h5>
-                <a href="/students" class="btn btn-primary shadow-sm" style="border-radius: 10px;">
-                    <i class="bi bi-people-fill me-2"></i> Gestão de Alunos
-                </a>
-            </div>
-    
-            <div class="card border-0 shadow-sm" style="border-radius: 20px; overflow: hidden;">
-                
-                <div class="row text-muted small p-3 bg-white border-bottom m-0">
-                    <div class="col-5 fw-bold px-2">Nome</div>
-                    <div class="col-4 fw-bold px-2">Pathway</div>
-                    <div class="col-3 text-end fw-bold px-2">Progresso</div>
-                </div>
-
-                @if (supervisedEnrollments.Any())
-                {
-                    @foreach (var enrollment in supervisedEnrollments)
-                    {
-                        <div class="row align-items-center p-3 bg-white border-bottom m-0">
-                            <div class="col-5 px-2 d-flex align-items-center gap-3" style="flex: 2;">
-                                <div class="rounded-circle bg-secondary text-white d-flex justify-content-center align-items-center flex-shrink-0" style="width: 40px; height: 40px;">
-                                    <i class="bi bi-person-fill fs-5"></i>
-                                </div>
-                                <div>
-                                    <div class="fw-bold">@(enrollment.Student?.DisplayShortName ?? "Aluno Desconhecido")</div>
-                                    <div class="text-muted small">Universidade do Minho</div>
-                                </div>
-                            </div>
-                            <div class="col-4 px-2 text-muted small">
-                                @(enrollment.Pathway?.Title ?? "Sem Pathway")
-                            </div>
-                            <div class="col-3 text-end px-2">
-                                <span class="badge rounded-pill bg-primary-subtle text-primary border border-primary-subtle px-3 py-2">
-                                    @enrollment.ProgressPercentage%
-                                </span>
-                            </div>
-                        </div>
-                    }
-                }
-                else
-                {
-                    <div class="p-4 text-center text-muted">A carregar alunos...</div>
-                }
+        <div class="card shadow-sm border-0 mb-5" style="border-radius: 20px; overflow: hidden;">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="bg-light text-muted small text-uppercase">
+                        <tr>
+                            <th class="ps-4 fw-bold border-0 py-3">Aluno</th>
+                            <th class="fw-bold border-0 py-3">Email</th>
+                            <th class="fw-bold border-0 py-3">Percursos Ativos</th>
+                            <th class="fw-bold border-0 py-3">Progresso Global</th>
+                            <th class="fw-bold border-0 py-3 text-end pe-4">Último Acesso</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (students == null)
+                        {
+                            <tr><td colspan="5" class="text-center py-4 text-muted">A carregar alunos...</td></tr>
+                        }
+                        else if (!students.Any())
+                        {
+                            <tr><td colspan="5" class="text-center py-4 text-muted">Nenhum aluno encontrado no sistema.</td></tr>
+                        }
+                        else
+                        {
+                            @foreach (var student in FilteredStudents)
+                            {
+                                <tr @onclick="() => OpenStudentProfile(student.StudentId)" style="cursor: pointer;" class="bg-white">
+                                    <td class="no-select ps-4 py-3">
+                                        <div class="d-flex align-items-center gap-3">
+                                            <div class="rounded-circle text-white d-flex justify-content-center align-items-center flex-shrink-0 shadow-sm" style="width: 40px; height: 40px; background-color: #1a73e8;">
+                                                <i class="bi bi-person-fill fs-5"></i>
+                                            </div>
+                                            <div class="fw-bold text-dark">@student.FullName</div>
+                                        </div>
+                                    </td>
+                                    <td class="no-select text-muted small">@student.Email</td>
+                                    <td>
+                                        @if (!student.ActivePathways.Any())
+                                        {
+                                            <span class="text-muted small">Sem percursos</span>
+                                        }
+                                        else
+                                        {
+                                            <div class="d-flex flex-wrap gap-1">
+                                                @foreach (var tag in student.ActivePathways)
+                                                {
+                                                    <span class="badge rounded-pill bg-primary bg-opacity-10 text-primary fw-normal px-2 py-1 border border-primary border-opacity-25">@tag.Title</span>
+                                                }
+                                            </div>
+                                        }
+                                    </td>
+                                    <td class="no-select" style="width: 200px;">
+                                        <div class="d-flex align-items-center gap-2 bg-light px-3 py-2" style="border-radius: 20px;">
+                                            <div class="bg-white flex-grow-1 shadow-sm" style="height: 6px; border-radius: 10px; overflow: hidden;">
+                                                <div class="h-100" style="width: @(student.OverallProgress)%; background-color: #8ab4f8;"></div>
+                                            </div>
+                                            <small class="fw-bold text-primary" style="min-width: 30px; text-align: right;">@(student.OverallProgress)%</small>
+                                        </div>
+                                    </td>
+                                    <td class="no-select text-end pe-4 text-muted small">
+                                        @(student.LastAccess?.ToString("dd MMM yyyy") ?? "-")
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
-@* } *@
+</div>
+
+@if (showModal)
+{
+    <div class="modal-backdrop fade show" style="background-color: rgba(0,0,0,0.5);"></div>
+    <div class="modal fade show d-block" tabindex="-1" @onclick="CloseModal">
+        <div class="modal-dialog modal-dialog-centered" @onclick:stopPropagation="true">
+            <div class="modal-content border-0 shadow" style="border-radius: 20px;">
+                
+                <div class="modal-header border-0 pb-0 d-flex flex-column align-items-center mt-4">
+                    <button type="button" class="btn-close position-absolute top-0 end-0 m-3" @onclick="CloseModal"></button>
+                    
+                    <div class="rounded-circle text-white d-flex justify-content-center align-items-center mb-3 shadow-sm" style="width: 80px; height: 80px; background-color: #1a73e8;">
+                        <i class="bi bi-person-fill" style="font-size: 2.5rem;"></i>
+                    </div>
+
+                    <h4 class="fw-bold mb-0 text-dark">@(selectedStudent?.FullName ?? "A carregar...")</h4>
+                    <p class="text-muted small mb-2">@(selectedStudent?.Email)</p>
+                </div>
+
+                <div class="modal-body px-4 pb-4">
+                    <hr class="text-muted opacity-25">
+                    
+                    <h6 class="fw-bold mb-3 text-dark">Atribuir Novo Percurso</h6>
+                    <div class="d-flex gap-2">
+                        <select class="form-select border-0 bg-light shadow-sm" style="border-radius: 10px;" @bind="selectedPathwayId">
+                            <option value="0" selected disabled>Selecione um percurso...</option>
+                            @foreach (var pathway in unassignedPathways)
+                            {
+                                <option value="@pathway.PathwayId">@pathway.Title</option>
+                            }
+                        </select>
+
+                        <button class="btn btn-primary px-4 shadow-sm" style="border-radius: 10px; background-color: #1a73e8; border: none;"
+                                @onclick="AssignPathway" disabled="@isSubmitting">
+                            @if (isSubmitting)
+                            {
+                                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                            }
+                            else
+                            {
+                                <span>Adicionar</span>
+                            }
+                        </button>
+                    </div>
+
+                    <div class="mt-4">
+                        <h6 class="fw-bold mb-2 text-dark">Percursos Atuais</h6>
+                        <ul class="list-group list-group-flush small">
+                            @if (selectedStudent?.ActivePathways == null || !selectedStudent.ActivePathways.Any())
+                            {
+                                <li class="list-group-item px-0 text-muted border-0 bg-transparent">
+                                    <i class="bi bi-info-circle me-2"></i> Nenhum percurso atribuído.
+                                </li>
+                            }
+                            else
+                            {
+                                @foreach (var pathway in selectedStudent.ActivePathways)
+                                {
+                                    <li class="list-group-item px-0 d-flex justify-content-between align-items-center border-0 bg-transparent">
+                                        <span><i class="bi bi-journal-text me-2 text-primary"></i> @pathway.Title</span>
+                                        <span class="badge @(pathway.Status == "Concluído" ? "bg-success text-white" : "bg-light text-dark border")">
+                                            @pathway.Status
+                                        </span>
+                                    </li>
+                                }
+                            }
+                        </ul>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+}
 
 @code {
+    // --- STATE VARIABLES ---
     private User? currentUser;
-    private List<Enrollment> supervisedEnrollments = new();
     
-    // Helper record to group data for the top cards
+    // Top Cards Data
+    private List<Enrollment> supervisedEnrollments = new();
     private record PathwaySummary(Pathway Pathway, int StudentCount);
     private List<PathwaySummary> pathwaySummaries = new();
 
+    // Table Data
+    private List<StudentManagementDto>? students;
+    private string searchQuery = "";
+
+    // Modal Data
+    private bool showModal = false;
+    private int selectedStudentId;
+    private StudentManagementDto? selectedStudent;
+    private int selectedPathwayId;
+    private bool isSubmitting = false;
+    private List<PathwayTagDto> availablePathways = new();
+    private List<PathwayTagDto> unassignedPathways = new();
+
+    // --- COMPUTED PROPERTIES ---
+    private IEnumerable<StudentManagementDto> FilteredStudents =>
+        string.IsNullOrWhiteSpace(searchQuery)
+            ? (students ?? new())
+            : (students ?? new()).Where(s => s.FullName.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ||
+                                             s.Email.Contains(searchQuery, StringComparison.OrdinalIgnoreCase));
+
+    // --- INITIALIZATION ---
     protected override async Task OnInitializedAsync()
     {
         try
         {
-            // 1. Verify session
             var hasUser = await LocalStorage.ContainKeyAsync("user");
-            if (!hasUser)
-            {
-                Nav.NavigateTo("/login");
-                return;
-            }
+            if (!hasUser) { Nav.NavigateTo("/login"); return; }
 
             currentUser = await LocalStorage.GetItemAsync<User>("user");
+            if (currentUser?.Role != UserRole.Supervisor) { Nav.NavigateTo("/"); return; }
 
-            if (currentUser?.Role != UserRole.Supervisor)
-            {
-                Nav.NavigateTo("/"); // Kick out non-supervisors
-                return;
-            }
-
-            // 2. Fetch data from the new API endpoint
-            var fetchedData = await Http.GetFromJsonAsync<List<Enrollment>>($"api/Enrollment/supervisor/{currentUser.Id}");
-            
-            if (fetchedData != null)
-            {
-                supervisedEnrollments = fetchedData;
-
-                // 3. Group the data for the carousel cards
-                pathwaySummaries = supervisedEnrollments
-                    .Where(e => e.Pathway != null)
-                    .GroupBy(e => e.Pathway!)
-                    .Select(g => new PathwaySummary(g.Key, g.Count()))
-                    .ToList();
-            }
+            await LoadDashboardData();
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Critical error loading dashboard: {ex.Message}");
         }
+    }
+
+    private async Task LoadDashboardData()
+    {
+        // 1. Fetch data for Top Cards (Supervisor Specific)
+        var fetchedData = await Http.GetFromJsonAsync<List<Enrollment>>($"api/Enrollment/supervisor/{currentUser!.Id}");
+        if (fetchedData != null)
+        {
+            supervisedEnrollments = fetchedData;
+            pathwaySummaries = supervisedEnrollments
+                .Where(e => e.Pathway != null)
+                .GroupBy(e => e.Pathway!)
+                .Select(g => new PathwaySummary(g.Key, g.Count()))
+                .ToList();
+        }
+
+        // 2. Fetch data for the Student Table and Modal
+        students = await Http.GetFromJsonAsync<List<StudentManagementDto>>("api/Enrollment/management");
+        availablePathways = await Http.GetFromJsonAsync<List<PathwayTagDto>>("api/Pathway/available-options") ?? new();
+    }
+
+    // --- MODAL LOGIC ---
+    private void OpenStudentProfile(int studentId)
+    {
+        selectedStudentId = studentId;
+        selectedStudent = students?.FirstOrDefault(s => s.StudentId == studentId);
+        
+        if (selectedStudent != null)
+        {
+            unassignedPathways = availablePathways
+                .Where(p => !selectedStudent.ActivePathways.Any(ap => ap.PathwayId == p.PathwayId))
+                .ToList();
+        }
+        showModal = true;
+    }
+
+    private void CloseModal()
+    {
+        showModal = false;
+        selectedPathwayId = 0;
+    }
+
+    private async Task AssignPathway()
+    {
+        if (selectedPathwayId == 0 || currentUser == null) return;
+
+        isSubmitting = true;
+        var payload = new EnrollmentDto
+        {
+            StudentId = selectedStudentId,
+            ProfessorId = currentUser.Id,
+            PathwayId = selectedPathwayId,
+            ProgressPercentage = 0,
+            EndDate = DateTime.Now.AddMonths(6)
+        };
+
+        var response = await Http.PostAsJsonAsync("api/Enrollment", payload);
+
+        if (response.IsSuccessStatusCode)
+        {
+            // Close the modal and reload the data so BOTH the table and top cards update instantly!
+            CloseModal();
+            await LoadDashboardData();
+        }
+        else
+        {
+            Console.WriteLine("Failed to assign pathway.");
+        }
+
+        isSubmitting = false;
     }
 }
