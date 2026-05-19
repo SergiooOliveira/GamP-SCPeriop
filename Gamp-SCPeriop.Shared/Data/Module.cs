@@ -18,8 +18,8 @@ namespace GamP_SCPeriop.Shared
                 if (Components == null || !Components.Any()) return 0;
 
                 var completedCount = Components.Count(c =>
-                                    c.Status == ComponentStatus.Passed ||
-                                    c.Status == ComponentStatus.Approved);
+                                    c.Status == ComponentStatus.AcimaDaMedia ||
+                                    c.Status == ComponentStatus.Consistente);
 
                 return (int)((double)completedCount / Components.Count * 100);
             }

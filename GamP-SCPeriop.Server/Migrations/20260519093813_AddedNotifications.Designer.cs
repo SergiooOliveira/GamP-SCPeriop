@@ -4,6 +4,7 @@ using GamP_SCPeriop.Server.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GamP_SCPeriop.Server.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260519093813_AddedNotifications")]
+    partial class AddedNotifications
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -21,35 +24,6 @@ namespace GamP_SCPeriop.Server.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
-
-            modelBuilder.Entity("GamP_SCPeriop.Shared.Data.ComponentEvaluation", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("EnrollmentId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("EvaluatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("ModuleComponentId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("EnrollmentId");
-
-                    b.HasIndex("ModuleComponentId");
-
-                    b.ToTable("ComponentEvaluations");
-                });
 
             modelBuilder.Entity("GamP_SCPeriop.Shared.Data.Notification", b =>
                 {
@@ -205,6 +179,9 @@ namespace GamP_SCPeriop.Server.Migrations
                     b.Property<int>("Stage")
                         .HasColumnType("int");
 
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -222,6 +199,7 @@ namespace GamP_SCPeriop.Server.Migrations
                             ModuleId = 1,
                             PdfFilePath = "",
                             Stage = 1,
+                            Status = 0,
                             Title = "Guia de Higienização"
                         },
                         new
@@ -230,6 +208,7 @@ namespace GamP_SCPeriop.Server.Migrations
                             ModuleId = 2,
                             PdfFilePath = "",
                             Stage = 2,
+                            Status = 0,
                             Title = "Checklist Cirúrgica"
                         },
                         new
@@ -238,6 +217,7 @@ namespace GamP_SCPeriop.Server.Migrations
                             ModuleId = 1,
                             PdfFilePath = "https://example.com/manual.pdf",
                             Stage = 1,
+                            Status = 0,
                             Title = "Manual de Acolhimento"
                         },
                         new
@@ -246,6 +226,7 @@ namespace GamP_SCPeriop.Server.Migrations
                             ModuleId = 1,
                             PdfFilePath = "",
                             Stage = 2,
+                            Status = 0,
                             Title = "Checklist de Segurança (OMS)"
                         },
                         new
@@ -254,6 +235,7 @@ namespace GamP_SCPeriop.Server.Migrations
                             ModuleId = 2,
                             PdfFilePath = "",
                             Stage = 4,
+                            Status = 0,
                             Title = "Preparação da Sala Operatória"
                         },
                         new
@@ -262,6 +244,7 @@ namespace GamP_SCPeriop.Server.Migrations
                             ModuleId = 2,
                             PdfFilePath = "",
                             Stage = 5,
+                            Status = 0,
                             Title = "Circulação na Sala"
                         },
                         new
@@ -270,6 +253,7 @@ namespace GamP_SCPeriop.Server.Migrations
                             ModuleId = 3,
                             PdfFilePath = "https://example.com/farmacos.pdf",
                             Stage = 1,
+                            Status = 0,
                             Title = "Tabela de Fármacos de Emergência"
                         },
                         new
@@ -278,6 +262,7 @@ namespace GamP_SCPeriop.Server.Migrations
                             ModuleId = 3,
                             PdfFilePath = "",
                             Stage = 3,
+                            Status = 0,
                             Title = "Preparação do Ventilação"
                         },
                         new
@@ -286,6 +271,7 @@ namespace GamP_SCPeriop.Server.Migrations
                             ModuleId = 3,
                             PdfFilePath = "",
                             Stage = 5,
+                            Status = 0,
                             Title = "Entubação Endotraqueal"
                         });
                 });
@@ -429,25 +415,6 @@ namespace GamP_SCPeriop.Server.Migrations
                             Role = 1,
                             University = "Universidade do Porto"
                         });
-                });
-
-            modelBuilder.Entity("GamP_SCPeriop.Shared.Data.ComponentEvaluation", b =>
-                {
-                    b.HasOne("GamP_SCPeriop.Shared.Enrollment", "Enrollment")
-                        .WithMany()
-                        .HasForeignKey("EnrollmentId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("GamP_SCPeriop.Shared.ModuleComponent", "ModuleComponent")
-                        .WithMany()
-                        .HasForeignKey("ModuleComponentId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Enrollment");
-
-                    b.Navigation("ModuleComponent");
                 });
 
             modelBuilder.Entity("GamP_SCPeriop.Shared.Data.Notification", b =>

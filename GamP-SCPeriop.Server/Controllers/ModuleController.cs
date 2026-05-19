@@ -48,5 +48,40 @@ namespace GamP_SCPeriop.Server.Controllers
 
             return Ok(module);
         }
+
+        [HttpGet("{moduleId}/student/{studentId}")]
+        public async Task<ActionResult<Module>> GetModuleForStudent(int moduleId, int studentId)
+        {
+            // 1. Vamos buscar o Módulo e os seus Componentes (o Molde)
+            var module = await _context.Modules
+                .Include(m => m.Components)
+                .FirstOrDefaultAsync(m => m.Id == moduleId);
+
+            if (module == null) return NotFound();
+
+            // 2. Vamos buscar a Inscrição deste aluno neste Pathway
+            var enrollment = await _context.Enrollments
+                .FirstOrDefaultAsync(e => e.StudentId == studentId && e.PathwayId == module.PathwayId);
+
+            if (enrollment != null)
+            {
+                // 3. Vamos buscar as notas específicas deste aluno
+                var evaluations = await _context.ComponentEvaluations
+                    .Where(ce => ce.EnrollmentId == enrollment.Id)
+                    .ToListAsync();
+
+                // 4. Injetamos as notas nos componentes antes de enviar para o Frontend!
+                foreach (var component in module.Components)
+                {
+                    var eval = evaluations.FirstOrDefault(e => e.ModuleComponentId == component.Id);
+                    if (eval != null)
+                    {
+                        component.Status = eval.Status; // Usa a propriedade [NotMapped]
+                    }
+                }
+            }
+
+            return Ok(module);
+        }
     }
 }

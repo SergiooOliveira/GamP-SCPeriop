@@ -1,12 +1,14 @@
 ﻿@page "/module/{ModuleId:int}"
 @using GamP_SCPeriop.Shared
-@using GamP_SCPeriop.Shared.Entity.Model @using static GamP_SCPeriop.Helpers.UIHelpers
+@using Blazored.LocalStorage
+@using static GamP_SCPeriop.Helpers.UIHelpers
 @layout TopNavBarLayout
 @inject HttpClient Http
 @inject NavigationManager Nav
+@inject ILocalStorageService LocalStorage
 
 <div class="max-width-container mt-3 px-3">
-<div class="mb-3">
+    <div class="mb-3">
         <button class="btn btn-link text-muted p-0 text-decoration-none d-flex align-items-center" @onclick="GoBack">
             <i class="bi bi-chevron-left me-1"></i> Voltar
         </button>
@@ -90,7 +92,7 @@
     
     private Module? module;
     private Pathway? parentPathway;
-    private bool isLoading = true; // Added loading state
+    private bool isLoading = true; 
 
     protected override async Task OnInitializedAsync()
     {
@@ -98,13 +100,19 @@
         {
             isLoading = true;
             
-            // 1. Fetch the module and its components
-            module = await Http.GetFromJsonAsync<Module>($"api/Module/{ModuleId}");
+            // 1. Ir buscar o utilizador logado
+            var currentUser = await LocalStorage.GetItemAsync<User>("user");
             
-            // 2. Use the PathwayId to fetch the parent pathway data
-            if (module != null && module.PathwayId > 0)
+            if (currentUser != null)
             {
-                parentPathway = await Http.GetFromJsonAsync<Pathway>($"api/Pathway/{module.PathwayId}");
+                // 2. Chamar o novo endpoint passando o ID do Módulo E o ID do Aluno
+                module = await Http.GetFromJsonAsync<Module>($"api/Module/{ModuleId}/student/{currentUser.Id}");
+                
+                // 3. Ir buscar os dados do Pathway pai
+                if (module != null && module.PathwayId > 0)
+                {
+                    parentPathway = await Http.GetFromJsonAsync<Pathway>($"api/Pathway/{module.PathwayId}");
+                }
             }
         }
         catch (Exception ex)

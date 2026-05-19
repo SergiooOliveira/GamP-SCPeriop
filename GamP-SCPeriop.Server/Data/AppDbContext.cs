@@ -1,7 +1,20 @@
 ﻿using GamP_SCPeriop.Shared;
+using GamP_SCPeriop.Shared.Data;
 using GamP_SCPeriop.Shared.Enum;
 using Microsoft.EntityFrameworkCore;
 using System.ComponentModel;
+
+/*
+ * # Create a new migration
+    dotnet ef migrations add <MigrationName> --output-dir Data/Migrations
+
+    # Apply migrations to the database
+    dotnet ef database update
+
+    # Remove the last migration (if not yet applied)
+    dotnet ef migrations remove
+ */
+
 
 namespace GamP_SCPeriop.Server.Data
 {
@@ -20,6 +33,8 @@ namespace GamP_SCPeriop.Server.Data
         public DbSet<Enrollment> Enrollments { get; set; }
         public DbSet<Module> Modules { get; set; }
         public DbSet<ModuleComponent> ModuleComponents { get; set; }
+        public DbSet<Notification> Notifications { get; set; }
+        public DbSet<ComponentEvaluation> ComponentEvaluations { get; set; }
 
         #endregion
 
@@ -80,17 +95,17 @@ namespace GamP_SCPeriop.Server.Data
             // ==========================================
             modelBuilder.Entity<ModuleComponent>().HasData(
                 // Your existing
-                new ModuleComponent { Id = 1, ModuleId = 1, Title = "Guia de Higienização", PdfFilePath = "", Status = 0, Stage = ModuleStage.Teorica },
-                new ModuleComponent { Id = 2, ModuleId = 2, Title = "Checklist Cirúrgica", PdfFilePath = "", Status = 0, Stage = ModuleStage.ObservacaoPassiva },
+                new ModuleComponent { Id = 1, ModuleId = 1, Title = "Guia de Higienização", PdfFilePath = "", Stage = ModuleStage.Teorica },
+                new ModuleComponent { Id = 2, ModuleId = 2, Title = "Checklist Cirúrgica", PdfFilePath = "", Stage = ModuleStage.ObservacaoPassiva },
 
                 // New Dummy Components
-                new ModuleComponent { Id = 3, ModuleId = 1, Title = "Manual de Acolhimento", Stage = ModuleStage.Teorica, Status = 0, PdfFilePath = "https://example.com/manual.pdf" },
-                new ModuleComponent { Id = 4, ModuleId = 1, Title = "Checklist de Segurança (OMS)", Stage = ModuleStage.ObservacaoPassiva, Status = 0, PdfFilePath = "" },
-                new ModuleComponent { Id = 5, ModuleId = 2, Title = "Preparação da Sala Operatória", Stage = ModuleStage.PraticaAssistida, Status = 0, PdfFilePath = "" },
-                new ModuleComponent { Id = 6, ModuleId = 2, Title = "Circulação na Sala", Stage = ModuleStage.PraticaSupervisionada, Status = 0, PdfFilePath = "" },
-                new ModuleComponent { Id = 7, ModuleId = 3, Title = "Tabela de Fármacos de Emergência", Stage = ModuleStage.Teorica, Status = 0, PdfFilePath = "https://example.com/farmacos.pdf" },
-                new ModuleComponent { Id = 8, ModuleId = 3, Title = "Preparação do Ventilação", Stage = ModuleStage.ObservacaoParticipada, Status = 0, PdfFilePath = "" },
-                new ModuleComponent { Id = 9, ModuleId = 3, Title = "Entubação Endotraqueal", Stage = ModuleStage.PraticaSupervisionada, Status = 0, PdfFilePath = "" }
+                new ModuleComponent { Id = 3, ModuleId = 1, Title = "Manual de Acolhimento", Stage = ModuleStage.Teorica, PdfFilePath = "https://example.com/manual.pdf" },
+                new ModuleComponent { Id = 4, ModuleId = 1, Title = "Checklist de Segurança (OMS)", Stage = ModuleStage.ObservacaoPassiva, PdfFilePath = "" },
+                new ModuleComponent { Id = 5, ModuleId = 2, Title = "Preparação da Sala Operatória", Stage = ModuleStage.PraticaAssistida, PdfFilePath = "" },
+                new ModuleComponent { Id = 6, ModuleId = 2, Title = "Circulação na Sala", Stage = ModuleStage.PraticaSupervisionada, PdfFilePath = "" },
+                new ModuleComponent { Id = 7, ModuleId = 3, Title = "Tabela de Fármacos de Emergência", Stage = ModuleStage.Teorica, PdfFilePath = "https://example.com/farmacos.pdf" },
+                new ModuleComponent { Id = 8, ModuleId = 3, Title = "Preparação do Ventilação", Stage = ModuleStage.ObservacaoParticipada, PdfFilePath = "" },
+                new ModuleComponent { Id = 9, ModuleId = 3, Title = "Entubação Endotraqueal", Stage = ModuleStage.PraticaSupervisionada, PdfFilePath = "" }
             );
 
             // ==========================================
@@ -101,6 +116,27 @@ namespace GamP_SCPeriop.Server.Data
                 new Enrollment { Id = 3, StudentId = 11, ProfessorId = 10, PathwayId = 2, ProgressPercentage = 80, EndDate = new DateTime(2026, 5, 20) },
                 new Enrollment { Id = 4, StudentId = 12, ProfessorId = 9, PathwayId = 1, ProgressPercentage = 5, EndDate = new DateTime(2026, 12, 10) }
             );
+
+            // ==========================================
+            // 6. NOTIFICATIONS
+            // ==========================================
+            modelBuilder.Entity<Notification>()
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(n => n.ReceiverId)
+                .OnDelete(DeleteBehavior.Restrict); // Impede que apagar um utilizador apague a notificação em cascata
+
+            modelBuilder.Entity<Notification>()
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(n => n.SenderId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<ComponentEvaluation>()
+                .HasOne(ce => ce.ModuleComponent)
+                .WithMany()
+                .HasForeignKey(ce => ce.ModuleComponentId)
+                .OnDelete(DeleteBehavior.Restrict); // Corta o segundo caminho de cascata!
         }
         #endregion
     }
