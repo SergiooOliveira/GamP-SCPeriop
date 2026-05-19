@@ -97,14 +97,22 @@ namespace GamP_SCPeriop.Server.Controllers
                     .ToListAsync();
 
                 // Conta quantos componentes existem no total deste Pathway
-                int totalComponents = enrollment.Pathway.Modules.Sum(m => m.Components?.Count ?? 0);
+                int totalComponents = enrollment.Pathway.Modules.Sum(m => m.Components?.Count(c => c.Stage != ModuleStage.Teorica) ?? 0);
 
                 if (totalComponents > 0)
                 {
-                    // Conta quantos estão verdes ou amarelos
+                    // 1. Criamos uma lista apenas com os IDs das componentes práticas
+                    var praticasIds = enrollment.Pathway.Modules
+                        .SelectMany(m => m.Components ?? new List<ModuleComponent>())
+                        .Where(c => c.Stage != ModuleStage.Teorica)
+                        .Select(c => c.Id)
+                        .ToList();
+
+                    // 2. Cruzamos as avaliações com essa lista para garantir que ignoramos as notas "fantasma" das teóricas
                     int completedComponents = allEvaluations.Count(ce =>
-                        ce.Status == ComponentStatus.AcimaDaMedia ||
-                        ce.Status == ComponentStatus.Consistente);
+                        praticasIds.Contains(ce.ModuleComponentId) &&
+                        (ce.Status == ComponentStatus.AcimaDaMedia ||
+                         ce.Status == ComponentStatus.Consistente));
 
                     // Atualiza o objeto Enrollment
                     enrollment.ProgressPercentage = (int)((double)completedComponents / totalComponents * 100);

@@ -48,7 +48,7 @@
                             @if (module.Components != null && module.Components.Any())
                             {
                                 <div class="d-flex flex-column gap-3">
-                                    @foreach (var comp in module.Components)
+                                    @foreach (var comp in module.Components.Where(c => c.Stage != ModuleStage.Teorica))
                                     {
                                         <div class="card border-0 shadow-sm" style="border-radius: 15px;">
                                             <div class="card-body p-4">
@@ -174,11 +174,12 @@
         {
             if (module.Components != null)
             {
-                totalComponents += module.Components.Count;
+                totalComponents += module.Components.Count(c => c.Stage != ModuleStage.Teorica);
                 // We consider it "completed" for progress purposes if it's Yellow or Green
                 completedComponents += module.Components.Count(c =>
-                    c.Status == ComponentStatus.AcimaDaMedia ||
-                    c.Status == ComponentStatus.Consistente);
+                    c.Stage != ModuleStage.Teorica &&
+                    (c.Status == ComponentStatus.AcimaDaMedia ||
+                    c.Status == ComponentStatus.Consistente));
             }
         }
 
