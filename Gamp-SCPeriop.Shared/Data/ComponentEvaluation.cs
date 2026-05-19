@@ -1,7 +1,4 @@
 ﻿using GamP_SCPeriop.Shared.Enum;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace GamP_SCPeriop.Shared.Data
 {

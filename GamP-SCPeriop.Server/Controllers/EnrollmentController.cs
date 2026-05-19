@@ -1,5 +1,5 @@
 ﻿using GamP_SCPeriop.Server.Data;
-using GamP_SCPeriop.Shared;
+using GamP_SCPeriop.Shared.Data;
 using GamP_SCPeriop.Shared.Entity.Model;
 using GamP_SCPeriop.Shared.Enum;
 using Microsoft.AspNetCore.Mvc;

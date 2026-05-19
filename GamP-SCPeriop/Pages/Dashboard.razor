@@ -1,6 +1,7 @@
 ﻿@page "/dashboard"
 @using GamP_SCPeriop.Shared.Entity.Model
 @using GamP_SCPeriop.Shared.Enum
+@using GamP_SCPeriop.Shared.Data
 @using Blazored.LocalStorage
 @layout TopNavBarLayout
 @inject HttpClient Http
@@ -9,18 +10,13 @@
 
 <div class="max-width-container mt-3 px-3 pb-5">
     
-@*     <div class="d-flex justify-content-between align-items-end mb-3">
-        <h5 class="fw-bold mb-0">Pathways</h5>
-        <a href="#" class="text-primary text-decoration-none small">Ver todas</a>
-    </div> *@
-
     <div class="d-flex overflow-auto gap-3 mb-4 pb-2 horizontal-scroll-container">
         @if (pathwaySummaries.Any())
         {
             @foreach (var summary in pathwaySummaries)
             {
                 <div class="card border-0 shadow-sm flex-shrink-0" style="width: 240px; border-radius: 20px; background-color: #E2ECEF;">
-                    <div class="card-body p-4">
+                    <div @onclick='() => Nav.NavigateTo($"/pathway/{summary.Id}/students")' class="card-body p-4">
                         
                         <h6 class="fw-bold mb-3 fs-5">@summary.Title</h6>
                         
@@ -29,11 +25,11 @@
                             <span class="text-muted small">Supervisionados</span>
                         </div>
                         
-                        <button @onclick='@(() => Nav.NavigateTo($"/supervisor/pathway-builder/{summary.Id}?from=dashboard"))'
+                       @*  <button @onclick='@(() => Nav.NavigateTo($"/supervisor/pathway-builder/{summary.Id}?from=dashboard"))'
                                 class="btn w-100 text-white fw-semibold"
                                 style="border-radius: 12px; background-color: #6A96A6; border: none; padding: 10px;">
                             Editar Pathway
-                        </button>
+                        </button> *@
                     </div>
                 </div>
             }

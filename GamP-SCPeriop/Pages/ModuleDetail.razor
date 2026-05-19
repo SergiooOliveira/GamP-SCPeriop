@@ -1,5 +1,5 @@
 ﻿@page "/module/{ModuleId:int}"
-@using GamP_SCPeriop.Shared
+@using GamP_SCPeriop.Shared.Data
 @using Blazored.LocalStorage
 @using static GamP_SCPeriop.Helpers.UIHelpers
 @layout TopNavBarLayout
@@ -89,25 +89,25 @@
 
 @code {
     [Parameter] public int ModuleId { get; set; }
-    
+
     private Module? module;
     private Pathway? parentPathway;
-    private bool isLoading = true; 
+    private bool isLoading = true;
 
     protected override async Task OnInitializedAsync()
     {
         try
         {
             isLoading = true;
-            
+
             // 1. Ir buscar o utilizador logado
             var currentUser = await LocalStorage.GetItemAsync<User>("user");
-            
+
             if (currentUser != null)
             {
                 // 2. Chamar o novo endpoint passando o ID do Módulo E o ID do Aluno
                 module = await Http.GetFromJsonAsync<Module>($"api/Module/{ModuleId}/student/{currentUser.Id}");
-                
+
                 // 3. Ir buscar os dados do Pathway pai
                 if (module != null && module.PathwayId > 0)
                 {

@@ -1,5 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using GamP_SCPeriop.Shared;
+using GamP_SCPeriop.Shared.Data;
 using GamP_SCPeriop.Server.Data;
 using Microsoft.EntityFrameworkCore;
 using GamP_SCPeriop.Shared.Entity.Model;
@@ -68,6 +68,17 @@ namespace GamP_SCPeriop.Server.Controllers
             if (!pathways.Any()) return Ok(new List<PathwayTagDto>());
 
             return Ok(pathways);
+        }
+
+        [HttpGet("{pathwayId}/enrollments")]
+        public async Task<ActionResult<List<Enrollment>>> GetPathwayEnrollments(int pathwayId)
+        {
+            var enrollments = await _context.Enrollments
+                .Include(e => e.Student)
+                .Where(e => e.PathwayId == pathwayId)
+                .ToListAsync();
+
+            return Ok(enrollments);
         }
     }
 }

@@ -1,6 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations.Schema;
-
-namespace GamP_SCPeriop.Shared
+﻿namespace GamP_SCPeriop.Shared.Data
 {
     public class Enrollment
     {

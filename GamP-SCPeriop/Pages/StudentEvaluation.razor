@@ -1,0 +1,190 @@
+﻿@page "/evaluate/{EnrollmentId:int}"
+@using GamP_SCPeriop.Shared.Data
+@using GamP_SCPeriop.Shared.Enum
+@layout TopNavBarLayout
+@inject HttpClient Http
+@inject NavigationManager Nav
+
+<div class="container mt-4 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-12 col-lg-10 px-3">
+
+            <button class="btn btn-link text-decoration-none text-muted p-0 mb-4 fw-semibold" @onclick="GoBack">
+                <i class="bi bi-arrow-left me-2"></i> Voltar ao Dashboard
+            </button>
+
+            @if (isLoading)
+            {
+                <div class="d-flex justify-content-center mt-5">
+                    <div class="spinner-border text-primary" role="status"></div>
+                </div>
+            }
+            else if (enrollment == null)
+            {
+                <div class="alert alert-danger shadow-sm border-0" style="border-radius: 15px;">
+                    Inscrição não encontrada.
+                </div>
+            }
+            else
+            {
+                <div class="card shadow-sm border-0 mb-4" style="border-radius: 20px; background-color: #6A96A6; color: white;">
+                    <div class="card-body p-4 p-md-5">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <span class="badge bg-white text-dark bg-opacity-25 px-3 py-2" style="border-radius: 10px;">Ficha de Avaliação</span>
+                            <span class="fw-bold text-white fs-5">@enrollment.ProgressPercentage% Concluído</span>
+                        </div>
+                        <h3 class="fw-bold mb-1">@enrollment.Student?.DisplayShortName</h3>
+                        <p class="mb-0 text-white-50">Percurso: @enrollment.Pathway?.Title</p>
+                    </div>
+                </div>
+
+                @if (enrollment.Pathway?.Modules != null)
+                {
+                    @foreach (var module in enrollment.Pathway.Modules)
+                    {
+                        <div class="mb-5">
+                            <h5 class="fw-bold mb-3" style="color: #2c3e50;">@module.Title</h5>
+
+                            @if (module.Components != null && module.Components.Any())
+                            {
+                                <div class="d-flex flex-column gap-3">
+                                    @foreach (var comp in module.Components)
+                                    {
+                                        <div class="card border-0 shadow-sm" style="border-radius: 15px;">
+                                            <div class="card-body p-4">
+                                                <div class="mb-3">
+                                                    <h6 class="fw-bold mb-1 text-dark">@comp.Title</h6>
+                                                    <span class="badge bg-light text-secondary border">@comp.Stage.ToString()</span>
+                                                </div>
+
+                                                <div class="d-flex flex-wrap gap-2">
+                                                    <button class="btn flex-grow-1 @(comp.Status == ComponentStatus.Inconsistente ? "btn-danger" : "btn-outline-danger")"
+                                                            @onclick="() => EvaluateComponent(comp, ComponentStatus.Inconsistente)">
+                                                        Inconsistente
+                                                    </button>
+
+                                                    <button class="btn flex-grow-1 @(comp.Status == ComponentStatus.AbaixoDaMedia ? "btn-warning text-dark" : "btn-outline-warning text-dark")"
+                                                            @onclick="() => EvaluateComponent(comp, ComponentStatus.AbaixoDaMedia)">
+                                                        Abaixo da Média
+                                                    </button>
+
+                                                    <button class="btn flex-grow-1 @(comp.Status == ComponentStatus.AcimaDaMedia ? "btn-warning bg-opacity-50 text-dark border-warning" : "btn-outline-secondary")"
+                                                            style="@(comp.Status == ComponentStatus.AcimaDaMedia ? "background-color: #ffda6a;" : "")"
+                                                            @onclick="() => EvaluateComponent(comp, ComponentStatus.AcimaDaMedia)">
+                                                        Acima da Média
+                                                    </button>
+
+                                                    <button class="btn flex-grow-1 @(comp.Status == ComponentStatus.Consistente ? "btn-success shadow-sm fw-bold" : "btn-outline-success opacity-75")"
+                                                            @onclick="() => EvaluateComponent(comp, ComponentStatus.Consistente)">
+                                                        @if (comp.Status == ComponentStatus.Consistente)
+                                                        {
+                                                            <i class="bi bi-check2-circle me-1"></i>
+                                                        }
+                                                        Consistente
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    }
+                }
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public int EnrollmentId { get; set; }
+
+    private Enrollment? enrollment;
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            isLoading = true;
+            // We will need a specific endpoint that grabs the Enrollment + Pathway + Modules + the Student's Evaluations!
+            enrollment = await Http.GetFromJsonAsync<Enrollment>($"api/Evaluation/enrollment/{EnrollmentId}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task EvaluateComponent(ModuleComponent component, ComponentStatus newStatus)
+    {
+        // Optimistic UI update (feels instant to the user)
+        component.Status = newStatus;
+
+        RecalculateProgress();
+
+        var request = new
+        {
+            EnrollmentId = this.EnrollmentId,
+            ModuleComponentId = component.Id,
+            Status = newStatus
+        };
+
+        // Send the evaluation to the backend
+        var response = await Http.PostAsJsonAsync("api/Evaluation", request);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            // Revert if failed
+            Console.WriteLine("Erro ao guardar avaliação.");
+        }
+    }
+
+    private void GoBack()
+    {
+        // Se já carregou os dados, volta para a lista de alunos desse percurso
+        if (enrollment != null && enrollment.PathwayId > 0)
+        {
+            Nav.NavigateTo($"/pathway/{enrollment.PathwayId}/students");
+        }
+        else
+        {
+            // Fallback de segurança enquanto carrega
+            Nav.NavigateTo("/dashboard");
+        }
+    }
+
+    private void RecalculateProgress()
+    {
+        if (enrollment?.Pathway?.Modules == null) return;
+
+        int totalComponents = 0;
+        int completedComponents = 0;
+
+        foreach (var module in enrollment.Pathway.Modules)
+        {
+            if (module.Components != null)
+            {
+                totalComponents += module.Components.Count;
+                // We consider it "completed" for progress purposes if it's Yellow or Green
+                completedComponents += module.Components.Count(c =>
+                    c.Status == ComponentStatus.AcimaDaMedia ||
+                    c.Status == ComponentStatus.Consistente);
+            }
+        }
+
+        if (totalComponents > 0)
+        {
+            enrollment.ProgressPercentage = (int)((double)completedComponents / totalComponents * 100);
+        }
+    }
+}
