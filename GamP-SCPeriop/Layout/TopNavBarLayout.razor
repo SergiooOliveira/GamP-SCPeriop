@@ -1,7 +1,10 @@
-﻿@using GamP_SCPeriop.Shared.Data
+﻿@using System.Net.Http.Json
+@using GamP_SCPeriop.Shared.Data
+@using GamP_SCPeriop.Shared.Entity.Model
 @inherits LayoutComponentBase
 @inject Blazored.LocalStorage.ILocalStorageService LocalStorage
 @inject NavigationManager Nav
+@inject HttpClient Http
 
 <div class="page">
     <header class="sticky-top bg-light p-3 no-select">
@@ -13,26 +16,84 @@
 
             @if (currentUser != null)
             {
-                <div class="position-relative">
-                    
-                    <div class="user-pill shadow-sm" style="cursor: pointer;" @onclick="ToggleDropdown">
-                        <div class="user-info">
-                            <div class="fw-bold small">@currentUser.DisplayShortName</div>
-                            <small class="text-muted">@currentUser.Role</small>
-                        </div>
-                        <div class="avatar">@currentUser.DisplayShortName[0]</div>
+                <div class="d-flex align-items-center gap-3">
+
+                    <div class="position-relative">
+                        <button class="btn btn-link text-dark position-relative p-0 shadow-none border-0" @onclick="ToggleNotificationDropdown">
+                            <i class="bi bi-bell fs-4" style="color: #6A96A6;"></i>
+
+                            @if (unreadCount > 0)
+                            {
+                                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 0.65rem; padding: 0.35em 0.5em;">
+                                    @unreadCount
+                                </span>
+                            }
+                        </button>
+
+                        @if (isNotificationOpen)
+                        {
+                            <div class="position-fixed top-0 start-0 w-100 h-100" style="z-index: 99;" @onclick="CloseNotificationDropdown"></div>
+
+                            <ul class="card position-absolute end-0 mt-2 shadow-sm border-0 p-2" style="width: 320px; border-radius: 12px; max-height: 400px; overflow-y: auto; z-index: 100; list-style: none; margin: 0;">
+                                <li class="p-2 border-bottom mb-1">
+                                    <span class="fw-bold small text-secondary">Notificações</span>
+                                </li>
+
+                                @if (notifications == null)
+                                {
+                                    <li class="text-center p-3">
+                                        <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                                    </li>
+                                }
+                                else if (!notifications.Any())
+                                {
+                                    <li class="text-center text-muted small p-3">
+                                        <i class="bi bi-bell-slash d-block fs-4 mb-2"></i>
+                                        Sem notificações novas
+                                    </li>
+                                }
+                                else
+                                {
+                                    @foreach (var notif in notifications)
+                                    {
+                                        <li class="p-2 mb-1 @(notif.IsRead ? "opacity-75" : "bg-light fw-semibold border")"
+                                            style="cursor: pointer; border-radius: 8px;"
+                                            @onclick="() => HandleNotificationClick(notif)">
+
+                                            <div class="d-flex justify-content-between align-items-start mb-1">
+                                                <span class="text-dark small text-truncate pe-2" style="max-width: 200px;">@notif.Title</span>
+                                                <small class="text-muted" style="font-size: 0.65rem;">@notif.CreatedAt.ToString("dd MMM HH:mm")</small>
+                                            </div>
+                                            <p class="mb-0 text-secondary small text-wrap" style="font-size: 0.75rem; line-height: 1.2;">
+                                                @notif.Message
+                                            </p>
+                                        </li>
+                                    }
+                                }
+                            </ul>
+                        }
                     </div>
 
-                    @if (isDropdownOpen)
-                    {
-                        <div class="position-fixed top-0 start-0 w-100 h-100" style="z-index: 99;" @onclick="CloseDropdown"></div>
-                        
-                        <div class="card position-absolute end-0 mt-2 shadow-sm border-0 py-1" style="min-width: 150px; z-index: 100; border-radius: 8px;">
-                            <button class="btn btn-white text-danger text-start px-3 py-2 w-100 border-0" @onclick="Logout">
-                                <i class="bi bi-box-arrow-right me-2"></i> Sair
-                            </button>
+                    <div class="position-relative">
+                        <div class="user-pill shadow-sm" style="cursor: pointer;" @onclick="ToggleDropdown">
+                            <div class="user-info">
+                                <div class="fw-bold small">@currentUser.DisplayShortName</div>
+                                <small class="text-muted">@currentUser.Role</small>
+                            </div>
+                            <div class="avatar">@currentUser.DisplayShortName[0]</div>
                         </div>
-                    }
+
+                        @if (isDropdownOpen)
+                        {
+                            <div class="position-fixed top-0 start-0 w-100 h-100" style="z-index: 99;" @onclick="CloseDropdown"></div>
+
+                            <div class="card position-absolute end-0 mt-2 shadow-sm border-0 py-1" style="min-width: 150px; z-index: 100; border-radius: 8px;">
+                                <button class="btn btn-white text-danger text-start px-3 py-2 w-100 border-0" @onclick="Logout">
+                                    <i class="bi bi-box-arrow-right me-2"></i> Sair
+                                </button>
+                            </div>
+                        }
+                    </div>
 
                 </div>
             }
@@ -48,16 +109,86 @@
 
 @code {
     private User? currentUser;
+
+    // Controlo de Menus
     private bool isDropdownOpen = false;
+    private bool isNotificationOpen = false;
+
+    // Dados das Notificações
+    private List<NotificationDto>? notifications;
+    private int unreadCount => notifications?.Count(n => !n.IsRead) ?? 0;
 
     protected override async Task OnInitializedAsync()
     {
         currentUser = await LocalStorage.GetItemAsync<User>("user");
+
+        // Carrega notificações mal o layout inicie
+        if (currentUser != null)
+        {
+            await LoadNotifications();
+        }
     }
 
+    private async Task LoadNotifications()
+    {
+        try
+        {
+            if (currentUser != null)
+            {
+                notifications = await Http.GetFromJsonAsync<List<NotificationDto>>($"api/Notification/user/{currentUser.Id}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Erro a carregar notificações: {ex.Message}");
+        }
+    }
+
+    // --- MÉTODOS DO MENU NOTIFICAÇÕES ---
+    private void ToggleNotificationDropdown()
+    {
+        isNotificationOpen = !isNotificationOpen;
+        if (isNotificationOpen) isDropdownOpen = false; // Fecha o outro menu se estiver aberto
+    }
+
+    private void CloseNotificationDropdown()
+    {
+        isNotificationOpen = false;
+    }
+
+    private async Task HandleNotificationClick(NotificationDto notif)
+    {
+        // 1. Marca como lida na base de dados se ainda não estiver
+        if (!notif.IsRead)
+        {
+            try
+            {
+                var response = await Http.PutAsync($"api/Notification/{notif.Id}/read", null);
+                if (response.IsSuccessStatusCode)
+                {
+                    notif.IsRead = true; // Atualiza a UI instantaneamente
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Erro ao marcar como lida: {ex.Message}");
+            }
+        }
+
+        // 2. Fecha o menu e redireciona
+        CloseNotificationDropdown();
+
+        if (!string.IsNullOrWhiteSpace(notif.TargetUrl))
+        {
+            Nav.NavigateTo(notif.TargetUrl);
+        }
+    }
+
+    // --- MÉTODOS DA USER PILL (O teu código original) ---
     private void ToggleDropdown()
     {
         isDropdownOpen = !isDropdownOpen;
+        if (isDropdownOpen) isNotificationOpen = false; // Fecha as notificações se estiverem abertas
     }
 
     private void CloseDropdown()
@@ -67,11 +198,7 @@
 
     private async Task Logout()
     {
-        // Clear the session
         await LocalStorage.RemoveItemAsync("user");
-        
-        // Force load ensures the entire Blazor app resets its state
-        // so no cached data leaks into the login screen
         Nav.NavigateTo("/", forceLoad: true);
     }
 }

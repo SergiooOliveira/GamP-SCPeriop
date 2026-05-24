@@ -116,13 +116,36 @@ namespace GamP_SCPeriop.Server.Controllers
 
                     // Atualiza o objeto Enrollment
                     enrollment.ProgressPercentage = (int)((double)completedComponents / totalComponents * 100);
-
-                    // Grava a nova percentagem de forma permanente
-                    await _context.SaveChangesAsync();
                 }
-            }
 
-            // TODO: No futuro, geramos a Notificação para o Aluno aqui!
+                // --- INÍCIO DA CRIAÇÃO DA NOTIFICAÇÃO ---
+
+                // Encontrar o módulo exato desta avaliação para extrair o título e o ID para o link
+                var parentModule = enrollment.Pathway.Modules
+                    .FirstOrDefault(m => m.Components != null && m.Components.Any(c => c.Id == request.ModuleComponentId));
+
+                string moduleName = parentModule?.Title ?? "Módulo";
+                string pathwayName = enrollment.Pathway.Title;
+                string targetUrl = parentModule != null ? $"/module/{parentModule.Id}" : "/my-profile";
+
+                var notificacao = new Notification
+                {
+                    ReceiverId = enrollment.StudentId,
+                    SenderId = enrollment.ProfessorId,
+                    Title = "Nova Avaliação",
+                    Message = $"Atribuição de nota no {moduleName} do Percurso {pathwayName}.",
+                    TargetUrl = targetUrl,
+                    CreatedAt = DateTime.UtcNow,
+                    IsRead = false
+                };
+
+                _context.Notifications.Add(notificacao);
+
+                // --- FIM DA CRIAÇÃO DA NOTIFICAÇÃO ---
+
+                // Grava a nova percentagem E a notificação de forma permanente na mesma transação
+                await _context.SaveChangesAsync();
+            }
 
             return Ok();
         }
