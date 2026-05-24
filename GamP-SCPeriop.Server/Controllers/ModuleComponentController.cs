@@ -26,8 +26,9 @@ namespace GamP_SCPeriop.Server.Controllers
                 Title = dto.Title,
                 ModuleId = dto.ModuleId,
                 Stage = dto.Stage,
+                Description = dto.Description,
                 PdfFilePath = dto.PdfFilePath ?? string.Empty,
-                Status = ComponentStatus.Pending // Using your enum!
+                Status = ComponentStatus.Pending
             };
 
             _context.ModuleComponents.Add(component);
@@ -48,6 +49,7 @@ namespace GamP_SCPeriop.Server.Controllers
 
             // Update only the fields the supervisor is allowed to change
             existingComponent.Title = updatedComponent.Title;
+            existingComponent.Description = updatedComponent.Description;
             existingComponent.PdfFilePath = updatedComponent.PdfFilePath ?? string.Empty;
 
             await _context.SaveChangesAsync();

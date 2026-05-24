@@ -40,17 +40,52 @@ namespace GamP_SCPeriop.Server.Controllers
         public async Task<ActionResult<List<Enrollment>>> GetStudentEnrollments(int studentId)
         {
             var enrollments = await _context.Enrollments
+                .Include(e => e.Professor)
                 .Include(e => e.Pathway)
                     .ThenInclude(p => p.Modules)
-                .Include(e => e.Professor) // <--- ADD THIS SINGLE LINE
+                        .ThenInclude(m => m.Components)
                 .Where(e => e.StudentId == studentId)
                 .ToListAsync();
 
-            if (!enrollments.Any())
+            foreach (var enrollment in enrollments)
             {
-                // Returning an empty list is better than a 404 for the UI, 
-                // so Blazor can cleanly show the "Ainda não estás inscrito" message.
-                return Ok(new List<Enrollment>());
+                var evaluations = await _context.ComponentEvaluations
+                    .Where(ce => ce.EnrollmentId == enrollment.Id)
+                    .ToListAsync();
+
+                if (enrollment.Pathway?.Modules != null)
+                {
+                    int totalPraticasPathway = 0;
+                    int concluidasPathway = 0;
+
+                    foreach (var module in enrollment.Pathway.Modules)
+                    {
+                        if (module.Components != null)
+                        {
+                            foreach (var comp in module.Components)
+                            {
+                                // 1. FORÇAR RESET: Se não houver nota, passa a Pendente explicitamente
+                                var eval = evaluations.FirstOrDefault(e => e.ModuleComponentId == comp.Id);
+                                comp.Status = eval?.Status ?? ComponentStatus.Pending;
+
+                                // 2. Contabilização global (Todos os módulos, todos os componentes práticos)
+                                if (comp.Stage != ModuleStage.Teorica)
+                                {
+                                    totalPraticasPathway++;
+                                    if (comp.Status == ComponentStatus.AcimaDaMedia || comp.Status == ComponentStatus.Consistente)
+                                    {
+                                        concluidasPathway++;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // 3. Sobrescreve o valor antigo com a matemática real antes de enviar para o ecrã
+                    enrollment.ProgressPercentage = totalPraticasPathway > 0
+                        ? (int)((double)concluidasPathway / totalPraticasPathway * 100)
+                        : 0;
+                }
             }
 
             return Ok(enrollments);

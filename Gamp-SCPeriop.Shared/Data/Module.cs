@@ -15,17 +15,31 @@ namespace GamP_SCPeriop.Shared.Data
         {
             get
             {
-                if (Components == null || !Components.Any()) return 0;
+                var praticas = Components?.Where(c => c.Stage != ModuleStage.Teorica).ToList();
 
-                var completedCount = Components.Count(c =>
-                                    c.Status == ComponentStatus.AcimaDaMedia ||
-                                    c.Status == ComponentStatus.Consistente);
+                if (praticas == null || !praticas.Any()) return 0;
 
-                return (int)((double)completedCount / Components.Count * 100);
+                var completedCount = praticas.Count(c =>
+                            c.Status == ComponentStatus.AcimaDaMedia ||
+                            c.Status == ComponentStatus.Consistente);
+
+                return (int)((double)completedCount / praticas.Count * 100);
             }
         }
 
         [NotMapped]
-        public string Status => ProgressPercentage == 100 ? "Concluído" : ProgressPercentage > 0 ? "Em curso" : "Por iniciar";
+        public string Status
+        {
+            get
+            {
+                if (ProgressPercentage == 100) return "Concluído";
+
+                // Verifica se há alguma componente prática que já tenha sido avaliada (ou seja, diferente de Pendente)
+                bool hasStarted = Components != null &&
+                                  Components.Any(c => c.Stage != ModuleStage.Teorica && c.Status != ComponentStatus.Pending);
+
+                return hasStarted || ProgressPercentage > 0 ? "Em curso" : "Por iniciar";
+            }
+        }
     }
 }

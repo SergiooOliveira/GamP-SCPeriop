@@ -223,8 +223,17 @@
                         </div>
                         
                         <div class="mb-3">
-                            <label class="form-label small fw-semibold text-muted mb-1">URL ou Anexo (Opcional)</label>
-                            
+                            <label class="form-label small fw-semibold text-muted mb-1">Instruções / Descrição (Opcional)</label>
+                            <textarea class="form-control shadow-sm border-0 bg-light" 
+                                      rows="4" 
+                                      placeholder="Ex: Leiam o capítulo 3 com atenção e foquem-se no diagrama..."
+                                      @bind="componentToEdit.Description" 
+                                      style="border-radius: 8px; resize: vertical;"></textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold text-muted mb-1">URL ou Anexo (Opcional)</label>                           
+
                             <div class="input-group shadow-sm" style="border-radius: 8px; overflow: hidden;">
                                 <span class="input-group-text bg-light border-0"><i class="bi bi-link-45deg"></i></span>
                                 
@@ -341,7 +350,7 @@
             activePathway = null;
             savedModules.Clear();
             selectedExistingPathwayId = 0;
-            
+
             // This cleans the URL so the ID disappears
             Nav.NavigateTo("/supervisor/pathway-builder");
         }
@@ -388,13 +397,13 @@
         {
             var mod = savedModules.FirstOrDefault(m => m.Id == moduleId);
             if (mod != null) savedModules.Remove(mod);
-            
+
             // Close the accordion if they deleted the one they were looking at
             if (expandedModuleId == moduleId) expandedModuleId = 0;
             StateHasChanged();
         }
     }
-    
+
     private void ToggleModule(int moduleId)
     {
         // Toggles the accordion open/closed (Pure Blazor, no Bootstrap JS)
@@ -450,6 +459,7 @@
                 ModuleId = activeModalModule.Id,
                 Stage = activeModalStage.Value.Stage,
                 Title = string.Empty,
+                Description = string.Empty,
                 PdfFilePath = string.Empty
             };
         }
@@ -464,6 +474,7 @@
             ModuleId = comp.ModuleId,
             Stage = comp.Stage,
             Title = comp.Title,
+            Description = comp.Description,
             PdfFilePath = comp.PdfFilePath
         };
     }
@@ -479,6 +490,7 @@
             {
                 ModuleId = componentToEdit.ModuleId,
                 Title = componentToEdit.Title,
+                Description = componentToEdit.Description,
                 Stage = componentToEdit.Stage,
                 PdfFilePath = componentToEdit.PdfFilePath
             };
@@ -502,6 +514,7 @@
                 // Update the visual list instantly
                 var existing = activeModalModule.Components!.First(c => c.Id == componentToEdit.Id);
                 existing.Title = componentToEdit.Title;
+                existing.Description = componentToEdit.Description;
                 existing.PdfFilePath = componentToEdit.PdfFilePath;
             }
         }

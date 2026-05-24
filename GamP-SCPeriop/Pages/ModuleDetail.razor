@@ -1,5 +1,6 @@
 ﻿@page "/module/{ModuleId:int}"
 @using GamP_SCPeriop.Shared.Data
+@using GamP_SCPeriop.Shared.Enum
 @using Blazored.LocalStorage
 @using static GamP_SCPeriop.Helpers.UIHelpers
 @layout TopNavBarLayout
@@ -61,26 +62,85 @@
             </div>
         </div>
 
-        <div class="d-flex flex-column gap-3 mb-5">
-            @if (module.Components != null && module.Components.Any())
+        <div class="mt-5">
+            @if (module.Components != null && module.Components.Any(c => c.Stage == ModuleStage.Teorica))
             {
-                @foreach (var comp in module.Components)
-                {
-                    <div class="card shadow-sm border-0 p-3" style="border-radius: 20px;">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div class="d-flex align-items-center">
-                                <i class="bi bi-chevron-right me-3 text-muted"></i>
-                                <span class="fw-bold">@comp.Title</span>
+                <h5 class="fw-bold mb-3 text-secondary"><i class="bi bi-journal-bookmark me-2"></i>Material de Estudo</h5>
+
+                <div class="d-flex flex-column gap-2 mb-4">
+                    @foreach (var comp in module.Components.Where(c => c.Stage == ModuleStage.Teorica))
+                    {
+                        var isOpen = expandedMaterials.Contains(comp.Id);
+
+                        <div class="card shadow-sm border-0" style="border-radius: 12px; overflow: hidden;">
+                            <div class="card-header bg-white border-0 p-3 d-flex justify-content-between align-items-center"
+                                 style="cursor: pointer;" @onclick="() => ToggleMaterial(comp.Id)">
+                                <div class="d-flex align-items-center">
+                                    <i class="bi bi-file-earmark-text text-info me-3 fs-5"></i>
+                                    <span class="fw-bold text-dark">@comp.Title</span>
+                                </div>
+                                <div class="rounded-circle d-flex justify-content-center align-items-center bg-light" style="width: 32px; height: 32px;">
+                                    <i class="bi @(isOpen ? "bi-chevron-up" : "bi-chevron-down") text-muted"></i>
+                                </div>
                             </div>
-                            <span class="badge rounded-pill @GetBadgeCss(comp.Status) px-3 py-2 border">@GetBadgeText(comp.Status)</span>
+
+                            @if (isOpen)
+                            {
+                                <div class="card-body bg-light border-top p-4">
+                                    @if (!string.IsNullOrWhiteSpace(comp.Description))
+                                    {
+                                        <p class="text-secondary mb-3" style="white-space: pre-line; font-size: 0.9rem;">@comp.Description</p>
+                                    }
+
+                                    @if (!string.IsNullOrWhiteSpace(comp.PdfFilePath))
+                                    {
+                                        <a href="@comp.PdfFilePath" target="_blank" class="btn btn-sm text-primary fw-semibold bg-primary bg-opacity-10 border-0 px-4 py-2" style="border-radius: 8px;">
+                                            <i class="bi bi-file-earmark-pdf me-2 fs-6 align-middle"></i>Abrir Documento
+                                        </a>
+                                    }
+                                </div>
+                            }
                         </div>
-                    </div>
-                }
+                    }
+                </div>
             }
-            else
+        </div>
+
+        <div class="mb-5 mt-3">
+            @if (module.Components != null && module.Components.Any(c => c.Stage != ModuleStage.Teorica))
             {
-                <div class="text-center p-4 text-muted border rounded-4 bg-light">
-                    Nenhuma componente encontrada neste módulo.
+                <h5 class="fw-bold mb-3 text-secondary"><i class="bi bi-list-check me-2"></i>Tarefas a Avaliar</h5>
+
+                <div class="list-group shadow-sm border-0" style="border-radius: 15px;">
+                    @foreach (var comp in module.Components.Where(c => c.Stage != ModuleStage.Teorica))
+                    {
+                        <div class="list-group-item border-0 border-bottom p-4 bg-white">
+
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <h6 class="fw-bold mb-0 text-dark mt-1">@comp.Title</h6>
+                                <span class="badge rounded-pill @GetBadgeCss(comp.Status) px-3 py-2 border shadow-sm" style="font-size: 0.75rem;">@GetBadgeText(comp.Status)</span>
+                            </div>
+
+                            @if (!string.IsNullOrWhiteSpace(comp.Description) || !string.IsNullOrWhiteSpace(comp.PdfFilePath))
+                            {
+                                <div class="bg-light rounded-3 p-3 mt-3 border">
+                                    @if (!string.IsNullOrWhiteSpace(comp.Description))
+                                    {
+                                        <small class="text-secondary d-block" style="white-space: pre-line;">@comp.Description</small>
+                                    }
+
+                                    @if (!string.IsNullOrWhiteSpace(comp.PdfFilePath))
+                                    {
+                                        <div class="@(!string.IsNullOrWhiteSpace(comp.Description) ? "mt-3 pt-3 border-top" : "")">
+                                            <a href="@comp.PdfFilePath" target="_blank" class="btn btn-sm text-primary fw-semibold bg-primary bg-opacity-10 border-0 px-3" style="border-radius: 8px;">
+                                                <i class="bi bi-link-45deg me-1 fs-5 align-middle"></i> Material Auxiliar
+                                            </a>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    }
                 </div>
             }
         </div>
@@ -93,6 +153,7 @@
     private Module? module;
     private Pathway? parentPathway;
     private bool isLoading = true;
+    private HashSet<int> expandedMaterials = new HashSet<int>();
 
     protected override async Task OnInitializedAsync()
     {
@@ -122,6 +183,18 @@
         finally
         {
             isLoading = false;
+        }
+    }
+
+    private void ToggleMaterial(int compId)
+    {
+        if (expandedMaterials.Contains(compId))
+        {
+            expandedMaterials.Remove(compId);
+        }
+        else
+        {
+            expandedMaterials.Add(compId);
         }
     }
 
