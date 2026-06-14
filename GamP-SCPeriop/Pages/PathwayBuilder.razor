@@ -18,7 +18,7 @@
                 <div class="card shadow-sm p-4 border-0 h-100" style="border-radius: 15px; background-color: #f8f9fa;">
                     <h5 class="mb-3 fw-bold text-secondary"><i class="bi bi-folder2-open me-2"></i>Carregar Existente</h5>
                     <p class="text-muted small mb-3">Selecione um percurso já criado para continuar a editá-lo.</p>
-                    
+
                     <div class="input-group">
                         <select class="form-select" @bind="selectedExistingPathwayId">
                             <option value="0" selected disabled>Selecione um percurso...</option>
@@ -37,11 +37,11 @@
             <div class="col-md-6">
                 <div class="card shadow-sm p-4 border-0 h-100" style="border-radius: 15px; background-color: #f8f9fa;">
                     <h5 class="mb-3 fw-bold text-primary"><i class="bi bi-plus-circle me-2"></i>Criar Novo Percurso</h5>
-                    
+
                     <div class="mb-3">
                         <input @bind="pathwayDto.Title" class="form-control" placeholder="Título (Ex: Enfermagem Cirúrgica)" />
                     </div>
-                    
+
                     <div class="row mb-3 g-2">
                         <div class="col-6">
                             <label class="form-label small text-muted mb-1">Mín. Passar (%)</label>
@@ -75,7 +75,7 @@
 
         <div class="mt-4 card shadow-sm p-4 border-0" style="border-radius: 15px;">
             <h5 class="mb-3 fw-bold text-primary">2. Gestão de Módulos</h5>
-            
+
             @if (savedModules.Any())
             {
                 <div class="mb-4">
@@ -84,9 +84,7 @@
                         var isExpanded = expandedModuleId == mod.Id;
 
                         <div class="card border-0 shadow-sm mb-3" style="border-radius: 10px; overflow: hidden;">
-                            
                             <div class="card-header bg-white border-0 p-0 d-flex align-items-center pe-4">
-                                
                                 <button class="btn btn-link text-decoration-none fw-bold text-dark text-start flex-grow-1 p-3 px-4 shadow-none"
                                         type="button"
                                         @onclick="() => ToggleModule(mod.Id)">
@@ -94,7 +92,6 @@
                                 </button>
 
                                 <div class="d-flex align-items-center gap-3">
-                                    
                                     <button class="btn btn-sm text-danger border-0 p-1 shadow-none"
                                             @onclick="() => DeleteActiveModule(mod.Id)"
                                             title="Eliminar Módulo Completo">
@@ -105,7 +102,6 @@
                                        style="cursor: pointer;"
                                        @onclick="() => ToggleModule(mod.Id)"></i>
                                 </div>
-                                
                             </div>
 
                             @if (isExpanded)
@@ -115,7 +111,7 @@
                                         @foreach (var stageInfo in stagesToRender)
                                         {
                                             var count = mod.Components?.Count(c => c.Stage == stageInfo.Stage) ?? 0;
-                                            
+
                                             <button type="button" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center px-4 py-3 border-0 border-bottom"
                                                     style="background-color: #f8f9fa;"
                                                     @onclick="() => OpenStageModal(mod, stageInfo)">
@@ -160,7 +156,7 @@
     <div class="modal fade show d-block" tabindex="-1" style="z-index: 1055;">
         <div class="modal-dialog modal-dialog-centered modal-lg">
             <div class="modal-content border-0 shadow" style="border-radius: 15px; background-color: #f4f7f6;">
-                
+
                 <div class="modal-header border-bottom-0 pb-2 pt-4 px-4 bg-white" style="border-radius: 15px 15px 0 0;">
                     <div>
                         <span class="badge bg-secondary bg-opacity-10 text-secondary border mb-2">@activeModalModule.Title</span>
@@ -170,10 +166,10 @@
                 </div>
 
                 <div class="modal-body px-4 py-4">
-                    
+
                     <div class="d-flex justify-content-between align-items-end mb-3">
                         <h6 class="fw-bold text-secondary text-uppercase small mb-0">Componentes Atuais</h6>
-                        
+
                         @if (activeModalStage.Value.CopyFromStage.HasValue)
                         {
                             <button class="btn btn-sm btn-outline-primary" @onclick="CopyComponents" disabled="@isCopying">
@@ -183,28 +179,89 @@
                                 }
                                 else
                                 {
+
                                     <i class="bi bi-copy me-1"></i>
                                 }
                                 Copiar da Fase Anterior
                             </button>
                         }
                     </div>
+
                     @if (activeModalModule.Components != null && activeModalModule.Components.Any(c => c.Stage == activeModalStage.Value.Stage))
                     {
                         <div class="list-group mb-4 shadow-sm" style="border-radius: 8px;">
-                            @foreach (var comp in activeModalModule.Components.Where(c => c.Stage == activeModalStage.Value.Stage))
+                            @{
+                                var stageComponents = activeModalModule.Components.Where(c => c.Stage == activeModalStage.Value.Stage).ToList();
+                                var topLevel = stageComponents.Where(c => c.ParentComponentId == null).ToList();
+                            }
+
+                            @foreach (var comp in topLevel)
                             {
-                                var currentComp = comp;
-                                <div class="list-group-item d-flex justify-content-between align-items-center py-3 border-0 border-bottom">
-                                    <div>
-                                        <i class="bi @(string.IsNullOrEmpty(currentComp.PdfFilePath) ? "bi-card-text text-secondary" : "bi-link-45deg text-success") fs-5 me-2"></i>
-                                        <span class="fw-semibold text-dark">@currentComp.Title</span>
-                                    </div>
-                                    <div>
-                                        <button class="btn btn-sm text-primary me-2" @onclick="() => EditComponent(currentComp)"><i class="bi bi-pencil-square"></i></button>
-                                        <button class="btn btn-sm text-danger" @onclick="() => DeleteComponent(currentComp.Id)"><i class="bi bi-trash3"></i></button>
-                                    </div>
+                                var children = stageComponents.Where(c => c.ParentComponentId == comp.Id).ToList();
+
+                                <div class="list-group-item d-flex justify-content-between align-items-center py-3 border-0 border-bottom bg-light">
+                                    @if (inlineEditId == comp.Id)
+                                    {
+                                        <div class="d-flex w-100 align-items-center">
+                                            <input type="text" class="form-control form-control-sm me-2 fw-bold" @bind="inlineEditTitle" />
+                                            <button class="btn btn-sm btn-success me-1 shadow-sm" @onclick="() => SaveInlineEdit(comp)"><i class="bi bi-check-lg"></i></button>
+                                            <button class="btn btn-sm btn-light border" @onclick="CancelInlineEdit"><i class="bi bi-x-lg"></i></button>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <div>
+                                            <i class="bi @(string.IsNullOrEmpty(comp.PdfFilePath) ? "bi-card-text text-secondary" : "bi-link-45deg text-success") fs-5 me-2"></i>
+                                            <span class="fw-bold text-dark">@comp.Title</span>
+                                        </div>
+                                        <div>
+                                            <button class="btn btn-sm text-primary me-2" @onclick="() => StartInlineEdit(comp)"><i class="bi bi-pencil-square"></i></button>
+                                            <button class="btn btn-sm text-danger" @onclick="() => DeleteComponent(comp.Id)"><i class="bi bi-trash3"></i></button>
+                                        </div>
+                                    }
                                 </div>
+
+                                @foreach (var child in children)
+                                {
+                                    <div class="list-group-item d-flex justify-content-between align-items-center py-2 border-0 border-bottom ms-4">
+                                        @if (inlineEditId == child.Id)
+                                        {
+                                            <div class="d-flex w-100 align-items-center">
+                                                <input type="text" class="form-control form-control-sm me-2" @bind="inlineEditTitle" />
+                                                <button class="btn btn-sm btn-success me-1 shadow-sm" @onclick="() => SaveInlineEdit(child)"><i class="bi bi-check-lg"></i></button>
+                                                <button class="btn btn-sm btn-light border" @onclick="CancelInlineEdit"><i class="bi bi-x-lg"></i></button>
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <div>
+                                                <i class="bi @(string.IsNullOrEmpty(child.PdfFilePath) ? "bi-card-text text-secondary" : "bi-link-45deg text-success") fs-6 me-2"></i>
+                                                <span class="fw-semibold text-dark" style="font-size: 0.95rem;">@child.Title</span>
+                                            </div>
+                                            <div>
+                                                <button class="btn btn-sm text-primary me-2" @onclick="() => StartInlineEdit(child)"><i class="bi bi-pencil-square"></i></button>
+                                                <button class="btn btn-sm text-danger" @onclick="() => DeleteComponent(child.Id)"><i class="bi bi-trash3"></i></button>
+                                            </div>
+                                        }
+                                    </div>
+                                }
+
+                                @if (inlineEditId == comp.Id && comp.ParentComponentId == null)
+                                {
+                                    @foreach (var newChild in inlineNewChildren)
+                                    {
+                                        <div class="list-group-item d-flex align-items-center py-2 border-0 border-bottom ms-4" style="background-color: #f8f9fa;">
+                                            <i class="bi bi-arrow-return-right text-muted me-2"></i>
+                                            <input type="text"
+                                                   class="form-control form-control-sm"
+                                                   style="@(string.IsNullOrWhiteSpace(newChild.Text) ? "border: 2px dashed #adb5bd;" : "border: 2px solid #198754;")"
+                                                   placeholder="Adicionar novo sub-parâmetro..."
+                                                   @bind="newChild.Text"
+                                                   @bind:event="oninput"
+                                                   @onkeyup="CheckInlineChildrenState" />
+                                        </div>
+                                    }
+                                }
                             }
                         </div>
                     }
@@ -216,52 +273,104 @@
                     }
 
                     <div class="p-4 rounded bg-white shadow-sm" style="border: 1px dashed #ced4da;">
-                        <h6 class="fw-bold mb-3 text-primary">@(componentToEdit.Id == 0 ? "Adicionar Novo Item" : "A Editar Item...")</h6>
-                        
-                        <div class="mb-3">
-                            <input class="form-control shadow-sm border-0 bg-light" placeholder="Título (Ex: Manual de Ventilação, ou Critério)..." @bind="componentToEdit.Title" />
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label class="form-label small fw-semibold text-muted mb-1">Instruções / Descrição (Opcional)</label>
-                            <textarea class="form-control shadow-sm border-0 bg-light" 
-                                      rows="4" 
-                                      placeholder="Ex: Leiam o capítulo 3 com atenção e foquem-se no diagrama..."
-                                      @bind="componentToEdit.Description" 
-                                      style="border-radius: 8px; resize: vertical;"></textarea>
-                        </div>
 
-                        <div class="mb-3">
-                            <label class="form-label small fw-semibold text-muted mb-1">URL ou Anexo (Opcional)</label>                           
-
-                            <div class="input-group shadow-sm" style="border-radius: 8px; overflow: hidden;">
-                                <span class="input-group-text bg-light border-0"><i class="bi bi-link-45deg"></i></span>
-                                
-                                <input class="form-control border-0 bg-light" placeholder="Ex: https://youtube.com/..." @bind="componentToEdit.PdfFilePath" disabled="@isUploading" />
-                                
-                                <label class="btn btn-secondary border-0 m-0 d-flex align-items-center px-3" style="cursor: pointer; background-color: #6A96A6;">
-                                    <i class="bi bi-cloud-arrow-up me-2"></i> Explorar...
-                                    <InputFile OnChange="HandleFileUpload" class="d-none" accept=".pdf,.doc,.docx" />
-                                </label>
+                        @if (activeModalStage.Value.Stage == ModuleStage.Teorica)
+                        {
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h6 class="fw-bold text-primary mb-0">@(componentToEdit.Id == 0 ? "Adicionar Nova Componente Teórica" : "A Editar Item...")</h6>
+                                @if (componentToEdit.Id != 0)
+                                {
+                                    <button class="btn btn-sm btn-light border" @onclick="ResetForm">Cancelar Edição</button>
+                                }
                             </div>
 
-                            @if (isUploading)
+                            <div class="mb-3">
+                                <input class="form-control shadow-sm border-0 bg-light fw-bold" placeholder="Título (Ex: Manual de Ventilação)..." @bind="componentToEdit.Title" />
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label small fw-semibold text-muted mb-1">Instruções / Descrição (Opcional)</label>
+                                <textarea class="form-control shadow-sm border-0 bg-light" rows="3" placeholder="Ex: Leiam o capítulo 3..." @bind="componentToEdit.Description"></textarea>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label small fw-semibold text-muted mb-1">URL ou Anexo (Opcional)</label>
+                                <div class="input-group shadow-sm" style="border-radius: 8px; overflow: hidden;">
+                                    <span class="input-group-text bg-light border-0"><i class="bi bi-link-45deg"></i></span>
+                                    <input class="form-control border-0 bg-light" placeholder="Ex: https://youtube.com/..." @bind="componentToEdit.PdfFilePath" disabled="@isUploading" />
+                                    <label class="btn btn-secondary border-0 m-0 d-flex align-items-center px-3" style="cursor: pointer; background-color: #6A96A6;">
+                                        <i class="bi bi-cloud-arrow-up me-2"></i> Explorar...
+                                        <InputFile OnChange="HandleFileUpload" class="d-none" accept=".pdf,.doc,.docx" />
+                                    </label>
+                                </div>
+                                @if (isUploading)
+                                {
+                                    <div class="form-text text-primary small mt-2 fw-semibold">
+                                        <div class="spinner-border spinner-border-sm me-2" role="status"></div> A enviar ficheiro...
+                                    </div>
+                                }
+                            </div>
+
+                            <div class="text-end mt-4">
+                                <button class="btn text-white px-4 shadow-sm" style="background-color: #6A96A6;" @onclick="SaveComponent" disabled="@isSavingModal">
+                                    <i class="bi bi-save me-2"></i> @(isSavingModal ? "A Guardar..." : "Guardar")
+                                </button>
+                            </div>
+                        }
+                        else
+                        {
+                            <h6 class="fw-bold mb-3 text-primary"><i class="bi bi-list-task me-2"></i>Adicionar Parâmetros</h6>
+
+                            <div class="d-flex flex-column gap-2 mb-3">
+                                @foreach (var parent in drafts)
+                                {
+                                    <div @onfocusin="() => activeDraftParent = parent">
+                                        <input type="text"
+                                               class="form-control mb-1 @(string.IsNullOrWhiteSpace(parent.Text) ? "text-muted" : "border-success fw-bold")"
+                                               placeholder="Grupo ou Tarefa principal..."
+                                               style="@(string.IsNullOrWhiteSpace(parent.Text) ? "border: 2px dashed #adb5bd !important; background-color: #f8f9fa;" : "border: 2px solid #198754;")"
+                                               @bind="parent.Text"
+                                               @bind:event="oninput"
+                                               @onkeyup="() => CheckListState(parent)" />
+
+                                        @if (!string.IsNullOrWhiteSpace(parent.Text) || parent.Children.Any(f => !string.IsNullOrWhiteSpace(f.Text)))
+                                        {
+                                            <div class="ms-4 mb-2 d-flex flex-column gap-1">
+                                                @foreach (var child in parent.Children)
+                                                {
+                                                    @if (!string.IsNullOrWhiteSpace(child.Text) || activeDraftParent == parent)
+                                                    {
+                                                        <div class="d-flex align-items-center">
+                                                            <i class="bi bi-arrow-return-right text-muted me-2"></i>
+                                                            <input type="text"
+                                                                   class="form-control form-control-sm @(string.IsNullOrWhiteSpace(child.Text) ? "text-muted" : "border-dark")"
+                                                                   placeholder="Sub-parâmetro..."
+                                                                   style="@(string.IsNullOrWhiteSpace(child.Text) ? "border: 2px dashed #adb5bd !important; background-color: #f8f9fa;" : "border: 2px solid #343a40;")"
+                                                                   @bind="child.Text"
+                                                                   @bind:event="oninput"
+                                                                   @onkeyup="() => CheckListState(parent)" />
+                                                        </div>
+                                                    }
+                                                }
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                            </div>
+
+                            @if (drafts.Any(p => !string.IsNullOrWhiteSpace(p.Text)))
                             {
-                                <div class="form-text text-primary small mt-2 d-flex align-items-center fw-semibold">
-                                    <div class="spinner-border spinner-border-sm me-2" role="status"></div> A enviar ficheiro para o servidor...
+                                <div class="text-end mt-2">
+                                    <button class="btn btn-success px-4 fw-bold shadow-sm" @onclick="SaveRapidStructure" disabled="@isSavingModal">
+                                        @if (isSavingModal)
+                                        {
+                                            <span class="spinner-border spinner-border-sm me-2"></span>
+                                        }
+                                        Guardar Estrutura
+                                    </button>
                                 </div>
                             }
-                        </div>
-                        
-                        <div class="text-end mt-4">
-                            @if (componentToEdit.Id != 0)
-                            {
-                                <button class="btn btn-light me-2 px-3" @onclick="ResetForm">Cancelar Edição</button>
-                            }
-                            <button class="btn text-white px-4 shadow-sm" style="background-color: #6A96A6;" @onclick="SaveComponent" disabled="@isSavingModal">
-                                <i class="bi bi-save me-2"></i> @(isSavingModal ? "A Guardar..." : "Guardar")
-                            </button>
-                        </div>
+                        }
                     </div>
 
                 </div>
@@ -280,11 +389,12 @@
     private List<Module> savedModules = new();
     private List<PathwayTagDto> existingPathways = new();
     private int selectedExistingPathwayId = 0;
-    private int expandedModuleId = 0; // Tracks which module accordion is currently open
+    private int expandedModuleId = 0;
     private bool isCopying = false;
 
     [Parameter]
     public int? PathwayIdToLoad { get; set; }
+
     [SupplyParameterFromQuery(Name = "from")]
     public string? FromSource { get; set; }
 
@@ -302,10 +412,26 @@
     // ==========================================
     // 2. TARGETED MODAL VARIABLES
     // ==========================================
-    private Module? activeModalModule; // The module currently opened in the modal
-    private (ModuleStage Stage, string Title, string Icon, ModuleStage? CopyFromStage)? activeModalStage; // The specific stage opened
-    private ModuleComponent componentToEdit = new(); // Holds the data for the inline form (handles both Create and Edit)
+    private Module? activeModalModule;
+    private (ModuleStage Stage, string Title, string Icon, ModuleStage? CopyFromStage)? activeModalStage;
+    private ModuleComponent componentToEdit = new();
     private bool isSavingModal = false;
+
+    // --- VARIÁVEIS DE EDIÇÃO INLINE E FOCO ---
+    private int? inlineEditId = null;
+    private string inlineEditTitle = string.Empty;
+    private List<DraftChild> inlineNewChildren = new() { new DraftChild() }; // <-- Agora é uma lista dinâmica
+    private DraftParent? activeDraftParent = null;
+
+    // RAPID BUILDER CLASSES
+    public class DraftParent
+    {
+        public string Text { get; set; } = "";
+        public List<DraftChild> Children { get; set; } = new() { new DraftChild() };
+    }
+    public class DraftChild { public string Text { get; set; } = ""; }
+
+    private List<DraftParent> drafts = new() { new DraftParent() };
 
     // ==========================================
     // 3. INITIALIZATION & PATHWAY MANAGEMENT
@@ -313,7 +439,6 @@
     protected override async Task OnInitializedAsync()
     {
         var currentUser = await LocalStorage.GetItemAsync<User>("user");
-
         existingPathways = await Http.GetFromJsonAsync<List<PathwayTagDto>>($"api/Pathway/supervisor/{currentUser.Id}") ?? new();
 
         if (PathwayIdToLoad.HasValue && PathwayIdToLoad.Value > 0)
@@ -341,17 +466,13 @@
     {
         if (FromSource == "dashboard")
         {
-            // Send them back where they came from
             Nav.NavigateTo("/dashboard");
         }
         else
         {
-            // Normal behavior: Reset to the "Select/Create" screen
             activePathway = null;
             savedModules.Clear();
             selectedExistingPathwayId = 0;
-
-            // This cleans the URL so the ID disappears
             Nav.NavigateTo("/supervisor/pathway-builder");
         }
     }
@@ -375,7 +496,6 @@
         if (string.IsNullOrWhiteSpace(newModuleTitle) || activePathway == null) return;
         var dto = new ModuleCreateDTO { Title = newModuleTitle, PathwayId = activePathway.Id };
         var response = await Http.PostAsJsonAsync("api/Module", dto);
-
         if (response.IsSuccessStatusCode)
         {
             var savedMod = await response.Content.ReadFromJsonAsync<Module>();
@@ -388,17 +508,14 @@
         }
     }
 
-    // --- DELETE ENTIRE MODULE ---
     private async Task DeleteActiveModule(int moduleId)
     {
-        // Assumes you have an [HttpDelete("{id}")] endpoint in ModuleController
         var response = await Http.DeleteAsync($"api/Module/{moduleId}");
         if (response.IsSuccessStatusCode)
         {
             var mod = savedModules.FirstOrDefault(m => m.Id == moduleId);
             if (mod != null) savedModules.Remove(mod);
 
-            // Close the accordion if they deleted the one they were looking at
             if (expandedModuleId == moduleId) expandedModuleId = 0;
             StateHasChanged();
         }
@@ -406,39 +523,18 @@
 
     private void ToggleModule(int moduleId)
     {
-        // Toggles the accordion open/closed (Pure Blazor, no Bootstrap JS)
         expandedModuleId = (expandedModuleId == moduleId) ? 0 : moduleId;
     }
 
-    private async Task CopyComponentsFromStage(int moduleId, ModuleStage targetStage, ModuleStage sourceStage)
-    {
-        isCopying = true;
-        var module = savedModules.First(m => m.Id == moduleId);
-        var itemsToCopy = module.Components?.Where(c => c.Stage == sourceStage).ToList() ?? new();
-        if (!itemsToCopy.Any()) { isCopying = false; return; }
-
-        foreach (var item in itemsToCopy)
-        {
-            var dto = new ModuleComponentCreateDTO { ModuleId = moduleId, Title = item.Title, Stage = targetStage, PdfFilePath = item.PdfFilePath };
-            var response = await Http.PostAsJsonAsync("api/ModuleComponent", dto);
-            if (response.IsSuccessStatusCode)
-            {
-                var savedCopy = await response.Content.ReadFromJsonAsync<ModuleComponent>();
-                if (savedCopy != null) module.Components!.Add(savedCopy);
-            }
-        }
-        isCopying = false;
-        StateHasChanged();
-    }
-
     // ==========================================
-    // 5. TARGETED MODAL & COMPONENT LOGIC
+    // 5. MODAL & COMPONENT LOGIC
     // ==========================================
     private void OpenStageModal(Module mod, (ModuleStage Stage, string Title, string Icon, ModuleStage? CopyFromStage) stageInfo)
     {
         activeModalModule = mod;
         activeModalStage = stageInfo;
-        ResetForm(); // Always clear the inputs when opening a new modal
+        ResetForm();
+        CancelInlineEdit(); // Garante que a edição inline fecha ao abrir nova janela
         StateHasChanged();
     }
 
@@ -446,11 +542,11 @@
     {
         activeModalModule = null;
         activeModalStage = null;
+        CancelInlineEdit();
     }
 
     private void ResetForm()
     {
-        // Prepares the form to create a NEW component
         if (activeModalModule != null && activeModalStage.HasValue)
         {
             componentToEdit = new ModuleComponent
@@ -463,11 +559,78 @@
                 PdfFilePath = string.Empty
             };
         }
+        drafts = new List<DraftParent> { new DraftParent() };
+    }
+
+    // --- MÉTODOS DE EDIÇÃO INLINE ---
+    private void StartInlineEdit(ModuleComponent comp)
+    {
+        if (activeModalStage?.Stage == ModuleStage.Teorica)
+        {
+            EditComponent(comp);
+        }
+        else
+        {
+            inlineEditId = comp.Id;
+            inlineEditTitle = comp.Title;
+            inlineNewChildren = new List<DraftChild> { new DraftChild() }; // Limpa e prepara uma nova caixa
+        }
+    }
+
+    private void CancelInlineEdit()
+    {
+        inlineEditId = null;
+        inlineNewChildren.Clear();
+    }
+
+    private void CheckInlineChildrenState()
+    {
+        // Mesma magia do construtor: cria nova caixa se a última for preenchida
+        if (!string.IsNullOrWhiteSpace(inlineNewChildren.Last().Text))
+            inlineNewChildren.Add(new DraftChild());
+        else if (inlineNewChildren.Count > 1 && string.IsNullOrWhiteSpace(inlineNewChildren[^2].Text))
+            inlineNewChildren.RemoveAt(inlineNewChildren.Count - 2);
+    }
+
+    private async Task SaveInlineEdit(ModuleComponent comp)
+    {
+        if (string.IsNullOrWhiteSpace(inlineEditTitle)) return;
+
+        comp.Title = inlineEditTitle;
+        var response = await Http.PutAsJsonAsync($"api/ModuleComponent/{comp.Id}", comp);
+
+        if (response.IsSuccessStatusCode)
+        {
+            // Se estamos a editar o Pai, varre todas as caixas novas preenchidas e guarda-as
+            if (comp.ParentComponentId == null && activeModalModule != null && activeModalStage.HasValue)
+            {
+                foreach (var childDraft in inlineNewChildren.Where(c => !string.IsNullOrWhiteSpace(c.Text)))
+                {
+                    var newChildDto = new ModuleComponentCreateDTO
+                    {
+                        ModuleId = activeModalModule.Id,
+                        Title = childDraft.Text,
+                        Stage = activeModalStage.Value.Stage,
+                        ParentComponentId = comp.Id
+                    };
+
+                    var childResponse = await Http.PostAsJsonAsync("api/ModuleComponent", newChildDto);
+                    if (childResponse.IsSuccessStatusCode)
+                    {
+                        var savedChild = await childResponse.Content.ReadFromJsonAsync<ModuleComponent>();
+                        if (savedChild != null) activeModalModule.Components!.Add(savedChild);
+                    }
+                }
+            }
+
+            inlineEditId = null;
+            inlineNewChildren.Clear();
+            StateHasChanged();
+        }
     }
 
     private void EditComponent(ModuleComponent comp)
     {
-        // Copies an existing component into the form for editing
         componentToEdit = new ModuleComponent
         {
             Id = comp.Id,
@@ -484,7 +647,7 @@
         if (string.IsNullOrWhiteSpace(componentToEdit.Title) || activeModalModule == null) return;
         isSavingModal = true;
 
-        if (componentToEdit.Id == 0) // --- CREATE MODE (POST) ---
+        if (componentToEdit.Id == 0)
         {
             var dto = new ModuleComponentCreateDTO
             {
@@ -494,7 +657,6 @@
                 Stage = componentToEdit.Stage,
                 PdfFilePath = componentToEdit.PdfFilePath
             };
-
             var response = await Http.PostAsJsonAsync("api/ModuleComponent", dto);
             if (response.IsSuccessStatusCode)
             {
@@ -506,12 +668,11 @@
                 }
             }
         }
-        else // --- EDIT MODE (PUT) ---
+        else
         {
             var response = await Http.PutAsJsonAsync($"api/ModuleComponent/{componentToEdit.Id}", componentToEdit);
             if (response.IsSuccessStatusCode)
             {
-                // Update the visual list instantly
                 var existing = activeModalModule.Components!.First(c => c.Id == componentToEdit.Id);
                 existing.Title = componentToEdit.Title;
                 existing.Description = componentToEdit.Description;
@@ -520,14 +681,13 @@
         }
 
         isSavingModal = false;
-        ResetForm(); // Clear the form so they can quickly add another item
+        ResetForm();
         StateHasChanged();
     }
 
     private async Task DeleteComponent(int compId)
     {
         if (activeModalModule == null) return;
-
         var response = await Http.DeleteAsync($"api/ModuleComponent/{compId}");
         if (response.IsSuccessStatusCode)
         {
@@ -543,32 +703,21 @@
         StateHasChanged();
 
         var file = e.File;
-        long maxAllowedSize = 10 * 1024 * 1024; // 10 MB limit
+        long maxAllowedSize = 10 * 1024 * 1024;
 
         try
         {
             using var content = new MultipartFormDataContent();
-            
-            // Read the file from the browser
             var fileContent = new StreamContent(file.OpenReadStream(maxAllowedSize));
             fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(file.ContentType);
-            
+
             content.Add(fileContent, "file", file.Name);
 
-            // Send it to our new Backend Vault
             var response = await Http.PostAsync("api/files/upload", content);
-
             if (response.IsSuccessStatusCode)
             {
-                // The backend hands us back the secure API URL (e.g., "api/files/download/abcd-1234.pdf")
                 var secureUrl = await response.Content.ReadAsStringAsync();
-                
-                // Automatically fill the text box with the new secure URL!
                 componentToEdit.PdfFilePath = secureUrl;
-            }
-            else
-            {
-                Console.WriteLine("Erro ao enviar ficheiro.");
             }
         }
         catch (Exception ex)
@@ -580,40 +729,139 @@
         StateHasChanged();
     }
 
-    // --- COPY COMPONENTS ---
     private async Task CopyComponents()
     {
-        // Safety check to make sure there is actually a stage to copy from
         if (activeModalModule == null || !activeModalStage.HasValue || !activeModalStage.Value.CopyFromStage.HasValue) return;
-        
+
         isCopying = true;
-        StateHasChanged(); // Show the loading spinner
-        
+        StateHasChanged();
+
         var sourceStage = activeModalStage.Value.CopyFromStage.Value;
         var targetStage = activeModalStage.Value.Stage;
-        
-        // Find all components in the previous stage of this specific module
-        var itemsToCopy = activeModalModule.Components?.Where(c => c.Stage == sourceStage).ToList() ?? new();
-        
-        foreach (var item in itemsToCopy)
+
+        // 1. Vai buscar todos os componentes da fase anterior
+        var allSourceComponents = activeModalModule.Components?.Where(c => c.Stage == sourceStage).ToList() ?? new();
+
+        // Dicionário para guardar a relação: AntigoID -> NovoID
+        var idMapping = new Dictionary<int, int>();
+
+        // 2. Primeiro, copia apenas os PAIS (aqueles que não têm ParentComponentId)
+        var parentsToCopy = allSourceComponents.Where(c => c.ParentComponentId == null).ToList();
+        foreach (var parent in parentsToCopy)
         {
             var dto = new ModuleComponentCreateDTO
             {
                 ModuleId = activeModalModule.Id,
-                Title = item.Title,
-                Stage = targetStage, // Save it into the NEW stage
-                PdfFilePath = item.PdfFilePath
+                Title = parent.Title,
+                Stage = targetStage,
+                PdfFilePath = parent.PdfFilePath
             };
-            
+
             var response = await Http.PostAsJsonAsync("api/ModuleComponent", dto);
             if (response.IsSuccessStatusCode)
             {
-                var savedCopy = await response.Content.ReadFromJsonAsync<ModuleComponent>();
-                if (savedCopy != null) activeModalModule.Components!.Add(savedCopy);
+                var savedParent = await response.Content.ReadFromJsonAsync<ModuleComponent>();
+                if (savedParent != null)
+                {
+                    activeModalModule.Components!.Add(savedParent);
+                    idMapping[parent.Id] = savedParent.Id; // Guarda o novo ID
+                }
             }
         }
-        
+
+        // 3. Depois, copia os FILHOS usando o novo ID do pai
+        var childrenToCopy = allSourceComponents.Where(c => c.ParentComponentId != null).ToList();
+        foreach (var child in childrenToCopy)
+        {
+            // Verifica se o pai deste filho foi copiado (está no dicionário)
+            if (child.ParentComponentId.HasValue && idMapping.ContainsKey(child.ParentComponentId.Value))
+            {
+                var dto = new ModuleComponentCreateDTO
+                {
+                    ModuleId = activeModalModule.Id,
+                    Title = child.Title,
+                    Stage = targetStage,
+                    PdfFilePath = child.PdfFilePath,
+                    ParentComponentId = idMapping[child.ParentComponentId.Value] // Usa o ID do novo pai!
+                };
+
+                var response = await Http.PostAsJsonAsync("api/ModuleComponent", dto);
+                if (response.IsSuccessStatusCode)
+                {
+                    var savedChild = await response.Content.ReadFromJsonAsync<ModuleComponent>();
+                    if (savedChild != null) activeModalModule.Components!.Add(savedChild);
+                }
+            }
+        }
+
         isCopying = false;
-        StateHasChanged(); // Hide spinner and refresh list
+        StateHasChanged();
+    }
+
+    // ==========================================
+    // 6. RAPID BUILDER LOGIC
+    // ==========================================
+    private void CheckListState(DraftParent currentParent)
+    {
+        if (!string.IsNullOrWhiteSpace(drafts.Last().Text)) drafts.Add(new DraftParent());
+        else if (drafts.Count > 1 && string.IsNullOrWhiteSpace(drafts[^2].Text))
+        {
+            if (!drafts[^2].Children.Any(f => !string.IsNullOrWhiteSpace(f.Text))) drafts.RemoveAt(drafts.Count - 2);
+        }
+
+        if (!string.IsNullOrWhiteSpace(currentParent.Children.Last().Text)) currentParent.Children.Add(new DraftChild());
+        else if (currentParent.Children.Count > 1 && string.IsNullOrWhiteSpace(currentParent.Children[^2].Text))
+        {
+            currentParent.Children.RemoveAt(currentParent.Children.Count - 2);
+        }
+    }
+
+    private async Task SaveRapidStructure()
+    {
+        if (activeModalModule == null || !activeModalStage.HasValue) return;
+        isSavingModal = true;
+
+        foreach (var parent in drafts.Where(p => !string.IsNullOrWhiteSpace(p.Text)))
+        {
+            var dtoParent = new ModuleComponentCreateDTO
+            {
+                ModuleId = activeModalModule.Id,
+                Title = parent.Text,
+                Stage = activeModalStage.Value.Stage
+            };
+
+            var responseParent = await Http.PostAsJsonAsync("api/ModuleComponent", dtoParent);
+            if (responseParent.IsSuccessStatusCode)
+            {
+                var savedParent = await responseParent.Content.ReadFromJsonAsync<ModuleComponent>();
+                if (savedParent != null)
+                {
+                    activeModalModule.Components ??= new List<ModuleComponent>();
+                    activeModalModule.Components.Add(savedParent);
+
+                    foreach (var child in parent.Children.Where(f => !string.IsNullOrWhiteSpace(f.Text)))
+                    {
+                        var dtoChild = new ModuleComponentCreateDTO
+                        {
+                            ModuleId = activeModalModule.Id,
+                            Title = child.Text,
+                            Stage = activeModalStage.Value.Stage,
+                            ParentComponentId = savedParent.Id
+                        };
+
+                        var responseChild = await Http.PostAsJsonAsync("api/ModuleComponent", dtoChild);
+                        if (responseChild.IsSuccessStatusCode)
+                        {
+                            var savedChild = await responseChild.Content.ReadFromJsonAsync<ModuleComponent>();
+                            if (savedChild != null) activeModalModule.Components.Add(savedChild);
+                        }
+                    }
+                }
+            }
+        }
+
+        isSavingModal = false;
+        ResetForm();
+        StateHasChanged();
     }
 }

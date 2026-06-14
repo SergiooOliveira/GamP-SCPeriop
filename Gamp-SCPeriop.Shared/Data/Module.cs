@@ -15,7 +15,8 @@ namespace GamP_SCPeriop.Shared.Data
         {
             get
             {
-                var praticas = Components?.Where(c => c.Stage != ModuleStage.Teorica).ToList();
+                var praticas = Components?.Where(c => c.Stage != ModuleStage.Teorica &&
+                                                    (c.SubComponents == null || !c.SubComponents.Any())).ToList();
 
                 if (praticas == null || !praticas.Any()) return 0;
 

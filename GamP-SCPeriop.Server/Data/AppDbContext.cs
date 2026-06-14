@@ -87,7 +87,8 @@ namespace GamP_SCPeriop.Server.Data
             modelBuilder.Entity<Module>().HasData(
                 new Module { Id = 1, PathwayId = 1, Title = "Módulo Teórico - Preparação" },
                 new Module { Id = 2, PathwayId = 1, Title = "Módulo Prático - Bloco Operatório" },
-                new Module { Id = 3, PathwayId = 2, Title = "Módulo Único - Fármacos" }
+                new Module { Id = 3, PathwayId = 2, Title = "Módulo Único - Fármacos" },
+                new Module { Id = 4, PathwayId = 2, Title = "UT1 - Introdução à Anestesia" }
             );
 
             // ==========================================
@@ -105,7 +106,32 @@ namespace GamP_SCPeriop.Server.Data
                 new ModuleComponent { Id = 6, ModuleId = 2, Title = "Circulação na Sala", Stage = ModuleStage.PraticaSupervisionada, PdfFilePath = "" },
                 new ModuleComponent { Id = 7, ModuleId = 3, Title = "Tabela de Fármacos de Emergência", Stage = ModuleStage.Teorica, PdfFilePath = "https://example.com/farmacos.pdf" },
                 new ModuleComponent { Id = 8, ModuleId = 3, Title = "Preparação do Ventilação", Stage = ModuleStage.ObservacaoParticipada, PdfFilePath = "" },
-                new ModuleComponent { Id = 9, ModuleId = 3, Title = "Entubação Endotraqueal", Stage = ModuleStage.PraticaSupervisionada, PdfFilePath = "" }
+                new ModuleComponent { Id = 9, ModuleId = 3, Title = "Entubação Endotraqueal", Stage = ModuleStage.PraticaSupervisionada, PdfFilePath = "" },
+
+                // Parâmetro Solto
+                new ModuleComponent { Id = 10, ModuleId = 4, Title = "Demonstra conhecimento das Normas de prevenção da Infeção do Local Cirúrgico", Stage = ModuleStage.ObservacaoPassiva },
+                new ModuleComponent { Id = 11, ModuleId = 4, Title = "Procede aos devidos registos clínicos informáticos no intraoperatório", Stage = ModuleStage.ObservacaoPassiva },
+
+                // GRUPO: Sclínico (PAI)
+                new ModuleComponent { Id = 12, ModuleId = 4, Title = "Sclínico", Stage = ModuleStage.ObservacaoPassiva, ParentComponentId = null },
+                // Filhos do Sclínico (Apontam para o ParentComponentId = 12)
+                new ModuleComponent { Id = 13, ModuleId = 4, ParentComponentId = 12, Title = "Regista Diagnósticos de Enfermagem adequadamente", Stage = ModuleStage.ObservacaoPassiva },
+                new ModuleComponent { Id = 14, ModuleId = 4, ParentComponentId = 12, Title = "Regista Atitudes terapêuticas adequadamente", Stage = ModuleStage.ObservacaoPassiva },
+                new ModuleComponent { Id = 15, ModuleId = 4, ParentComponentId = 12, Title = "Regista SV (incluindo temperatura corporal) e Glicemia Capilar de acordo com as normas em vigor", Stage = ModuleStage.ObservacaoPassiva },
+
+                // Parâmetro Solto
+                new ModuleComponent { Id = 16, ModuleId = 4, Title = "Valida adequadamente a administração de medicação no sistema Ghaf;", Stage = ModuleStage.ObservacaoPassiva },
+
+                // GRUPO: Ghaf (PAI)
+                new ModuleComponent { Id = 17, ModuleId = 4, Title = "Ghaf", Stage = ModuleStage.ObservacaoPassiva, ParentComponentId = null },
+                // Filhos do Ghaf (Apontam para o ParentComponentId = 17)
+                new ModuleComponent { Id = 18, ModuleId = 4, ParentComponentId = 17, Title = "Administração de Antibioterapia, de acordo com a norma em vigor", Stage = ModuleStage.ObservacaoPassiva },
+                new ModuleComponent { Id = 19, ModuleId = 4, ParentComponentId = 17, Title = "Efetua débitos ao armazém", Stage = ModuleStage.ObservacaoPassiva },
+                new ModuleComponent { Id = 20, ModuleId = 4, ParentComponentId = 17, Title = "Efetua devoluções ao armazém", Stage = ModuleStage.ObservacaoPassiva },
+                new ModuleComponent { Id = 21, ModuleId = 4, ParentComponentId = 17, Title = "Efetua pedidos de dietas para o utente e acompanhante (quando aplicável)", Stage = ModuleStage.ObservacaoPassiva },
+
+                // Parâmetro Solto
+                new ModuleComponent { Id = 22, ModuleId = 4, Title = "Regista adequadamente a administração de estupefacientes em folha própria (Mod.3)", Stage = ModuleStage.ObservacaoPassiva }
             );
 
             // ==========================================
@@ -113,8 +139,8 @@ namespace GamP_SCPeriop.Server.Data
             // ==========================================
             modelBuilder.Entity<Enrollment>().HasData(
                 // New Dummy Enrollments
-                new Enrollment { Id = 3, StudentId = 11, ProfessorId = 10, PathwayId = 2, ProgressPercentage = 80, EndDate = new DateTime(2026, 5, 20) },
-                new Enrollment { Id = 4, StudentId = 12, ProfessorId = 9, PathwayId = 1, ProgressPercentage = 5, EndDate = new DateTime(2026, 12, 10) }
+                new Enrollment { Id = 3, StudentId = 11, ProfessorId = 10, PathwayId = 2, ProgressPercentage = 0, StartDate = new DateTime(2026, 1, 1), EndDate = new DateTime(2026, 5, 20) },
+    new Enrollment { Id = 4, StudentId = 12, ProfessorId = 9, PathwayId = 1, ProgressPercentage = 0, StartDate = new DateTime(2026, 1, 1), EndDate = new DateTime(2026, 12, 10) }
             );
 
             // ==========================================

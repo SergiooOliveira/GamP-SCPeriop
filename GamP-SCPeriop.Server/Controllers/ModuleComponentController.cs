@@ -3,6 +3,7 @@ using GamP_SCPeriop.Shared.Data;
 using GamP_SCPeriop.Shared.Entity.Model;
 using GamP_SCPeriop.Shared.Enum;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace GamP_SCPeriop.Server.Controllers
 {
@@ -28,7 +29,8 @@ namespace GamP_SCPeriop.Server.Controllers
                 Stage = dto.Stage,
                 Description = dto.Description,
                 PdfFilePath = dto.PdfFilePath ?? string.Empty,
-                Status = ComponentStatus.Pending
+                Status = ComponentStatus.Pending,
+                ParentComponentId = dto.ParentComponentId
             };
 
             _context.ModuleComponents.Add(component);
@@ -63,10 +65,18 @@ namespace GamP_SCPeriop.Server.Controllers
             var component = await _context.ModuleComponents.FindAsync(id);
             if (component == null) return NotFound();
 
+            // 1. Procurar e apagar todos os filhos primeiro (A MAGIA ACONTECE AQUI)
+            var children = await _context.ModuleComponents.Where(c => c.ParentComponentId == id).ToListAsync();
+            if (children.Any())
+            {
+                _context.ModuleComponents.RemoveRange(children);
+            }
+
+            // 2. Apagar o Pai em segurança
             _context.ModuleComponents.Remove(component);
             await _context.SaveChangesAsync();
 
-            return NoContent();
+            return Ok();
         }
 
         // --- 4. GET SINGLE --- (Required for the CreatedAtAction to work properly)

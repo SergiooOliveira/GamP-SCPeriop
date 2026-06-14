@@ -4,6 +4,7 @@ using GamP_SCPeriop.Server.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GamP_SCPeriop.Server.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260613143810_ModuleIdSwapped")]
+    partial class ModuleIdSwapped
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -269,99 +272,99 @@ namespace GamP_SCPeriop.Server.Migrations
                         new
                         {
                             Id = 10,
-                            ModuleId = 4,
-                            Stage = 2,
+                            ModuleId = 2,
+                            Stage = 5,
                             Title = "Demonstra conhecimento das Normas de prevenção da Infeção do Local Cirúrgico"
                         },
                         new
                         {
                             Id = 11,
-                            ModuleId = 4,
-                            Stage = 2,
+                            ModuleId = 2,
+                            Stage = 5,
                             Title = "Procede aos devidos registos clínicos informáticos no intraoperatório"
                         },
                         new
                         {
                             Id = 12,
-                            ModuleId = 4,
-                            Stage = 2,
+                            ModuleId = 2,
+                            Stage = 5,
                             Title = "Sclínico"
                         },
                         new
                         {
                             Id = 13,
-                            ModuleId = 4,
+                            ModuleId = 2,
                             ParentComponentId = 12,
-                            Stage = 2,
+                            Stage = 5,
                             Title = "Regista Diagnósticos de Enfermagem adequadamente"
                         },
                         new
                         {
                             Id = 14,
-                            ModuleId = 4,
+                            ModuleId = 2,
                             ParentComponentId = 12,
-                            Stage = 2,
+                            Stage = 5,
                             Title = "Regista Atitudes terapêuticas adequadamente"
                         },
                         new
                         {
                             Id = 15,
-                            ModuleId = 4,
+                            ModuleId = 2,
                             ParentComponentId = 12,
-                            Stage = 2,
+                            Stage = 5,
                             Title = "Regista SV (incluindo temperatura corporal) e Glicemia Capilar de acordo com as normas em vigor"
                         },
                         new
                         {
                             Id = 16,
-                            ModuleId = 4,
-                            Stage = 2,
+                            ModuleId = 2,
+                            Stage = 5,
                             Title = "Valida adequadamente a administração de medicação no sistema Ghaf;"
                         },
                         new
                         {
                             Id = 17,
-                            ModuleId = 4,
-                            Stage = 2,
+                            ModuleId = 2,
+                            Stage = 5,
                             Title = "Ghaf"
                         },
                         new
                         {
                             Id = 18,
-                            ModuleId = 4,
+                            ModuleId = 2,
                             ParentComponentId = 17,
-                            Stage = 2,
+                            Stage = 5,
                             Title = "Administração de Antibioterapia, de acordo com a norma em vigor"
                         },
                         new
                         {
                             Id = 19,
-                            ModuleId = 4,
+                            ModuleId = 2,
                             ParentComponentId = 17,
-                            Stage = 2,
+                            Stage = 5,
                             Title = "Efetua débitos ao armazém"
                         },
                         new
                         {
                             Id = 20,
-                            ModuleId = 4,
+                            ModuleId = 2,
                             ParentComponentId = 17,
-                            Stage = 2,
+                            Stage = 5,
                             Title = "Efetua devoluções ao armazém"
                         },
                         new
                         {
                             Id = 21,
-                            ModuleId = 4,
+                            ModuleId = 2,
                             ParentComponentId = 17,
-                            Stage = 2,
+                            Stage = 5,
                             Title = "Efetua pedidos de dietas para o utente e acompanhante (quando aplicável)"
                         },
                         new
                         {
                             Id = 22,
-                            ModuleId = 4,
-                            Stage = 2,
+                            ModuleId = 2,
+                            Stage = 5,
                             Title = "Regista adequadamente a administração de estupefacientes em folha própria (Mod.3)"
                         });
                 });

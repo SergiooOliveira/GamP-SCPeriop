@@ -12,5 +12,6 @@ namespace GamP_SCPeriop.Shared.Entity.Model
         public string? Description {  get; set; }
         public string? PdfFilePath { get; set; }
         public ModuleStage Stage { get; set; }
+        public int? ParentComponentId { get; set; }
     }
 }

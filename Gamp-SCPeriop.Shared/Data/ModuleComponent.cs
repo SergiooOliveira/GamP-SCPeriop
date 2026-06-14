@@ -12,7 +12,13 @@ namespace GamP_SCPeriop.Shared.Data
         public string? PdfFilePath { get; set; }
         public ModuleStage Stage { get; set; }
 
+        public int? ParentComponentId { get; set; }
+        public ModuleComponent? ParentComponent { get; set; }
+        public List<ModuleComponent> SubComponents { get; set; } = new();
+
         [NotMapped]
         public ComponentStatus Status { get; set; } = ComponentStatus.Pending;
+
+        public Module? Module { get; set; }
     }
 }
