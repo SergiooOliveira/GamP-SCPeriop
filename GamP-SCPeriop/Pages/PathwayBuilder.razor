@@ -199,7 +199,7 @@
                             {
                                 var children = stageComponents.Where(c => c.ParentComponentId == comp.Id).ToList();
 
-                                <div class="list-group-item d-flex justify-content-between align-items-center py-3 border-0 border-bottom bg-light">
+                                <div class="list-group-item d-flex justify-content-between align-items-center py-2 border-0 border-bottom bg-light">
                                     @if (inlineEditId == comp.Id)
                                     {
                                         <div class="d-flex w-100 align-items-center">
@@ -210,13 +210,17 @@
                                     }
                                     else
                                     {
-                                        <div>
-                                            <i class="bi @(string.IsNullOrEmpty(comp.PdfFilePath) ? "bi-card-text text-secondary" : "bi-link-45deg text-success") fs-5 me-2"></i>
-                                            <span class="fw-bold text-dark">@comp.Title</span>
+                                        <div class="d-flex align-items-center pe-3 flex-grow-1">
+                                            <i class="bi @(string.IsNullOrEmpty(comp.PdfFilePath) ? "bi-card-text text-secondary" : "bi-link-45deg text-success") fs-5 me-2 flex-shrink-0"></i>
+                                            <span class="fw-bold text-dark text-wrap">@comp.Title</span>
                                         </div>
-                                        <div>
-                                            <button class="btn btn-sm text-primary me-2" @onclick="() => StartInlineEdit(comp)"><i class="bi bi-pencil-square"></i></button>
-                                            <button class="btn btn-sm text-danger" @onclick="() => DeleteComponent(comp.Id)"><i class="bi bi-trash3"></i></button>
+                                        <div class="d-flex align-items-center gap-2 flex-shrink-0">
+                                            <button class="btn btn-link p-0 text-primary text-decoration-none shadow-none" title="Editar" @onclick="() => StartInlineEdit(comp)">
+                                                <i class="bi bi-pencil-square fs-6 lh-1"></i>
+                                            </button>
+                                            <button class="btn btn-link p-0 text-danger text-decoration-none shadow-none" title="Remover" @onclick="() => DeleteComponent(comp.Id)">
+                                                <i class="bi bi-trash3 fs-6 lh-1"></i>
+                                            </button>
                                         </div>
                                     }
                                 </div>
@@ -234,13 +238,17 @@
                                         }
                                         else
                                         {
-                                            <div>
-                                                <i class="bi @(string.IsNullOrEmpty(child.PdfFilePath) ? "bi-card-text text-secondary" : "bi-link-45deg text-success") fs-6 me-2"></i>
-                                                <span class="fw-semibold text-dark" style="font-size: 0.95rem;">@child.Title</span>
+                                            <div class="d-flex align-items-center pe-3 flex-grow-1">
+                                                <i class="bi @(string.IsNullOrEmpty(child.PdfFilePath) ? "bi-card-text text-secondary" : "bi-link-45deg text-success") fs-6 me-2 flex-shrink-0"></i>
+                                                <span class="fw-semibold text-dark text-wrap" style="font-size: 0.95rem;">@child.Title</span>
                                             </div>
-                                            <div>
-                                                <button class="btn btn-sm text-primary me-2" @onclick="() => StartInlineEdit(child)"><i class="bi bi-pencil-square"></i></button>
-                                                <button class="btn btn-sm text-danger" @onclick="() => DeleteComponent(child.Id)"><i class="bi bi-trash3"></i></button>
+                                            <div class="d-flex align-items-center gap-2 flex-shrink-0">
+                                                <button class="btn btn-link p-0 text-primary text-decoration-none shadow-none" title="Editar" @onclick="() => StartInlineEdit(child)">
+                                                    <i class="bi bi-pencil-square fs-6 lh-1"></i>
+                                                </button>
+                                                <button class="btn btn-link p-0 text-danger text-decoration-none shadow-none" title="Remover" @onclick="() => DeleteComponent(child.Id)">
+                                                    <i class="bi bi-trash3 fs-6 lh-1"></i>
+                                                </button>
                                             </div>
                                         }
                                     </div>
@@ -253,8 +261,7 @@
                                         <div class="list-group-item d-flex align-items-center py-2 border-0 border-bottom ms-4" style="background-color: #f8f9fa;">
                                             <i class="bi bi-arrow-return-right text-muted me-2"></i>
                                             <input type="text"
-                                                   class="form-control form-control-sm"
-                                                   style="@(string.IsNullOrWhiteSpace(newChild.Text) ? "border: 2px dashed #adb5bd;" : "border: 2px solid #198754;")"
+                                                   class="form-control form-control-sm @(string.IsNullOrWhiteSpace(newChild.Text) ? "draft-empty" : "draft-filled-success")"
                                                    placeholder="Adicionar novo sub-parâmetro..."
                                                    @bind="newChild.Text"
                                                    @bind:event="oninput"
