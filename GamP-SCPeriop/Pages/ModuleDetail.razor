@@ -77,9 +77,9 @@
                                  style="cursor: pointer;" @onclick="() => ToggleMaterial(comp.Id)">
                                 <div class="d-flex align-items-center">
                                     <i class="bi bi-file-earmark-text text-info me-3 fs-5"></i>
-                                    <span class="fw-bold text-dark">@comp.Title</span>
+                                    <span class="fw-bold text-dark text-wrap">@comp.Title</span>
                                 </div>
-                                <div class="rounded-circle d-flex justify-content-center align-items-center bg-light" style="width: 32px; height: 32px;">
+                                <div class="rounded-circle d-flex justify-content-center align-items-center bg-light flex-shrink-0" style="width: 32px; height: 32px;">
                                     <i class="bi @(isOpen ? "bi-chevron-up" : "bi-chevron-down") text-muted"></i>
                                 </div>
                             </div>
@@ -106,41 +106,67 @@
             }
         </div>
 
-        <div class="mb-5 mt-3">
+        <div class="mb-5 mt-4">
             @if (module.Components != null && module.Components.Any(c => c.Stage != ModuleStage.Teorica))
             {
-                <h5 class="fw-bold mb-3 text-secondary"><i class="bi bi-list-check me-2"></i>Tarefas a Avaliar</h5>
+                <h5 class="fw-bold mb-3 text-secondary"><i class="bi bi-list-check me-2"></i>A Minha Avaliação</h5>
 
-                <div class="list-group shadow-sm border-0" style="border-radius: 15px;">
-                    @foreach (var comp in module.Components.Where(c => c.Stage != ModuleStage.Teorica))
-                    {
-                        <div class="list-group-item border-0 border-bottom p-4 bg-white">
+                <div class="card shadow-sm border-0 mb-4" style="border-radius: 15px; border-left: 5px solid #2c3e50;">
+                    <div class="card-body p-4">
+                        @{
+                            var assessableComponents = module.Components.Where(c => c.Stage != ModuleStage.Teorica).ToList();
+                            var topLevelItems = assessableComponents.Where(c => c.ParentComponentId == null).ToList();
+                        }
 
-                            <div class="d-flex justify-content-between align-items-start mb-2">
-                                <h6 class="fw-bold mb-0 text-dark mt-1">@comp.Title</h6>
-                                <span class="badge rounded-pill @GetBadgeCss(comp.Status) px-3 py-2 border shadow-sm" style="font-size: 0.75rem;">@GetBadgeText(comp.Status)</span>
-                            </div>
+                        @foreach (var item in topLevelItems)
+                        {
+                            var children = assessableComponents.Where(c => c.ParentComponentId == item.Id).ToList();
 
-                            @if (!string.IsNullOrWhiteSpace(comp.Description) || !string.IsNullOrWhiteSpace(comp.PdfFilePath))
+                            @if (children.Any())
                             {
-                                <div class="bg-light rounded-3 p-3 mt-3 border">
-                                    @if (!string.IsNullOrWhiteSpace(comp.Description))
-                                    {
-                                        <small class="text-secondary d-block" style="white-space: pre-line;">@comp.Description</small>
-                                    }
+                                <div class="mb-3 mt-4">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <div style="width: 5px; height: 22px; background-color: #6A96A6; border-radius: 4px;" class="me-3 flex-shrink-0"></div>
+                                        <h5 class="fw-bold mb-0 text-wrap" style="color: #1c4c5e;">@item.Title</h5>
+                                    </div>
+                                </div>
 
-                                    @if (!string.IsNullOrWhiteSpace(comp.PdfFilePath))
+                                <div class="d-flex flex-column gap-2 mb-4">
+                                    @foreach (var child in children)
                                     {
-                                        <div class="@(!string.IsNullOrWhiteSpace(comp.Description) ? "mt-3 pt-3 border-top" : "")">
-                                            <a href="@comp.PdfFilePath" target="_blank" class="btn btn-sm text-primary fw-semibold bg-primary bg-opacity-10 border-0 px-3" style="border-radius: 8px;">
-                                                <i class="bi bi-link-45deg me-1 fs-5 align-middle"></i> Material Auxiliar
-                                            </a>
+                                        <div class="card border-0 bg-light" style="border-radius: 10px;">
+                                            <div class="card-body p-3 ms-4">
+                                                <div class="row align-items-center">
+                                                    <div class="col-md-8 mb-2 mb-md-0 d-flex align-items-center">                                                       
+                                                        <h6 class="fw-semibold mb-0 text-dark text-wrap" style="font-size: 0.95rem;">@child.Title</h6>
+                                                    </div>
+                                                    <div class="col-md-4 text-md-end">
+                                                        <span class="badge rounded-pill @GetBadgeCss(child.Status) px-3 py-2 border shadow-sm" style="font-size: 0.75rem;">@GetBadgeText(child.Status)</span>
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
                                     }
                                 </div>
                             }
-                        </div>
-                    }
+                            else
+                            {
+                                <div class="card border-0 bg-light mb-3" style="border-radius: 10px;">
+                                    <div class="card-body p-3">
+                                        <div class="row align-items-center">
+                                            <div class="col-md-8 mb-2 mb-md-0 d-flex align-items-center">
+                                                <div style="width: 5px; height: 22px; background-color: #adb5bd; border-radius: 4px;" class="me-3 flex-shrink-0"></div>
+                                                <h6 class="fw-bold mb-0 text-dark text-wrap">@item.Title</h6>
+                                            </div>
+                                            <div class="col-md-4 text-md-end">
+                                                <span class="badge rounded-pill @GetBadgeCss(item.Status) px-3 py-2 border shadow-sm" style="font-size: 0.75rem;">@GetBadgeText(item.Status)</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        }
+                    </div>
                 </div>
             }
         </div>
@@ -160,16 +186,11 @@
         try
         {
             isLoading = true;
-
-            // 1. Ir buscar o utilizador logado
             var currentUser = await LocalStorage.GetItemAsync<User>("user");
-
             if (currentUser != null)
             {
-                // 2. Chamar o novo endpoint passando o ID do Módulo E o ID do Aluno
                 module = await Http.GetFromJsonAsync<Module>($"api/Module/{ModuleId}/student/{currentUser.Id}");
 
-                // 3. Ir buscar os dados do Pathway pai
                 if (module != null && module.PathwayId > 0)
                 {
                     parentPathway = await Http.GetFromJsonAsync<Pathway>($"api/Pathway/{module.PathwayId}");

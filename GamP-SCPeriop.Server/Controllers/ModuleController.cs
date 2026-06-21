@@ -83,5 +83,28 @@ namespace GamP_SCPeriop.Server.Controllers
 
             return Ok(module);
         }
+
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteModule(int id)
+        {
+            // Vai buscar o módulo e inclui os componentes associados
+            var module = await _context.Modules
+                .Include(m => m.Components)
+                .FirstOrDefaultAsync(m => m.Id == id);
+
+            if (module == null) return NotFound();
+
+            // Remove primeiro os componentes (limpa os filhos)
+            if (module.Components != null && module.Components.Any())
+            {
+                _context.ModuleComponents.RemoveRange(module.Components);
+            }
+
+            // Agora sim, pode apagar o módulo em segurança (apaga o pai)
+            _context.Modules.Remove(module);
+            await _context.SaveChangesAsync();
+
+            return Ok();
+        }
     }
 }

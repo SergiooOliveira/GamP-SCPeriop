@@ -1,5 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 using GamP_SCPeriop.Server.Data;
+using QuestPDF.Infrastructure;
+
+// Configurar a licença gratuita do QuestPDF
+QuestPDF.Settings.License = LicenseType.Community;
 
 var builder = WebApplication.CreateBuilder(args);
 

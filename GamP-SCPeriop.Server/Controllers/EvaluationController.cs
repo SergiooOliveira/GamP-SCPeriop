@@ -1,6 +1,7 @@
 ﻿using GamP_SCPeriop.Server.Data;
 using GamP_SCPeriop.Shared.Data;
 using GamP_SCPeriop.Shared.Enum;
+using GamP_SCPeriop.Server.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -148,6 +149,67 @@ namespace GamP_SCPeriop.Server.Controllers
             }
 
             return Ok();
+        }
+
+        [HttpGet("student/{studentId}/pdf")]
+        public async Task<IActionResult> DownloadGlobalStudentPdf(int studentId)
+        {
+            // 1. Vai buscar a estrutura base (Grelha Limpa) e as Inscrições
+            var enrollments = await _context.Enrollments
+                .Include(e => e.Student)
+                .Include(e => e.Pathway)
+                    .ThenInclude(p => p.Modules)
+                        .ThenInclude(m => m.Components)
+                .Where(e => e.StudentId == studentId)
+                .ToListAsync();
+
+            if (enrollments == null || !enrollments.Any())
+                return NotFound("Nenhuma inscrição encontrada para este aluno.");
+
+            // 2. Vai buscar TODAS as avaliações reais deste aluno
+            // NOTA: Se a tua tabela se chamar algo diferente no AppDbContext (ex: StudentEvaluations), altera aqui
+            var studentEvaluations = await _context.ComponentEvaluations
+                .Where(ev => ev.Enrollment != null && ev.Enrollment.StudentId == studentId)
+                .ToListAsync();
+
+            // 3. MAGIA: Cruzar a Grelha Limpa com as notas do aluno
+            foreach (var enrollment in enrollments)
+            {
+                var evalsForThisEnrollment = studentEvaluations.Where(ev => ev.EnrollmentId == enrollment.Id).ToList();
+
+                if (enrollment.Pathway?.Modules != null)
+                {
+                    foreach (var module in enrollment.Pathway.Modules)
+                    {
+                        if (module.Components != null)
+                        {
+                            foreach (var comp in module.Components)
+                            {
+                                // Procura se o professor deu alguma nota a este parâmetro
+                                var eval = evalsForThisEnrollment.FirstOrDefault(ev => ev.ModuleComponentId == comp.Id);
+
+                                if (eval != null)
+                                {
+                                    comp.Status = eval.Status; // Aplica a nota real
+                                }
+                                else
+                                {
+                                    comp.Status = ComponentStatus.Pending; // Se não tiver nota, marca como Pendente
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 4. Agora sim, gerar o PDF com os dados preenchidos!
+            var generator = new EvaluationPdfGenerator(enrollments);
+            var pdfBytes = generator.GeneratePdf();
+
+            var studentName = enrollments.First().Student?.DisplayShortName?.Replace(" ", " ") ?? "Aluno";
+            var fileName = $"Relatorio_Avaliacao_{studentName}.pdf";
+
+            return File(pdfBytes, "application/pdf", fileName);
         }
     }
 

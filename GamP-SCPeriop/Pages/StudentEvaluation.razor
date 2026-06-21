@@ -50,56 +50,84 @@
                             <div class="card-body p-4">
                                 @if (module.Components != null && module.Components.Any())
                                 {
-                                    var assessableComponents = module.Components.Where(c => c.Stage != ModuleStage.Teorica).ToList();
-                                    var topLevelItems = assessableComponents.Where(c => c.ParentComponentId == null).ToList();
+                                    var practicalStages = module.Components
+                                        .Where(c => c.Stage != ModuleStage.Teorica)
+                                        .Select(c => c.Stage)
+                                        .Distinct()
+                                        .OrderBy(s => (int)s)
+                                        .ToList();
 
-                                    @foreach (var item in topLevelItems)
+                                    if (practicalStages.Any())
                                     {
-                                        var children = assessableComponents.Where(c => c.ParentComponentId == item.Id).ToList();
+                                        var currentStage = activeTabs.ContainsKey(module.Id) ? activeTabs[module.Id] : practicalStages.FirstOrDefault();
 
-                                        @if (children.Any())
+                                        <div class="d-flex flex-wrap gap-2 mb-4 pb-3 border-bottom">
+                                            @foreach (var stage in practicalStages)
+                                            {
+                                                <button class="btn btn-sm px-4 py-2 @(currentStage == stage ? "fw-bold shadow-sm" : "bg-light text-muted border-0")"
+                                                        style="@(currentStage == stage ? "background-color: #6A96A6; color: white; border-radius: 10px;" : "border-radius: 10px;")"
+                                                        @onclick="() => activeTabs[module.Id] = stage">
+
+                                                    <i class="bi @(currentStage == stage ? "bi-check2-square" : "bi-calendar-week") me-2"></i>@FormatStageName(stage)
+
+                                                    @if (chronologicalTabs.ContainsKey(module.Id) && chronologicalTabs[module.Id] == stage)
+                                                    {
+                                                        <span class="badge ms-2 @(currentStage == stage ? "bg-white text-dark bg-opacity-25" : "bg-secondary text-white")" style="font-size: 0.7rem;">Atual</span>
+                                                    }
+                                                </button>
+                                            }
+                                        </div>
+
+                                        var assessableComponents = module.Components.Where(c => c.Stage == currentStage).ToList();
+                                        var topLevelItems = assessableComponents.Where(c => c.ParentComponentId == null).ToList();
+
+                                        @foreach (var item in topLevelItems)
                                         {
-                                            <div class="mb-3 mt-4">
-                                                <div class="d-flex align-items-center mb-2">
-                                                    <div style="width: 5px; height: 22px; background-color: #6A96A6; border-radius: 4px;" class="me-3"></div>
-                                                    <h5 class="fw-bold mb-0" style="color: #1c4c5e;">@item.Title</h5>
-                                                </div>
-                                            </div>
+                                            var children = assessableComponents.Where(c => c.ParentComponentId == item.Id).ToList();
 
-                                            <div class="d-flex flex-column gap-2 mb-4">
-                                                @foreach (var child in children)
-                                                {
-                                                    <div class="card border-0 bg-light" style="border-radius: 10px;">
-                                                        <div class="card-body p-3 ms-4">
-                                                            <div class="row align-items-center">
-                                                                <div class="col-md-5 mb-2 mb-md-0 d-flex align-items-center">
-                                                                    <i class="bi bi-arrow-return-right text-muted me-2 fs-5"></i>
-                                                                    <h6 class="fw-semibold mb-0 text-dark" style="font-size: 0.95rem;">@child.Title</h6>
-                                                                </div>
-                                                                <div class="col-md-7">
-                                                                    @RenderAssessmentButtons(child)
+                                            @if (children.Any())
+                                            {
+                                                <div class="mb-3 mt-4">
+                                                    <div class="d-flex align-items-center mb-2">
+                                                        <div style="width: 5px; height: 22px; background-color: #6A96A6; border-radius: 4px;" class="me-3"></div>
+                                                        <h5 class="fw-bold mb-0" style="color: #1c4c5e;">@item.Title</h5>
+                                                    </div>
+                                                </div>
+
+                                                <div class="d-flex flex-column gap-2 mb-4">
+                                                    @foreach (var child in children)
+                                                    {
+                                                        <div class="card border-0 bg-light" style="border-radius: 10px;">
+                                                            <div class="card-body p-3 ms-4">
+                                                                <div class="row align-items-center">
+                                                                    <div class="col-md-5 mb-2 mb-md-0 d-flex align-items-center">
+                                                                        <h6 class="fw-semibold mb-0 text-dark" style="font-size: 0.95rem;">@child.Title</h6>
+                                                                    </div>
+                                                                    <div class="col-md-7">
+                                                                        @RenderAssessmentButtons(child)
+                                                                    </div>
                                                                 </div>
                                                             </div>
                                                         </div>
-                                                    </div>
-                                                }
-                                            </div>
-                                        }
-                                        else
-                                        {
-                                            <div class="card border-0 bg-light mb-3" style="border-radius: 10px;">
-                                                <div class="card-body p-3">
-                                                    <div class="row align-items-center">
-                                                        <div class="col-md-5 mb-2 mb-md-0 d-flex align-items-center">
-                                                            <div style="width: 5px; height: 22px; background-color: #adb5bd; border-radius: 4px;" class="me-3"></div>
-                                                            <h6 class="fw-bold mb-0 text-dark">@item.Title</h6>
-                                                        </div>
-                                                        <div class="col-md-7">
-                                                            @RenderAssessmentButtons(item)
+                                                    }
+                                                </div>
+                                            }
+                                            else
+                                            {
+                                                <div class="card border-0 bg-light mb-3" style="border-radius: 10px;">
+                                                    <div class="card-body p-3">
+                                                        <div class="row align-items-center">
+                                                            <div class="col-md-5 mb-2 mb-md-0 d-flex align-items-center">
+                                                                <div style="width: 5px; height: 22px; background-color: #adb5bd; border-radius: 4px;" class="me-3"></div>
+                                                                <h6 class="fw-bold mb-0 text-dark">@item.Title</h6>
+                                                            </div>
+                                                            <div class="col-md-7">
+                                                                @RenderAssessmentButtons(item)
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>
-                                            </div>
+                                            }
                                         }
                                     }
                                 }
@@ -118,6 +146,9 @@
     private Enrollment? enrollment;
     private bool isLoading = true;
 
+    private Dictionary<int, ModuleStage> activeTabs = new();
+    private Dictionary<int, ModuleStage> chronologicalTabs = new(); // NOVO: Guarda a semana cronológica real
+
     protected override async Task OnInitializedAsync()
     {
         await LoadData();
@@ -129,6 +160,11 @@
         {
             isLoading = true;
             enrollment = await Http.GetFromJsonAsync<Enrollment>($"api/Evaluation/enrollment/{EnrollmentId}");
+
+            if (enrollment != null)
+            {
+                InitializeTabs(); // Calcula a semana atual ao carregar
+            }
         }
         catch (Exception ex)
         {
@@ -138,6 +174,42 @@
         {
             isLoading = false;
         }
+    }
+
+    private void InitializeTabs()
+    {
+        if (enrollment?.Pathway?.Modules == null) return;
+
+        var daysPassed = (DateTime.Now - enrollment.StartDate).TotalDays;
+        var currentWeekIndex = Math.Max(0, (int)(daysPassed / 7));
+
+        foreach (var module in enrollment.Pathway.Modules)
+        {
+            if (module.Components != null)
+            {
+                var practicalStages = module.Components
+                    .Where(c => c.Stage != ModuleStage.Teorica)
+                    .Select(c => c.Stage)
+                    .Distinct()
+                    .OrderBy(s => (int)s)
+                    .ToList();
+
+                if (practicalStages.Any())
+                {
+                    var stageIndex = Math.Min(currentWeekIndex, practicalStages.Count - 1);
+                    var actualStage = practicalStages[stageIndex];
+
+                    activeTabs[module.Id] = actualStage;        // Aba que abre por defeito
+                    chronologicalTabs[module.Id] = actualStage; // Âncora cronológica fixa
+                }
+            }
+        }
+    }
+
+    // Helper para o texto dos botões (Transforma "PraticaSupervisionada" em "Prática Supervisionada")
+    private string FormatStageName(ModuleStage stage)
+    {
+        return System.Text.RegularExpressions.Regex.Replace(stage.ToString(), "([A-Z])", " $1").Trim();
     }
 
     private async Task EvaluateComponent(ModuleComponent component, ComponentStatus newStatus)
