@@ -4,6 +4,7 @@ using GamP_SCPeriop.Server.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GamP_SCPeriop.Server.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260630104429_AddedDateToModule")]
+    partial class AddedDateToModule
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -118,8 +121,14 @@ namespace GamP_SCPeriop.Server.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<DateTime>("EndDate")
+                        .HasColumnType("datetime2");
+
                     b.Property<int>("PathwayId")
                         .HasColumnType("int");
+
+                    b.Property<DateTime>("StartDate")
+                        .HasColumnType("datetime2");
 
                     b.Property<string>("Title")
                         .IsRequired()
@@ -135,25 +144,33 @@ namespace GamP_SCPeriop.Server.Migrations
                         new
                         {
                             Id = 1,
+                            EndDate = new DateTime(2026, 7, 7, 0, 0, 0, 0, DateTimeKind.Local),
                             PathwayId = 1,
+                            StartDate = new DateTime(2026, 6, 30, 0, 0, 0, 0, DateTimeKind.Local),
                             Title = "Módulo Teórico - Preparação"
                         },
                         new
                         {
                             Id = 2,
+                            EndDate = new DateTime(2026, 7, 7, 0, 0, 0, 0, DateTimeKind.Local),
                             PathwayId = 1,
+                            StartDate = new DateTime(2026, 6, 30, 0, 0, 0, 0, DateTimeKind.Local),
                             Title = "Módulo Prático - Bloco Operatório"
                         },
                         new
                         {
                             Id = 3,
+                            EndDate = new DateTime(2026, 7, 7, 0, 0, 0, 0, DateTimeKind.Local),
                             PathwayId = 2,
+                            StartDate = new DateTime(2026, 6, 30, 0, 0, 0, 0, DateTimeKind.Local),
                             Title = "Módulo Único - Fármacos"
                         },
                         new
                         {
                             Id = 4,
+                            EndDate = new DateTime(2026, 7, 7, 0, 0, 0, 0, DateTimeKind.Local),
                             PathwayId = 2,
+                            StartDate = new DateTime(2026, 6, 30, 0, 0, 0, 0, DateTimeKind.Local),
                             Title = "UT1 - Introdução à Anestesia"
                         });
                 });
@@ -548,33 +565,6 @@ namespace GamP_SCPeriop.Server.Migrations
                         });
                 });
 
-            modelBuilder.Entity("GamP_SCPeriop.Shared.Entity.Model.ModuleStageTimeline", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("EndDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("ModuleId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("Stage")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("StartDate")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ModuleId");
-
-                    b.ToTable("ModuleStageTimelines");
-                });
-
             modelBuilder.Entity("GamP_SCPeriop.Shared.Data.ComponentEvaluation", b =>
                 {
                     b.HasOne("GamP_SCPeriop.Shared.Data.Enrollment", "Enrollment")
@@ -662,22 +652,9 @@ namespace GamP_SCPeriop.Server.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("GamP_SCPeriop.Shared.Entity.Model.ModuleStageTimeline", b =>
-                {
-                    b.HasOne("GamP_SCPeriop.Shared.Data.Module", "Module")
-                        .WithMany("StageTimelines")
-                        .HasForeignKey("ModuleId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Module");
-                });
-
             modelBuilder.Entity("GamP_SCPeriop.Shared.Data.Module", b =>
                 {
                     b.Navigation("Components");
-
-                    b.Navigation("StageTimelines");
                 });
 
             modelBuilder.Entity("GamP_SCPeriop.Shared.Data.ModuleComponent", b =>

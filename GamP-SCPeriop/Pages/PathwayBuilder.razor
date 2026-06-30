@@ -84,6 +84,7 @@
                         var isExpanded = expandedModuleId == mod.Id;
 
                         <div class="card border-0 shadow-sm mb-3" style="border-radius: 10px; overflow: hidden;">
+
                             <div class="card-header bg-white border-0 p-0 d-flex align-items-center pe-4">
                                 <button class="btn btn-link text-decoration-none fw-bold text-dark text-start flex-grow-1 p-3 px-4 shadow-none"
                                         type="button"
@@ -94,6 +95,7 @@
                                 <div class="d-flex align-items-center gap-3">
                                     <button class="btn btn-sm text-danger border-0 p-1 shadow-none"
                                             @onclick="() => DeleteActiveModule(mod.Id)"
+                                            @onclick:stopPropagation="true"
                                             title="Eliminar Módulo Completo">
                                         <i class="bi bi-trash3 fs-5"></i>
                                     </button>
@@ -111,26 +113,56 @@
                                         @foreach (var stageInfo in stagesToRender)
                                         {
                                             var count = mod.Components?.Count(c => c.Stage == stageInfo.Stage) ?? 0;
+                                            // APAGUEI A PRIMEIRA DECLARAÇÃO DA TIMELINE AQUI
 
-                                            <button type="button" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center px-4 py-3 border-0 border-bottom"
-                                                    style="background-color: #f8f9fa;"
-                                                    @onclick="() => OpenStageModal(mod, stageInfo)">
-                                                <div class="d-flex align-items-center">
-                                                    <i class="bi @stageInfo.Icon me-3 text-secondary fs-5"></i>
-                                                    <span class="fw-semibold text-dark">@stageInfo.Title</span>
+                                            <div class="list-group-item d-flex flex-column border-0 border-bottom p-0" style="background-color: #f8f9fa;">
+                                                <div class="d-flex justify-content-between align-items-center px-4 py-3">
+
+                                                    <button type="button" class="btn btn-link text-decoration-none p-0 d-flex align-items-center flex-grow-1 text-start shadow-none"
+                                                            @onclick="() => OpenStageModal(mod, stageInfo)">
+                                                        <i class="bi @stageInfo.Icon me-3 text-secondary fs-5"></i>
+                                                        <span class="fw-semibold text-dark">@stageInfo.Title</span>
+                                                    </button>
+
+                                                    <div class="d-flex align-items-center gap-3">
+
+                                                        @if (stageInfo.Stage != ModuleStage.Teorica)
+                                                        {
+                                                            // A TIMELINE AGORA SÓ NASCE AQUI, SE NÃO FOR TEÓRICA
+                                                            var timeline = GetOrCreateTimeline(mod, stageInfo.Stage);
+
+                                                            <div class="d-flex align-items-center gap-2 me-3" @onclick:stopPropagation="true">
+                                                                <small class="text-muted fw-bold" style="font-size: 0.7rem;">Início:</small>
+                                                                <input type="date" class="form-control form-control-sm text-center"
+                                                                       style="width: 120px; font-size: 0.8rem;"
+                                                                       value="@timeline.StartDate.ToString("yyyy-MM-dd")"
+                                                                       @onchange="(e) => UpdateStartDate(mod, stageInfo.Stage, e)" />
+
+                                                                <small class="text-muted fw-bold ms-1" style="font-size: 0.7rem;">Fim:</small>
+                                                                <input type="date" class="form-control form-control-sm text-center"
+                                                                       style="width: 120px; font-size: 0.8rem;"
+                                                                       value="@timeline.EndDate.ToString("yyyy-MM-dd")"
+                                                                       @onchange="(e) => UpdateEndDate(mod, stageInfo.Stage, e)" />
+                                                            </div>
+                                                        }
+                                                        else
+                                                        {
+                                                            @* <div class="d-flex justify-content-end align-items-center me-3" style="width: 295px;">
+                                                                <span class="badge bg-light text-muted border border-secondary border-opacity-25 shadow-sm fw-normal px-3 py-1">Sem prazo fixo</span>
+                                                            </div> *@
+                                                        }
+
+                                                        @if (count > 0)
+                                                        {
+                                                            <span class="badge bg-success bg-opacity-10 text-success rounded-pill px-3 py-1 border border-success border-opacity-25">@count itens</span>
+                                                        }
+                                                        else
+                                                        {
+                                                            <span class="badge bg-light text-muted border rounded-pill px-3 py-1">Vazio</span>
+                                                        }
+                                                    </div>
                                                 </div>
-                                                <div class="d-flex align-items-center gap-3">
-                                                    @if (count > 0)
-                                                    {
-                                                        <span class="badge bg-success bg-opacity-10 text-success rounded-pill px-3 py-1 border border-success border-opacity-25">@count itens</span>
-                                                    }
-                                                    else
-                                                    {
-                                                        <span class="badge bg-light text-muted border rounded-pill px-3 py-1">Vazio</span>
-                                                    }
-                                                    <i class="bi bi-chevron-right text-muted small"></i>
-                                                </div>
-                                            </button>
+                                            </div>
                                         }
                                     </div>
                                 </div>
@@ -387,9 +419,6 @@
 }
 
 @code {
-    // ==========================================
-    // 1. STATE VARIABLES (Pathways & Modules)
-    // ==========================================
     private PathwayCreateDTO pathwayDto = new PathwayCreateDTO { MinimumPassScore = 50, MinimumApprovalScore = 75 };
     private Pathway? activePathway;
     private string newModuleTitle = string.Empty;
@@ -399,11 +428,8 @@
     private int expandedModuleId = 0;
     private bool isCopying = false;
 
-    [Parameter]
-    public int? PathwayIdToLoad { get; set; }
-
-    [SupplyParameterFromQuery(Name = "from")]
-    public string? FromSource { get; set; }
+    [Parameter] public int? PathwayIdToLoad { get; set; }
+    [SupplyParameterFromQuery(Name = "from")] public string? FromSource { get; set; }
 
     private bool isUploading = false;
 
@@ -416,21 +442,16 @@
         (ModuleStage.PraticaSupervisionada, "Prática Supervisionada", "bi-person-check", ModuleStage.PraticaAssistida)
     };
 
-    // ==========================================
-    // 2. TARGETED MODAL VARIABLES
-    // ==========================================
     private Module? activeModalModule;
     private (ModuleStage Stage, string Title, string Icon, ModuleStage? CopyFromStage)? activeModalStage;
     private ModuleComponent componentToEdit = new();
     private bool isSavingModal = false;
 
-    // --- VARIÁVEIS DE EDIÇÃO INLINE E FOCO ---
     private int? inlineEditId = null;
     private string inlineEditTitle = string.Empty;
-    private List<DraftChild> inlineNewChildren = new() { new DraftChild() }; // <-- Agora é uma lista dinâmica
+    private List<DraftChild> inlineNewChildren = new() { new DraftChild() };
     private DraftParent? activeDraftParent = null;
 
-    // RAPID BUILDER CLASSES
     public class DraftParent
     {
         public string Text { get; set; } = "";
@@ -440,9 +461,6 @@
 
     private List<DraftParent> drafts = new() { new DraftParent() };
 
-    // ==========================================
-    // 3. INITIALIZATION & PATHWAY MANAGEMENT
-    // ==========================================
     protected override async Task OnInitializedAsync()
     {
         var currentUser = await LocalStorage.GetItemAsync<User>("user");
@@ -471,10 +489,7 @@
 
     private void CloseActivePathway()
     {
-        if (FromSource == "dashboard")
-        {
-            Nav.NavigateTo("/dashboard");
-        }
+        if (FromSource == "dashboard") Nav.NavigateTo("/dashboard");
         else
         {
             activePathway = null;
@@ -495,9 +510,6 @@
         }
     }
 
-    // ==========================================
-    // 4. MODULE & ACCORDION LOGIC
-    // ==========================================
     private async Task CreateModule()
     {
         if (string.IsNullOrWhiteSpace(newModuleTitle) || activePathway == null) return;
@@ -509,6 +521,7 @@
             if (savedMod != null)
             {
                 savedMod.Components = new List<ModuleComponent>();
+                savedMod.StageTimelines = new List<ModuleStageTimeline>();
                 savedModules.Add(savedMod);
                 newModuleTitle = string.Empty;
             }
@@ -522,7 +535,6 @@
         {
             var mod = savedModules.FirstOrDefault(m => m.Id == moduleId);
             if (mod != null) savedModules.Remove(mod);
-
             if (expandedModuleId == moduleId) expandedModuleId = 0;
             StateHasChanged();
         }
@@ -533,15 +545,128 @@
         expandedModuleId = (expandedModuleId == moduleId) ? 0 : moduleId;
     }
 
-    // ==========================================
-    // 5. MODAL & COMPONENT LOGIC
-    // ==========================================
+    // --- NOVA GESTÃO DE DATAS (TIMELINES) ---
+    private List<ModuleStage> GetTimelineStages()
+    {
+        return stagesToRender
+            .Where(s => s.Stage != ModuleStage.Teorica)
+            .Select(s => s.Stage)
+            .ToList();
+    }
+
+    private ModuleStageTimeline GetOrCreateTimeline(Module mod, ModuleStage stage)
+    {
+        mod.StageTimelines ??= new List<ModuleStageTimeline>();
+        var timeline = mod.StageTimelines.FirstOrDefault(t => t.Stage == stage);
+
+        if (timeline == null)
+        {
+            var defaultStart = DateTime.Today;
+            var timelineStages = GetTimelineStages();
+            var currentIndex = timelineStages.IndexOf(stage);
+
+            // Se não for a primeira etapa (ex: não for a Observação Passiva)
+            if (currentIndex > 0)
+            {
+                var prevStage = timelineStages[currentIndex - 1];
+                var prevTimeline = mod.StageTimelines.FirstOrDefault(t => t.Stage == prevStage);
+                if (prevTimeline != null) defaultStart = prevTimeline.EndDate.AddDays(1);
+            }
+
+            timeline = new ModuleStageTimeline
+            {
+                ModuleId = mod.Id,
+                Stage = stage,
+                StartDate = defaultStart,
+                EndDate = defaultStart.AddDays(7)
+            };
+            mod.StageTimelines.Add(timeline);
+        }
+        return timeline;
+    }
+
+    private async Task UpdateStartDate(Module mod, ModuleStage stage, ChangeEventArgs e)
+    {
+        try
+        {
+            if (DateTime.TryParse(e.Value?.ToString(), out DateTime newStart))
+            {
+                var timeline = GetOrCreateTimeline(mod, stage);
+
+                // 1. Descobre a duração antiga
+                var oldDuration = timeline.EndDate - timeline.StartDate;
+                if (oldDuration.TotalDays < 0) oldDuration = TimeSpan.FromDays(7);
+
+                // 2. Aplica as novas datas arrastando o bloco inteiro
+                timeline.StartDate = newStart;
+                timeline.EndDate = newStart.Add(oldDuration);
+
+                // 3. Empurra as fases seguintes visualmente
+                RecalculateStageDatesLocal(mod, stage);
+
+                // 4. Tenta gravar (se falhar, não congela a UI)
+                await Http.PutAsJsonAsync($"api/Module/{mod.Id}", mod);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Erro ao atualizar Início: {ex.Message}");
+        }
+    }
+
+    private async Task UpdateEndDate(Module mod, ModuleStage stage, ChangeEventArgs e)
+    {
+        try
+        {
+            if (DateTime.TryParse(e.Value?.ToString(), out DateTime newEnd))
+            {
+                var timeline = GetOrCreateTimeline(mod, stage);
+
+                // Previne que o Fim seja antes do Início
+                if (newEnd < timeline.StartDate) newEnd = timeline.StartDate.AddDays(1);
+
+                timeline.EndDate = newEnd;
+
+                RecalculateStageDatesLocal(mod, stage);
+                await Http.PutAsJsonAsync($"api/Module/{mod.Id}", mod);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Erro ao atualizar Fim: {ex.Message}");
+        }
+    }
+
+    private void RecalculateStageDatesLocal(Module mod, ModuleStage changedStage)
+    {
+        var timelineStages = GetTimelineStages();
+        var startIndex = timelineStages.IndexOf(changedStage);
+
+        if (startIndex != -1)
+        {
+            for (int i = startIndex + 1; i < timelineStages.Count; i++)
+            {
+                var previousTimeline = GetOrCreateTimeline(mod, timelineStages[i - 1]);
+                var currentTimeline = GetOrCreateTimeline(mod, timelineStages[i]);
+
+                var currentDuration = currentTimeline.EndDate - currentTimeline.StartDate;
+                if (currentDuration.TotalDays < 0) currentDuration = TimeSpan.FromDays(7);
+
+                currentTimeline.StartDate = previousTimeline.EndDate.AddDays(1);
+                currentTimeline.EndDate = currentTimeline.StartDate.Add(currentDuration);
+            }
+        }
+
+        StateHasChanged();
+    }
+
+    // --- LÓGICA DE MODAL E PARÂMETROS MANTÉM-SE IGUAL ---
     private void OpenStageModal(Module mod, (ModuleStage Stage, string Title, string Icon, ModuleStage? CopyFromStage) stageInfo)
     {
         activeModalModule = mod;
         activeModalStage = stageInfo;
         ResetForm();
-        CancelInlineEdit(); // Garante que a edição inline fecha ao abrir nova janela
+        CancelInlineEdit();
         StateHasChanged();
     }
 
@@ -569,7 +694,6 @@
         drafts = new List<DraftParent> { new DraftParent() };
     }
 
-    // --- MÉTODOS DE EDIÇÃO INLINE ---
     private void StartInlineEdit(ModuleComponent comp)
     {
         if (activeModalStage?.Stage == ModuleStage.Teorica)
@@ -580,7 +704,7 @@
         {
             inlineEditId = comp.Id;
             inlineEditTitle = comp.Title;
-            inlineNewChildren = new List<DraftChild> { new DraftChild() }; // Limpa e prepara uma nova caixa
+            inlineNewChildren = new List<DraftChild> { new DraftChild() };
         }
     }
 
@@ -592,7 +716,6 @@
 
     private void CheckInlineChildrenState()
     {
-        // Mesma magia do construtor: cria nova caixa se a última for preenchida
         if (!string.IsNullOrWhiteSpace(inlineNewChildren.Last().Text))
             inlineNewChildren.Add(new DraftChild());
         else if (inlineNewChildren.Count > 1 && string.IsNullOrWhiteSpace(inlineNewChildren[^2].Text))
@@ -602,13 +725,11 @@
     private async Task SaveInlineEdit(ModuleComponent comp)
     {
         if (string.IsNullOrWhiteSpace(inlineEditTitle)) return;
-
         comp.Title = inlineEditTitle;
         var response = await Http.PutAsJsonAsync($"api/ModuleComponent/{comp.Id}", comp);
 
         if (response.IsSuccessStatusCode)
         {
-            // Se estamos a editar o Pai, varre todas as caixas novas preenchidas e guarda-as
             if (comp.ParentComponentId == null && activeModalModule != null && activeModalStage.HasValue)
             {
                 foreach (var childDraft in inlineNewChildren.Where(c => !string.IsNullOrWhiteSpace(c.Text)))
@@ -620,7 +741,6 @@
                         Stage = activeModalStage.Value.Stage,
                         ParentComponentId = comp.Id
                     };
-
                     var childResponse = await Http.PostAsJsonAsync("api/ModuleComponent", newChildDto);
                     if (childResponse.IsSuccessStatusCode)
                     {
@@ -711,7 +831,6 @@
 
         var file = e.File;
         long maxAllowedSize = 10 * 1024 * 1024;
-
         try
         {
             using var content = new MultipartFormDataContent();
@@ -739,20 +858,14 @@
     private async Task CopyComponents()
     {
         if (activeModalModule == null || !activeModalStage.HasValue || !activeModalStage.Value.CopyFromStage.HasValue) return;
-
         isCopying = true;
         StateHasChanged();
 
         var sourceStage = activeModalStage.Value.CopyFromStage.Value;
         var targetStage = activeModalStage.Value.Stage;
-
-        // 1. Vai buscar todos os componentes da fase anterior
         var allSourceComponents = activeModalModule.Components?.Where(c => c.Stage == sourceStage).ToList() ?? new();
 
-        // Dicionário para guardar a relação: AntigoID -> NovoID
         var idMapping = new Dictionary<int, int>();
-
-        // 2. Primeiro, copia apenas os PAIS (aqueles que não têm ParentComponentId)
         var parentsToCopy = allSourceComponents.Where(c => c.ParentComponentId == null).ToList();
         foreach (var parent in parentsToCopy)
         {
@@ -763,7 +876,6 @@
                 Stage = targetStage,
                 PdfFilePath = parent.PdfFilePath
             };
-
             var response = await Http.PostAsJsonAsync("api/ModuleComponent", dto);
             if (response.IsSuccessStatusCode)
             {
@@ -771,16 +883,14 @@
                 if (savedParent != null)
                 {
                     activeModalModule.Components!.Add(savedParent);
-                    idMapping[parent.Id] = savedParent.Id; // Guarda o novo ID
+                    idMapping[parent.Id] = savedParent.Id;
                 }
             }
         }
 
-        // 3. Depois, copia os FILHOS usando o novo ID do pai
         var childrenToCopy = allSourceComponents.Where(c => c.ParentComponentId != null).ToList();
         foreach (var child in childrenToCopy)
         {
-            // Verifica se o pai deste filho foi copiado (está no dicionário)
             if (child.ParentComponentId.HasValue && idMapping.ContainsKey(child.ParentComponentId.Value))
             {
                 var dto = new ModuleComponentCreateDTO
@@ -789,9 +899,8 @@
                     Title = child.Title,
                     Stage = targetStage,
                     PdfFilePath = child.PdfFilePath,
-                    ParentComponentId = idMapping[child.ParentComponentId.Value] // Usa o ID do novo pai!
+                    ParentComponentId = idMapping[child.ParentComponentId.Value]
                 };
-
                 var response = await Http.PostAsJsonAsync("api/ModuleComponent", dto);
                 if (response.IsSuccessStatusCode)
                 {
@@ -805,9 +914,6 @@
         StateHasChanged();
     }
 
-    // ==========================================
-    // 6. RAPID BUILDER LOGIC
-    // ==========================================
     private void CheckListState(DraftParent currentParent)
     {
         if (!string.IsNullOrWhiteSpace(drafts.Last().Text)) drafts.Add(new DraftParent());
@@ -855,7 +961,6 @@
                             Stage = activeModalStage.Value.Stage,
                             ParentComponentId = savedParent.Id
                         };
-
                         var responseChild = await Http.PostAsJsonAsync("api/ModuleComponent", dtoChild);
                         if (responseChild.IsSuccessStatusCode)
                         {

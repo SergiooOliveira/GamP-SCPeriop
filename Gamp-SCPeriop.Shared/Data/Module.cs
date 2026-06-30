@@ -1,4 +1,5 @@
-﻿using GamP_SCPeriop.Shared.Enum;
+﻿using GamP_SCPeriop.Shared.Entity.Model;
+using GamP_SCPeriop.Shared.Enum;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace GamP_SCPeriop.Shared.Data
@@ -9,6 +10,7 @@ namespace GamP_SCPeriop.Shared.Data
         public string Title { get; set; } = string.Empty;
         public List<ModuleComponent> Components { get; set; } = new();
         public int PathwayId { get; set; }
+        public List<ModuleStageTimeline>? StageTimelines { get; set; }
 
         [NotMapped]
         public int ProgressPercentage

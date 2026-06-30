@@ -1,5 +1,6 @@
 ﻿using GamP_SCPeriop.Shared;
 using GamP_SCPeriop.Shared.Data;
+using GamP_SCPeriop.Shared.Entity.Model;
 using GamP_SCPeriop.Shared.Enum;
 using Microsoft.EntityFrameworkCore;
 using System.ComponentModel;
@@ -35,6 +36,7 @@ namespace GamP_SCPeriop.Server.Data
         public DbSet<ModuleComponent> ModuleComponents { get; set; }
         public DbSet<Notification> Notifications { get; set; }
         public DbSet<ComponentEvaluation> ComponentEvaluations { get; set; }
+        public DbSet<ModuleStageTimeline> ModuleStageTimelines { get; set; }
 
         #endregion
 
