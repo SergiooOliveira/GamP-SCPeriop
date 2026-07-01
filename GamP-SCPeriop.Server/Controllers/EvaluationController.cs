@@ -28,6 +28,9 @@ namespace GamP_SCPeriop.Server.Controllers
                 .Include(e => e.Pathway)
                     .ThenInclude(p => p.Modules)
                         .ThenInclude(m => m.Components)
+                .Include(e => e.Pathway)
+                    .ThenInclude(p => p.Modules)
+                        .ThenInclude(m => m.StageTimelines)
                 .FirstOrDefaultAsync(e => e.Id == id);
 
             if (enrollment == null) return NotFound();

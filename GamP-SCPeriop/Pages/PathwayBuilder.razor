@@ -11,7 +11,15 @@
 <div class="container mt-4">
     <h2 class="fw-bold mb-4">Construtor de Percurso (Pathway)</h2>
 
-    @if (activePathway == null)
+    @if (isLoading)
+    {
+        <div class="d-flex justify-content-center mt-5">
+            <div class="spinner-border" style="color: #6A96A6;" role="status">
+                <span class="visually-hidden">A carregar...</span>
+            </div>
+        </div>
+    }
+    else if (activePathway == null)
     {
         <div class="row g-4">
             <div class="col-md-6">
@@ -92,6 +100,13 @@
                                     <i class="bi bi-folder2-open text-primary me-3 fs-5"></i> @mod.Title
                                 </button>
 
+                                <div class="d-flex align-items-center gap-2 border-end pe-3" @onclick:stopPropagation="true" title="Peso do módulo na nota final">
+                                    <small class="text-muted fw-bold">Peso:</small>
+                                    <input type="number" class="form-control form-control-sm text-center" style="width: 60px;" min="1" max="10"
+                                           @bind="mod.Weight" @bind:after="() => SaveModuleWeight(mod)" />
+                                    <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25" style="width: 48px;">@GetModulePercentage(mod)%</span>
+                                </div>
+
                                 <div class="d-flex align-items-center gap-3">
                                     <button class="btn btn-sm text-danger border-0 p-1 shadow-none"
                                             @onclick="() => DeleteActiveModule(mod.Id)"
@@ -144,12 +159,6 @@
                                                                        value="@timeline.EndDate.ToString("yyyy-MM-dd")"
                                                                        @onchange="(e) => UpdateEndDate(mod, stageInfo.Stage, e)" />
                                                             </div>
-                                                        }
-                                                        else
-                                                        {
-                                                            @* <div class="d-flex justify-content-end align-items-center me-3" style="width: 295px;">
-                                                                <span class="badge bg-light text-muted border border-secondary border-opacity-25 shadow-sm fw-normal px-3 py-1">Sem prazo fixo</span>
-                                                            </div> *@
                                                         }
 
                                                         @if (count > 0)
@@ -246,6 +255,11 @@
                                             <i class="bi @(string.IsNullOrEmpty(comp.PdfFilePath) ? "bi-card-text text-secondary" : "bi-link-45deg text-success") fs-5 me-2 flex-shrink-0"></i>
                                             <span class="fw-bold text-dark text-wrap">@comp.Title</span>
                                         </div>
+                                        <div class="d-flex align-items-center gap-1 me-2 border-end pe-2">
+                                            <input type="number" class="form-control form-control-sm text-center" style="width: 50px; font-size: 0.8rem;" min="1" max="10" title="Peso"
+                                                   @bind="comp.Weight" @bind:after="() => SaveComponentWeight(comp)" />
+                                            <span class="badge bg-secondary bg-opacity-10 text-secondary" style="font-size: 0.7rem; width: 42px;">@GetComponentPercentage(comp)%</span>
+                                        </div>
                                         <div class="d-flex align-items-center gap-2 flex-shrink-0">
                                             <button class="btn btn-link p-0 text-primary text-decoration-none shadow-none" title="Editar" @onclick="() => StartInlineEdit(comp)">
                                                 <i class="bi bi-pencil-square fs-6 lh-1"></i>
@@ -273,6 +287,11 @@
                                             <div class="d-flex align-items-center pe-3 flex-grow-1">
                                                 <i class="bi @(string.IsNullOrEmpty(child.PdfFilePath) ? "bi-card-text text-secondary" : "bi-link-45deg text-success") fs-6 me-2 flex-shrink-0"></i>
                                                 <span class="fw-semibold text-dark text-wrap" style="font-size: 0.95rem;">@child.Title</span>
+                                            </div>
+                                            <div class="d-flex align-items-center gap-1 me-2 border-end pe-2">
+                                                <input type="number" class="form-control form-control-sm text-center" style="width: 50px; font-size: 0.8rem;" min="1" max="10" title="Peso"
+                                                       @bind="child.Weight" @bind:after="() => SaveComponentWeight(child)" />
+                                                <span class="badge bg-secondary bg-opacity-10 text-secondary" style="font-size: 0.7rem; width: 42px;">@GetComponentPercentage(child)%</span>
                                             </div>
                                             <div class="d-flex align-items-center gap-2 flex-shrink-0">
                                                 <button class="btn btn-link p-0 text-primary text-decoration-none shadow-none" title="Editar" @onclick="() => StartInlineEdit(child)">
@@ -419,6 +438,7 @@
 }
 
 @code {
+    private bool isLoading = true;
     private PathwayCreateDTO pathwayDto = new PathwayCreateDTO { MinimumPassScore = 50, MinimumApprovalScore = 75 };
     private Pathway? activePathway;
     private string newModuleTitle = string.Empty;
@@ -463,27 +483,44 @@
 
     protected override async Task OnInitializedAsync()
     {
-        var currentUser = await LocalStorage.GetItemAsync<User>("user");
-        existingPathways = await Http.GetFromJsonAsync<List<PathwayTagDto>>($"api/Pathway/supervisor/{currentUser.Id}") ?? new();
-
-        if (PathwayIdToLoad.HasValue && PathwayIdToLoad.Value > 0)
+        try
         {
-            selectedExistingPathwayId = PathwayIdToLoad.Value;
-            await LoadExistingPathway();
+            isLoading = true;
+            var currentUser = await LocalStorage.GetItemAsync<User>("user");
+            existingPathways = await Http.GetFromJsonAsync<List<PathwayTagDto>>($"api/Pathway/supervisor/{currentUser.Id}") ?? new();
+
+            if (PathwayIdToLoad.HasValue && PathwayIdToLoad.Value > 0)
+            {
+                selectedExistingPathwayId = PathwayIdToLoad.Value;
+                await LoadExistingPathway();
+            }
+        }
+        finally
+        {
+            isLoading = false;
         }
     }
 
     private async Task LoadExistingPathway()
     {
         if (selectedExistingPathwayId == 0) return;
-        var response = await Http.GetAsync($"api/Pathway/{selectedExistingPathwayId}");
-        if (response.IsSuccessStatusCode)
+
+        try
         {
-            activePathway = await response.Content.ReadFromJsonAsync<Pathway>();
-            if (activePathway != null)
+            isLoading = true;
+            var response = await Http.GetAsync($"api/Pathway/{selectedExistingPathwayId}");
+            if (response.IsSuccessStatusCode)
             {
-                savedModules = activePathway.Modules ?? new List<Module>();
+                activePathway = await response.Content.ReadFromJsonAsync<Pathway>();
+                if (activePathway != null)
+                {
+                    savedModules = activePathway.Modules ?? new List<Module>();
+                }
             }
+        }
+        finally
+        {
+            isLoading = false;
         }
     }
 
@@ -513,8 +550,10 @@
     private async Task CreateModule()
     {
         if (string.IsNullOrWhiteSpace(newModuleTitle) || activePathway == null) return;
+
         var dto = new ModuleCreateDTO { Title = newModuleTitle, PathwayId = activePathway.Id };
         var response = await Http.PostAsJsonAsync("api/Module", dto);
+
         if (response.IsSuccessStatusCode)
         {
             var savedMod = await response.Content.ReadFromJsonAsync<Module>();
@@ -522,6 +561,16 @@
             {
                 savedMod.Components = new List<ModuleComponent>();
                 savedMod.StageTimelines = new List<ModuleStageTimeline>();
+
+                // 1. Aproveitar o TEU método existente para gerar as datas padrão!
+                foreach (var stage in GetTimelineStages())
+                {
+                    GetOrCreateTimeline(savedMod, stage);
+                }
+
+                // 2. Gravar imediatamente as datas geradas na Base de Dados
+                await Http.PutAsJsonAsync($"api/Module/{savedMod.Id}", savedMod);
+
                 savedModules.Add(savedMod);
                 newModuleTitle = string.Empty;
             }
@@ -974,6 +1023,46 @@
 
         isSavingModal = false;
         ResetForm();
+        StateHasChanged();
+    }
+
+    // --- MAGIA DOS PESOS E PERCENTAGENS ---
+    private int GetModulePercentage(Module mod)
+    {
+        if (savedModules == null || !savedModules.Any()) return 0;
+        // Soma os pesos de todos os módulos deste percurso (garantindo que valem pelo menos 1)
+        var total = savedModules.Sum(m => Math.Max(1, m.Weight));
+        return (int)Math.Round((double)Math.Max(1, mod.Weight) / total * 100);
+    }
+
+    private int GetComponentPercentage(ModuleComponent comp)
+    {
+        if (activeModalModule?.Components == null) return 0;
+        // Compara o peso com os irmãos do mesmo nível e da mesma fase
+        var peers = activeModalModule.Components
+            .Where(c => c.Stage == comp.Stage && c.ParentComponentId == comp.ParentComponentId)
+            .ToList();
+
+        var total = peers.Sum(c => Math.Max(1, c.Weight));
+        if (total == 0) return 0;
+        return (int)Math.Round((double)Math.Max(1, comp.Weight) / total * 100);
+    }
+
+    private async Task SaveModuleWeight(Module mod)
+    {
+        if (mod.Weight < 1) mod.Weight = 1;
+        if (mod.Weight > 10) mod.Weight = 10; // Impede que ultrapassem o limite
+
+        await Http.PutAsJsonAsync($"api/Module/{mod.Id}", mod);
+        StateHasChanged();
+    }
+
+    private async Task SaveComponentWeight(ModuleComponent comp)
+    {
+        if (comp.Weight < 1) comp.Weight = 1;
+        if (comp.Weight > 10) comp.Weight = 10; // Impede que ultrapassem o limite
+
+        await Http.PutAsJsonAsync($"api/ModuleComponent/{comp.Id}", comp);
         StateHasChanged();
     }
 }

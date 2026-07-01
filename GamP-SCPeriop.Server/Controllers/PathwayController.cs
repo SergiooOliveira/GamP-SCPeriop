@@ -46,6 +46,8 @@ namespace GamP_SCPeriop.Server.Controllers
             var pathway = await _context.Pathways
                 .Include(p => p.Modules)
                     .ThenInclude(m => m.Components)
+                .Include(p => p.Modules)
+                    .ThenInclude(m => m.StageTimelines)
                 .FirstOrDefaultAsync(p => p.Id == id);
 
             if (pathway == null) return NotFound();

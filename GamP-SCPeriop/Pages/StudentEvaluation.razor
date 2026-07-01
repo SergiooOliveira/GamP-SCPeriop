@@ -61,31 +61,72 @@
                                     {
                                         var currentStage = activeTabs.ContainsKey(module.Id) ? activeTabs[module.Id] : practicalStages.FirstOrDefault();
 
-                                        <div class="d-flex flex-wrap gap-2 mb-4 pb-3 border-bottom">
+                                        <div class="d-flex w-100 mb-5 shadow-sm" style="height: 50px; border-radius: 12px; overflow: hidden; border: 1px solid rgba(0,0,0,0.1);">
                                             @foreach (var stage in practicalStages)
                                             {
-                                                <button class="btn btn-sm px-4 py-2 @(currentStage == stage ? "fw-bold shadow-sm" : "bg-light text-muted border-0")"
-                                                        style="@(currentStage == stage ? "background-color: #6A96A6; color: white; border-radius: 10px;" : "border-radius: 10px;")"
-                                                        @onclick="() => activeTabs[module.Id] = stage">
+                                                var isActive = currentStage == stage;
+                                                var isChronological = chronologicalTabs.ContainsKey(module.Id) && chronologicalTabs[module.Id] == stage;
 
-                                                    <i class="bi @(currentStage == stage ? "bi-check2-square" : "bi-calendar-week") me-2"></i>@FormatStageName(stage)
+                                                <button class="btn border-0 rounded-0 flex-grow-1 position-relative d-flex align-items-center justify-content-center text-white p-0 shadow-none"
+                                                        style="background-color: @GetStageColor(stage); transition: all 0.2s ease; opacity: @(isActive ? "1" : "0.4");"
+                                                        @onclick="() => activeTabs[module.Id] = stage" title="@FormatStageName(stage)">
 
-                                                    @if (chronologicalTabs.ContainsKey(module.Id) && chronologicalTabs[module.Id] == stage)
+                                                    <div class="d-flex align-items-center px-2 text-truncate">
+                                                        <i class="bi @(isActive ? "bi-check-circle-fill" : "bi-calendar-week") me-2"></i>
+                                                        <span class="@(isActive ? "fw-bold" : "fw-medium") text-truncate" style="font-size: 0.85rem; letter-spacing: 0.5px;">
+                                                            @FormatStageName(stage)
+                                                        </span>
+                                                    </div>
+
+                                                    @if (isChronological)
                                                     {
-                                                        <span class="badge ms-2 @(currentStage == stage ? "bg-white text-dark bg-opacity-25" : "bg-secondary text-white")" style="font-size: 0.7rem;">Atual</span>
+                                                        <span class="position-absolute top-0 start-50 translate-middle-x badge bg-dark bg-opacity-75 rounded-bottom shadow-sm"
+                                                              style="font-size: 0.65rem; padding: 0.2rem 0.6rem; letter-spacing: 1px;">
+                                                            SEMANA ATUAL
+                                                        </span>
                                                     }
                                                 </button>
                                             }
                                         </div>
 
+                                        // 1. Encontra as datas da fase atual
+                                        var timeline = module.StageTimelines?.FirstOrDefault(t => t.Stage == currentStage);
+                                        double timeProgress = 0;
+
+                                        if (timeline != null)
+                                        {
+                                            // 2. Calcula os dias e a percentagem
+                                            var totalDays = (timeline.EndDate.Date - timeline.StartDate.Date).TotalDays;
+                                            var passedDays = (DateTime.Now.Date - timeline.StartDate.Date).TotalDays;
+                                            timeProgress = totalDays > 0 ? Math.Clamp((passedDays / totalDays) * 100, 0, 100) : (passedDays >= 0 ? 100 : 0);
+
+                                            <div class="mb-4 px-1">
+                                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                                    <small class="text-muted fw-bold" style="font-size: 0.75rem;">Progresso do Tempo Previsto</small>
+                                                    <small class="fw-bold" style="color: @GetStageColor(currentStage); font-size: 0.8rem;">@((int)timeProgress)%</small>
+                                                </div>
+                                                <div class="progress shadow-sm" style="height: 8px; border-radius: 4px; background-color: #e9ecef;">
+                                                    <div class="progress-bar" role="progressbar"
+                                                         style="width: @((int)timeProgress)%; background-color: @GetStageColor(currentStage);"
+                                                         aria-valuenow="@((int)timeProgress)" aria-valuemin="0" aria-valuemax="100"></div>
+                                                </div>
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <div class="alert alert-warning py-2 px-3 mb-4 small shadow-sm border-0" style="border-radius: 8px;">
+                                                <i class="bi bi-info-circle me-2"></i> As datas desta fase não vieram da Base de Dados.
+                                            </div>
+                                        }
+
                                         var assessableComponents = module.Components.Where(c => c.Stage == currentStage).ToList();
                                         var topLevelItems = assessableComponents.Where(c => c.ParentComponentId == null).ToList();
 
-                                        @foreach (var item in topLevelItems)
+                                        foreach (var item in topLevelItems)
                                         {
                                             var children = assessableComponents.Where(c => c.ParentComponentId == item.Id).ToList();
 
-                                            @if (children.Any())
+                                            if (children.Any())
                                             {
                                                 <div class="mb-3 mt-4">
                                                     <div class="d-flex align-items-center mb-2">
@@ -142,10 +183,8 @@
 
 @code {
     [Parameter] public int EnrollmentId { get; set; }
-
     private Enrollment? enrollment;
     private bool isLoading = true;
-
     private Dictionary<int, ModuleStage> activeTabs = new();
     private Dictionary<int, ModuleStage> chronologicalTabs = new(); // NOVO: Guarda a semana cronológica real
 
@@ -196,11 +235,35 @@
 
                 if (practicalStages.Any())
                 {
-                    var stageIndex = Math.Min(currentWeekIndex, practicalStages.Count - 1);
-                    var actualStage = practicalStages[stageIndex];
+                    // Por defeito assume a primeira
+                    ModuleStage actualStage = practicalStages.First();
 
-                    activeTabs[module.Id] = actualStage;        // Aba que abre por defeito
-                    chronologicalTabs[module.Id] = actualStage; // Âncora cronológica fixa
+                    // NOVA LÓGICA: Procurar nas datas reais (StageTimelines)
+                    if (module.StageTimelines != null && module.StageTimelines.Any())
+                    {
+                        var today = DateTime.Now.Date;
+
+                        // 1. Tenta encontrar a fase onde o 'hoje' encaixa
+                        var currentTimeline = module.StageTimelines
+                            .FirstOrDefault(t => today >= t.StartDate.Date && today <= t.EndDate.Date);
+
+                        if (currentTimeline != null)
+                        {
+                            actualStage = currentTimeline.Stage;
+                        }
+                        else
+                        {
+                            // 2. Se já passou de todas as datas, tranca na última fase
+                            var lastTimeline = module.StageTimelines.OrderBy(t => t.EndDate).LastOrDefault();
+                            if (lastTimeline != null && today > lastTimeline.EndDate.Date)
+                            {
+                                actualStage = lastTimeline.Stage;
+                            }
+                        }
+                    }
+
+                    activeTabs[module.Id] = actualStage;        // Aba que abre
+                    chronologicalTabs[module.Id] = actualStage; // Crachá SEMANA ATUAL
                 }
             }
         }
@@ -254,9 +317,10 @@
         {
             if (module.Components != null)
             {
-                // Ignora teóricas E ignora "Pais" que funcionam só de cabeçalho
+
                 var assessableComponents = module.Components
-                    .Where(c => c.Stage != ModuleStage.Teorica && !module.Components.Any(child => child.ParentComponentId == c.Id))
+                    .Where(c => c.Stage == ModuleStage.PraticaSupervisionada)
+                    .Where(c => !module.Components.Any(child => child.ParentComponentId == c.Id))
                     .ToList();
 
                 totalComponents += assessableComponents.Count;
@@ -271,36 +335,82 @@
         {
             enrollment.ProgressPercentage = (int)((double)completedComponents / totalComponents * 100);
         }
+        else
+        {
+            enrollment.ProgressPercentage = 0;
+        }
+    }
+
+    private bool IsTaskCompleted(ModuleComponent comp)
+    {
+        // A checklist aparece ligada se a avaliação for Consistente ou Acima da Média
+        return comp.Status == ComponentStatus.Consistente || comp.Status == ComponentStatus.AcimaDaMedia;
+    }
+
+    private async Task ToggleChecklist(ModuleComponent comp, object? isChecked)
+    {
+        bool isCompleted = (bool)(isChecked ?? false);
+
+        // Se marcou como feito, atribuímos a nota Consistente. 
+        // Se desmarcou, voltamos ao estado 0 (assumindo que o 0 do teu Enum é o Pendente/Vazio).
+        var newStatus = isCompleted ? ComponentStatus.Consistente : (ComponentStatus)0; 
+        
+        // Reutilizamos o teu método de gravação que já calcula o progresso e envia para a API
+        await EvaluateComponent(comp, newStatus);
+    }
+
+    private string GetStageColor(ModuleStage stage)
+    {
+        return stage switch
+        {
+            ModuleStage.ObservacaoPassiva => "#6A96A6", // O teu Azul (Fase inicial)
+            ModuleStage.ObservacaoParticipada => "#F4A261", // Laranja Suave (Transição)
+            ModuleStage.PraticaAssistida => "#E76F51", // Laranja Escuro (Ação)
+            ModuleStage.PraticaSupervisionada => "#2A9D8F", // Verde Teal (Avaliação Final)
+            _ => "#6c757d"
+        };
     }
 
     // --- HELPER PARA RENDERIZAR OS BOTÕES SEM REPETIR CÓDIGO ---
     private RenderFragment RenderAssessmentButtons(ModuleComponent comp) => __builder =>
     {
-        <div class="d-flex flex-wrap gap-2">
-            <button class="btn btn-sm flex-grow-1 @(comp.Status == ComponentStatus.Inconsistente ? "btn-danger" : "btn-outline-danger")"
-                    @onclick="() => EvaluateComponent(comp, ComponentStatus.Inconsistente)">
-                Inconsistente
-            </button>
+        @if (comp.Stage == ModuleStage.ObservacaoPassiva || comp.Stage == ModuleStage.ObservacaoParticipada)
+        {
+            <div class="d-flex justify-content-end">
+                <input class="form-check-input" type="checkbox" 
+                       style="width: 1.5rem; height: 1.5rem; cursor: pointer;"
+                       checked="@IsTaskCompleted(comp)" 
+                       @onchange="(e) => ToggleChecklist(comp, e.Value)" />
+            </div>
+        }
+        else
+        {
+            <div class="d-flex flex-wrap gap-2">
+                <button class="btn btn-sm flex-grow-1 @(comp.Status == ComponentStatus.Inconsistente ? "btn-danger" : "btn-outline-danger")"
+                @onclick="() => EvaluateComponent(comp, ComponentStatus.Inconsistente)">
+                    Inconsistente
+                </button>
 
-            <button class="btn btn-sm flex-grow-1 @(comp.Status == ComponentStatus.AbaixoDaMedia ? "btn-warning text-dark" : "btn-outline-warning text-dark")"
-                    @onclick="() => EvaluateComponent(comp, ComponentStatus.AbaixoDaMedia)">
-                Abaixo da Média
-            </button>
+                <button class="btn btn-sm flex-grow-1 @(comp.Status == ComponentStatus.AbaixoDaMedia ? "btn-warning text-dark" : "btn-outline-warning text-dark")"
+                @onclick="() => EvaluateComponent(comp, ComponentStatus.AbaixoDaMedia)">
+                    Abaixo da Média
+                </button>
 
-            <button class="btn btn-sm flex-grow-1 @(comp.Status == ComponentStatus.AcimaDaMedia ? "btn-warning bg-opacity-50 text-dark border-warning" : "btn-outline-secondary")"
-                    style="@(comp.Status == ComponentStatus.AcimaDaMedia ? "background-color: #ffda6a;" : "")"
-                    @onclick="() => EvaluateComponent(comp, ComponentStatus.AcimaDaMedia)">
-                Acima da Média
-            </button>
+                <button class="btn btn-sm flex-grow-1 @(comp.Status == ComponentStatus.AcimaDaMedia ? "btn-warning bg-opacity-50 text-dark border-warning" : "btn-outline-secondary")"
+                style="@(comp.Status == ComponentStatus.AcimaDaMedia ? "background-color: #ffda6a;" : "")"
+                @onclick="() => EvaluateComponent(comp, ComponentStatus.AcimaDaMedia)">
+                    Acima da Média
+                </button>
 
-            <button class="btn btn-sm flex-grow-1 @(comp.Status == ComponentStatus.Consistente ? "btn-success shadow-sm fw-bold" : "btn-outline-success opacity-75")"
-                    @onclick="() => EvaluateComponent(comp, ComponentStatus.Consistente)">
-                @if (comp.Status == ComponentStatus.Consistente)
-                {
-                    <i class="bi bi-check2-circle me-1"></i>
-                }
-                Consistente
-            </button>
-        </div>
+                <button class="btn btn-sm flex-grow-1 @(comp.Status == ComponentStatus.Consistente ? "btn-success shadow-sm fw-bold" : "btn-outline-success opacity-75")"
+                @onclick="() => EvaluateComponent(comp, ComponentStatus.Consistente)">
+                    @if (comp.Status == ComponentStatus.Consistente)
+                    {
+                        <i class="bi bi-check2-circle me-1"></i>
+                    }
+                    Consistente
+                </button>
+            </div>
+        }
     };
 }

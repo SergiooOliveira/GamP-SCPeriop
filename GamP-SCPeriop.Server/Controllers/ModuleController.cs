@@ -39,6 +39,7 @@ namespace GamP_SCPeriop.Server.Controllers
             var module = await _context.Modules
                 // 1. Grab the components inside the module
                 .Include(m => m.Components)
+                .Include(m => m.StageTimelines)
                 .FirstOrDefaultAsync(m => m.Id == id);
 
             if (module == null)
@@ -82,6 +83,54 @@ namespace GamP_SCPeriop.Server.Controllers
             }
 
             return Ok(module);
+        }
+
+        [HttpPut("{id}")]
+        public async Task<IActionResult> UpdateModule(int id, Module updatedModule)
+        {
+            if (id != updatedModule.Id) return BadRequest();
+
+            // Vai buscar o módulo existente e as suas datas (timelines)
+            var existingModule = await _context.Modules
+                .Include(m => m.StageTimelines)
+                .FirstOrDefaultAsync(m => m.Id == id);
+
+            if (existingModule == null) return NotFound();
+
+            // Atualiza os dados principais do módulo (como o Peso)
+            existingModule.Title = updatedModule.Title;
+            existingModule.Weight = updatedModule.Weight;
+
+            // Atualiza as datas das Fases (Timelines)
+            if (updatedModule.StageTimelines != null)
+            {
+                foreach (var updatedTimeline in updatedModule.StageTimelines)
+                {
+                    var existingTimeline = existingModule.StageTimelines?.FirstOrDefault(t => t.Stage == updatedTimeline.Stage);
+
+                    if (existingTimeline != null)
+                    {
+                        // Se a fase já existe, apenas atualiza as datas
+                        existingTimeline.StartDate = updatedTimeline.StartDate;
+                        existingTimeline.EndDate = updatedTimeline.EndDate;
+                    }
+                    else
+                    {
+                        // Se a fase for nova, adiciona à base de dados
+                        existingModule.StageTimelines ??= new List<ModuleStageTimeline>();
+                        existingModule.StageTimelines.Add(new ModuleStageTimeline
+                        {
+                            Stage = updatedTimeline.Stage,
+                            StartDate = updatedTimeline.StartDate,
+                            EndDate = updatedTimeline.EndDate,
+                            ModuleId = id
+                        });
+                    }
+                }
+            }
+
+            await _context.SaveChangesAsync();
+            return NoContent();
         }
 
         [HttpDelete("{id}")]
