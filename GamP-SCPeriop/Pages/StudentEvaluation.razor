@@ -61,17 +61,30 @@
                                     {
                                         var currentStage = activeTabs.ContainsKey(module.Id) ? activeTabs[module.Id] : practicalStages.FirstOrDefault();
 
-                                        <div class="d-flex w-100 mb-5 shadow-sm" style="height: 50px; border-radius: 12px; overflow: hidden; border: 1px solid rgba(0,0,0,0.1);">
+                                        <div class="d-flex w-100 mb-2 shadow-sm" style="height: 50px; border-radius: 12px; overflow: hidden; border: 1px solid rgba(0,0,0,0.1);">
                                             @foreach (var stage in practicalStages)
                                             {
                                                 var isActive = currentStage == stage;
                                                 var isChronological = chronologicalTabs.ContainsKey(module.Id) && chronologicalTabs[module.Id] == stage;
 
-                                                <button class="btn border-0 rounded-0 flex-grow-1 position-relative d-flex align-items-center justify-content-center text-white p-0 shadow-none"
-                                                        style="background-color: @GetStageColor(stage); transition: all 0.2s ease; opacity: @(isActive ? "1" : "0.4");"
+                                                var stageTimeline = module.StageTimelines?.FirstOrDefault(t => t.Stage == stage);
+                                                double stageProgress = 0;
+                                                if (stageTimeline != null)
+                                                {
+                                                    var totalD = (stageTimeline.EndDate.Date - stageTimeline.StartDate.Date).TotalDays;
+                                                    var passedD = (DateTime.Now.Date - stageTimeline.StartDate.Date).TotalDays;
+                                                    stageProgress = totalD > 0 ? Math.Clamp((passedD / totalD) * 100, 0, 100) : (passedD >= 0 ? 100 : 0);
+                                                }
+                                                
+                                                string baseColor = GetStageColor(stage);
+                                                string emptyColor = baseColor + "40";
+                                                string gradient = $"linear-gradient(to right, {baseColor} {(int)stageProgress}%, {emptyColor} {(int)stageProgress}%)";
+
+                                                <button class="btn border-0 rounded-0 flex-grow-1 position-relative d-flex align-items-center justify-content-center p-0 shadow-none"
+                                                        style="background: @gradient; transition: all 0.2s ease; opacity: @(isActive ? "1" : "0.5"); border-right: 1px solid rgba(255,255,255,0.3);"
                                                         @onclick="() => activeTabs[module.Id] = stage" title="@FormatStageName(stage)">
 
-                                                    <div class="d-flex align-items-center px-2 text-truncate">
+                                                    <div class="d-flex align-items-center px-2 text-truncate text-white" style="text-shadow: 1px 1px 3px rgba(0,0,0,0.7), 0px 0px 2px rgba(0,0,0,0.6);">
                                                         <i class="bi @(isActive ? "bi-check-circle-fill" : "bi-calendar-week") me-2"></i>
                                                         <span class="@(isActive ? "fw-bold" : "fw-medium") text-truncate" style="font-size: 0.85rem; letter-spacing: 0.5px;">
                                                             @FormatStageName(stage)
@@ -89,33 +102,14 @@
                                             }
                                         </div>
 
-                                        // 1. Encontra as datas da fase atual
-                                        var timeline = module.StageTimelines?.FirstOrDefault(t => t.Stage == currentStage);
-                                        double timeProgress = 0;
+                                        var activeTimeline = module.StageTimelines?.FirstOrDefault(t => t.Stage == currentStage);
 
-                                        if (timeline != null)
+                                        if (activeTimeline != null)
                                         {
-                                            // 2. Calcula os dias e a percentagem
-                                            var totalDays = (timeline.EndDate.Date - timeline.StartDate.Date).TotalDays;
-                                            var passedDays = (DateTime.Now.Date - timeline.StartDate.Date).TotalDays;
-                                            timeProgress = totalDays > 0 ? Math.Clamp((passedDays / totalDays) * 100, 0, 100) : (passedDays >= 0 ? 100 : 0);
-
-                                            <div class="mb-4 px-1">
-                                                <div class="d-flex justify-content-between align-items-center mb-1">
-                                                    <small class="text-muted fw-bold" style="font-size: 0.75rem;">Progresso do Tempo Previsto</small>
-                                                    <small class="fw-bold" style="color: @GetStageColor(currentStage); font-size: 0.8rem;">@((int)timeProgress)%</small>
-                                                </div>
-                                                <div class="progress shadow-sm" style="height: 8px; border-radius: 4px; background-color: #e9ecef;">
-                                                    <div class="progress-bar" role="progressbar"
-                                                         style="width: @((int)timeProgress)%; background-color: @GetStageColor(currentStage);"
-                                                         aria-valuenow="@((int)timeProgress)" aria-valuemin="0" aria-valuemax="100"></div>
-                                                </div>
-                                            </div>
-                                        }
-                                        else
-                                        {
-                                            <div class="alert alert-warning py-2 px-3 mb-4 small shadow-sm border-0" style="border-radius: 8px;">
-                                                <i class="bi bi-info-circle me-2"></i> As datas desta fase não vieram da Base de Dados.
+                                            <div class="mb-5 px-1 text-end">
+                                                <small class="text-muted fw-bold">
+                                                    <i class="bi bi-clock-history me-1"></i> Data Limite da Fase: <span class="text-dark">@activeTimeline.EndDate.ToString("dd/MM/yyyy")</span>
+                                                </small>
                                             </div>
                                         }
 
@@ -378,7 +372,7 @@
         {
             <div class="d-flex justify-content-end">
                 <input class="form-check-input" type="checkbox" 
-                       style="width: 1.5rem; height: 1.5rem; cursor: pointer;"
+                       style="width: 1.5rem; height: 1.5rem; cursor: pointer; border: 2px solid #8c98a4;"
                        checked="@IsTaskCompleted(comp)" 
                        @onchange="(e) => ToggleChecklist(comp, e.Value)" />
             </div>
