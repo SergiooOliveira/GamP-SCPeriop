@@ -34,11 +34,11 @@
                 <div class="d-flex align-items-center gap-3">
                     <h4 class="fw-bold mb-0">@module.Title</h4>
                     <div class="d-flex align-items-center flex-grow-1 gap-2">
-                        <small class="text-muted">@module.Status</small>
+                        <small class="text-muted">@(moduleProgress == 100 ? "Concluído" : "Em Curso")</small>
                         <div class="bg-light flex-grow-1" style="height: 10px; border-radius: 10px;">
-                            <div class="bg-primary h-100" style="width: @(module.ProgressPercentage)%; border-radius: 10px; opacity: 0.7;"></div>
+                            <div class="bg-primary h-100" style="width: @(moduleProgress)%; border-radius: 10px; opacity: 0.7; transition: width 0.5s ease-in-out;"></div>
                         </div>
-                        <small class="text-muted">@(module.ProgressPercentage)%</small>
+                        <small class="text-muted">@(moduleProgress)%</small>
                     </div>
                 </div>
             </div>
@@ -53,9 +53,9 @@
                         <div class="d-flex align-items-center gap-2 mt-1">
                             <small class="text-primary small">Progresso Global</small>
                             <div class="bg-white border" style="width: 50px; height: 6px; border-radius: 10px;">
-                                <div class="bg-primary h-100" style="width: @(parentPathway?.TotalProgress ?? 0)%; border-radius: 10px; opacity: 0.7;"></div>
+                                <div class="bg-primary h-100" style="width: @(globalProgress)%; border-radius: 10px; opacity: 0.7; transition: width 0.5s ease-in-out;"></div>
                             </div>
-                            <small class="text-muted small">@(parentPathway?.TotalProgress ?? 0)%</small>
+                            <small class="text-muted small">@(globalProgress)%</small>
                         </div>
                     </div>
                 </div>
@@ -107,64 +107,74 @@
         </div>
 
         <div class="mb-5 mt-4">
-            @if (module.Components != null && module.Components.Any(c => c.Stage != ModuleStage.Teorica))
+            @if (module.Components != null && module.Components.Any(c => c.Stage == ModuleStage.PraticaSupervisionada))
             {
-                <h5 class="fw-bold mb-3 text-secondary"><i class="bi bi-list-check me-2"></i>A Minha Avaliação</h5>
+                <h5 class="fw-bold mb-3 text-secondary"><i class="bi bi-award me-2"></i>Avaliação Final (Prática Supervisionada)</h5>
 
                 <div class="card shadow-sm border-0 mb-4" style="border-radius: 15px; border-left: 5px solid #2c3e50;">
                     <div class="card-body p-4">
                         @{
-                            var assessableComponents = module.Components.Where(c => c.Stage != ModuleStage.Teorica).ToList();
+                            // FILTRO: Apenas a fase de Avaliação Final (igual à lógica do PDF)
+                            var assessableComponents = module.Components.Where(c => c.Stage == ModuleStage.PraticaSupervisionada).ToList();
                             var topLevelItems = assessableComponents.Where(c => c.ParentComponentId == null).ToList();
                         }
 
-                        @foreach (var item in topLevelItems)
+                        @if (topLevelItems.Any())
                         {
-                            var children = assessableComponents.Where(c => c.ParentComponentId == item.Id).ToList();
-
-                            @if (children.Any())
+                            @foreach (var item in topLevelItems)
                             {
-                                <div class="mb-3 mt-4">
-                                    <div class="d-flex align-items-center mb-2">
-                                        <div style="width: 5px; height: 22px; background-color: #6A96A6; border-radius: 4px;" class="me-3 flex-shrink-0"></div>
-                                        <h5 class="fw-bold mb-0 text-wrap" style="color: #1c4c5e;">@item.Title</h5>
-                                    </div>
-                                </div>
+                                var children = assessableComponents.Where(c => c.ParentComponentId == item.Id).ToList();
 
-                                <div class="d-flex flex-column gap-2 mb-4">
-                                    @foreach (var child in children)
-                                    {
-                                        <div class="card border-0 bg-light" style="border-radius: 10px;">
-                                            <div class="card-body p-3 ms-4">
-                                                <div class="row align-items-center">
-                                                    <div class="col-md-8 mb-2 mb-md-0 d-flex align-items-center">                                                       
-                                                        <h6 class="fw-semibold mb-0 text-dark text-wrap" style="font-size: 0.95rem;">@child.Title</h6>
-                                                    </div>
-                                                    <div class="col-md-4 text-md-end">
-                                                        <span class="badge rounded-pill @GetBadgeCss(child.Status) px-3 py-2 border shadow-sm" style="font-size: 0.75rem;">@GetBadgeText(child.Status)</span>
+                                @if (children.Any())
+                                {
+                                    <div class="mb-3 mt-4">
+                                        <div class="d-flex align-items-center mb-2">
+                                            <div style="width: 5px; height: 22px; background-color: #6A96A6; border-radius: 4px;" class="me-3 flex-shrink-0"></div>
+                                            <h5 class="fw-bold mb-0 text-wrap" style="color: #1c4c5e;">@item.Title</h5>
+                                        </div>
+                                    </div>
+
+                                    <div class="d-flex flex-column gap-2 mb-4">
+                                        @foreach (var child in children)
+                                        {
+                                            <div class="card border-0 bg-light" style="border-radius: 10px;">
+                                                <div class="card-body p-3 ms-4">
+                                                    <div class="row align-items-center">
+                                                        <div class="col-md-8 mb-2 mb-md-0 d-flex align-items-center">
+                                                            <h6 class="fw-semibold mb-0 text-dark text-wrap" style="font-size: 0.95rem;">@child.Title</h6>
+                                                        </div>
+                                                        <div class="col-md-4 text-md-end">
+                                                            <span class="badge rounded-pill @GetBadgeCss(child.Status) px-3 py-2 border shadow-sm" style="font-size: 0.75rem;">@GetBadgeText(child.Status)</span>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    }
-                                </div>
-                            }
-                            else
-                            {
-                                <div class="card border-0 bg-light mb-3" style="border-radius: 10px;">
-                                    <div class="card-body p-3">
-                                        <div class="row align-items-center">
-                                            <div class="col-md-8 mb-2 mb-md-0 d-flex align-items-center">
-                                                <div style="width: 5px; height: 22px; background-color: #adb5bd; border-radius: 4px;" class="me-3 flex-shrink-0"></div>
-                                                <h6 class="fw-bold mb-0 text-dark text-wrap">@item.Title</h6>
-                                            </div>
-                                            <div class="col-md-4 text-md-end">
-                                                <span class="badge rounded-pill @GetBadgeCss(item.Status) px-3 py-2 border shadow-sm" style="font-size: 0.75rem;">@GetBadgeText(item.Status)</span>
+                                        }
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="card border-0 bg-light mb-3" style="border-radius: 10px;">
+                                        <div class="card-body p-3">
+                                            <div class="row align-items-center">
+                                                <div class="col-md-8 mb-2 mb-md-0 d-flex align-items-center">
+                                                    <div style="width: 5px; height: 22px; background-color: #adb5bd; border-radius: 4px;" class="me-3 flex-shrink-0"></div>
+                                                    <h6 class="fw-bold mb-0 text-dark text-wrap">@item.Title</h6>
+                                                </div>
+                                                <div class="col-md-4 text-md-end">
+                                                    <span class="badge rounded-pill @GetBadgeCss(item.Status) px-3 py-2 border shadow-sm" style="font-size: 0.75rem;">@GetBadgeText(item.Status)</span>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
-                                </div>
+                                }
                             }
+                        }
+                        else
+                        {
+                            <div class="alert alert-light text-center border mb-0 text-muted" style="border-radius: 8px;">
+                                <i class="bi bi-info-circle me-2"></i> Ainda não existem parâmetros definidos para a Avaliação Final deste módulo.
+                            </div>
                         }
                     </div>
                 </div>
@@ -181,6 +191,10 @@
     private bool isLoading = true;
     private HashSet<int> expandedMaterials = new HashSet<int>();
 
+    // Novas variáveis para forçar o cálculo correto
+    private int moduleProgress = 0;
+    private int globalProgress = 0;
+
     protected override async Task OnInitializedAsync()
     {
         try
@@ -193,7 +207,18 @@
 
                 if (module != null && module.PathwayId > 0)
                 {
-                    parentPathway = await Http.GetFromJsonAsync<Pathway>($"api/Pathway/{module.PathwayId}");
+                    // 1. Calcula o progresso REAL do Módulo (apenas Prática Supervisionada)
+                    moduleProgress = CalculateModuleProgress(module);
+
+                    // 2. Vai buscar a Inscrição específica deste aluno para calcular o Global!
+                    var enrollments = await Http.GetFromJsonAsync<List<Enrollment>>($"api/Enrollment/student/{currentUser.Id}");
+                    var enrollment = enrollments?.FirstOrDefault(e => e.PathwayId == module.PathwayId);
+
+                    if (enrollment != null)
+                    {
+                        parentPathway = enrollment.Pathway;
+                        globalProgress = CalculateGlobalProgress(enrollment);
+                    }
                 }
             }
         }
@@ -209,15 +234,50 @@
 
     private void ToggleMaterial(int compId)
     {
-        if (expandedMaterials.Contains(compId))
-        {
-            expandedMaterials.Remove(compId);
-        }
-        else
-        {
-            expandedMaterials.Add(compId);
-        }
+        if (expandedMaterials.Contains(compId)) expandedMaterials.Remove(compId);
+        else expandedMaterials.Add(compId);
     }
 
     private void GoBack() => Nav.NavigateTo("/my-profile");
+
+    // --- MAGIA DOS CÁLCULOS SINCRONIZADOS ---
+    private int CalculateModuleProgress(Module mod)
+    {
+        if (mod.Components == null) return 0;
+
+        var assessable = mod.Components
+                    .Where(c => c.Stage == ModuleStage.PraticaSupervisionada)
+                    .Where(c => !mod.Components.Any(child => child.ParentComponentId == c.Id))
+                    .ToList();
+
+        if (!assessable.Any()) return 0;
+
+        int completed = assessable.Count(c => c.Status == ComponentStatus.AcimaDaMedia || c.Status == ComponentStatus.Consistente);
+        return (int)((double)completed / assessable.Count * 100);
+    }
+
+    private int CalculateGlobalProgress(Enrollment enrollment)
+    {
+        if (enrollment?.Pathway?.Modules == null) return 0;
+
+        int totalComponents = 0;
+        int completedComponents = 0;
+
+        foreach (var mod in enrollment.Pathway.Modules)
+        {
+            if (mod.Components == null) continue;
+
+            var assessable = mod.Components
+                            .Where(c => c.Stage == ModuleStage.PraticaSupervisionada)
+                            .Where(c => !mod.Components.Any(child => child.ParentComponentId == c.Id))
+                            .ToList();
+
+            totalComponents += assessable.Count;
+            completedComponents += assessable.Count(c =>
+                c.Status == ComponentStatus.AcimaDaMedia ||
+                c.Status == ComponentStatus.Consistente);
+        }
+
+        return totalComponents > 0 ? (int)((double)completedComponents / totalComponents * 100) : 0;
+    }
 }
