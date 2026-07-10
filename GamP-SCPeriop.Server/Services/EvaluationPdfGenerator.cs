@@ -48,7 +48,7 @@ namespace GamP_SCPeriop.Server.Services
                             {
                                 // Título do Percurso
                                 pathwayCol.Item().Background(Colors.Grey.Lighten3).Padding(8)
-                                    .Text($"Percurso: {enrollment.Pathway?.Title} (Progresso Global: {enrollment.ProgressPercentage}%)")
+                                    .Text($"Percurso: {enrollment.Pathway?.Title} (Progresso Global: {CalculateGlobalProgress(enrollment)}%)")
                                     .FontSize(12).SemiBold().FontColor(Colors.Black);
 
                                 if (enrollment.Pathway?.Modules != null)
@@ -166,6 +166,31 @@ namespace GamP_SCPeriop.Server.Services
                 ComponentStatus.Inconsistente => "Inconsistente",
                 _ => "Pendente" // Substitui o "Pending"
             };
+        }
+
+        private int CalculateGlobalProgress(Enrollment enrollment)
+        {
+            if (enrollment?.Pathway?.Modules == null) return 0;
+
+            int totalComponents = 0;
+            int completedComponents = 0;
+
+            foreach (var module in enrollment.Pathway.Modules)
+            {
+                if (module.Components == null) continue;
+
+                var assessable = module.Components
+                    .Where(c => c.Stage == ModuleStage.PraticaSupervisionada)
+                    .Where(c => !module.Components.Any(child => child.ParentComponentId == c.Id))
+                    .ToList();
+
+                totalComponents += assessable.Count;
+                completedComponents += assessable.Count(c =>
+                    c.Status == ComponentStatus.AcimaDaMedia ||
+                    c.Status == ComponentStatus.Consistente);
+            }
+
+            return totalComponents > 0 ? (int)((double)completedComponents / totalComponents * 100) : 0;
         }
     }
 }

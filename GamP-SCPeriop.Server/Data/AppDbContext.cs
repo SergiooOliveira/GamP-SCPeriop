@@ -1,5 +1,6 @@
 ﻿using GamP_SCPeriop.Shared;
 using GamP_SCPeriop.Shared.Data;
+using GamP_SCPeriop.Shared.Data.Template;
 using GamP_SCPeriop.Shared.Entity.Model;
 using GamP_SCPeriop.Shared.Enum;
 using Microsoft.EntityFrameworkCore;
@@ -37,6 +38,11 @@ namespace GamP_SCPeriop.Server.Data
         public DbSet<Notification> Notifications { get; set; }
         public DbSet<ComponentEvaluation> ComponentEvaluations { get; set; }
         public DbSet<ModuleStageTimeline> ModuleStageTimelines { get; set; }
+
+        // Templates
+        public DbSet<PathwayTemplate> PathwayTemplates { get; set; }
+        public DbSet<ModuleTemplate> ModuleTemplates { get; set; }
+        public DbSet<ComponentTemplate> ComponentTemplates { get; set; }
 
         #endregion
 
