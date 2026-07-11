@@ -51,11 +51,57 @@
     }
 </div>
 
+@if (showCreateModal)
+{
+    <div class="modal-backdrop fade show" style="background-color: rgba(0,0,0,0.5);"></div>
+    <div class="modal fade show d-block" tabindex="-1" @onclick="CloseCreateModal">
+        <div class="modal-dialog modal-dialog-centered" @onclick:stopPropagation="true">
+            <div class="modal-content border-0 shadow" style="border-radius: 20px;">
+
+                <div class="modal-header border-0 pb-0 mt-4 d-flex flex-column align-items-center">
+                    <button type="button" class="btn-close position-absolute top-0 end-0 m-3" @onclick="CloseCreateModal"></button>
+                    <h4 class="fw-bold mb-0 text-dark">Novo Molde Base</h4>
+                    <p class="text-muted small mb-2">Estrutura inicial do template</p>
+                </div>
+
+                <div class="modal-body px-4 pb-4 mt-2">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold text-secondary small mb-1">Título do Molde</label>
+                        <input class="form-control border-0 shadow-sm bg-light" style="border-radius: 10px; padding: 12px;" @bind="newTemplate.Title" />
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold text-secondary small mb-1">Descrição</label>
+                        <textarea class="form-control border-0 shadow-sm bg-light" style="border-radius: 10px; padding: 12px; resize: none;" rows="2" @bind="newTemplate.Description"></textarea>
+                    </div>
+
+                    <button class="btn w-100 text-white fw-bold py-3 shadow-sm" style="border-radius: 10px; background-color: #6A96A6;"
+                            @onclick="SaveNewTemplate" disabled="@isSubmitting">
+                        @if (isSubmitting)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                        }
+                        else
+                        {
+                            <span>Criar Molde</span>
+                        }
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
     private bool isLoading = true;
 
     private List<PathwayTemplate> Templates = new();
     private string SearchTerm = string.Empty;
+
+    // Variáveis de estado do modal
+    private bool showCreateModal = false;
+    private bool isSubmitting = false;
+    private PathwayTemplate newTemplate = new();
 
     // Propriedade calculada: sempre que o ecrã desenha, filtra automaticamente
     private IEnumerable<PathwayTemplate> FilteredTemplates =>
@@ -87,7 +133,39 @@
 
     private void CreateNewTemplate()
     {
-        // Lógica para abrir o modal de criação
+        newTemplate = new PathwayTemplate(); // Limpa o formulário
+        showCreateModal = true;
+    }
+
+    private void CloseCreateModal()
+    {
+        showCreateModal = false;
+    }
+
+    // Função de gravação
+    private async Task SaveNewTemplate()
+    {
+        if (string.IsNullOrWhiteSpace(newTemplate.Title)) return;
+
+        isSubmitting = true;
+
+        var response = await Http.PostAsJsonAsync("api/PathwayTemplate", newTemplate);
+
+        if (response.IsSuccessStatusCode)
+        {
+            var createdTemplate = await response.Content.ReadFromJsonAsync<PathwayTemplate>();
+            if (createdTemplate != null)
+            {
+                Templates.Add(createdTemplate); // Atualiza a grelha visualmente
+                CloseCreateModal();
+            }
+        }
+        else
+        {
+            Console.WriteLine("Erro ao criar o molde.");
+        }
+
+        isSubmitting = false;
     }
 
     private async Task DeleteTemplate(int id)
@@ -113,4 +191,6 @@
             Console.WriteLine("Erro ao apagar o molde.");
         }
     }
+
+
 }

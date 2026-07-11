@@ -243,17 +243,26 @@
                         </div>
                     </div>
 
-                    <button class="btn w-100 text-white fw-bold py-3 shadow-sm" style="border-radius: 10px; background-color: #6A96A6;"
-                            @onclick="CreatePathway" disabled="@isCreatingPathway">
-                        @if (isCreatingPathway)
-                        {
-                            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true">A criar...</span>
-                        }
-                        else
-                        {
-                            <span>Criar e Editar Percurso <i class="bi bi-arrow-right ms-2"></i></span>
-                        }
-                    </button>
+                    <div class="d-flex flex-column gap-2 mt-2">
+                        <!-- O teu botão original -->
+                        <button class="btn w-100 text-white fw-bold py-3 shadow-sm" style="border-radius: 10px; background-color: #6A96A6;"
+                                @onclick="CreatePathway" disabled="@isCreatingPathway">
+                            @if (isCreatingPathway)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true">A criar...</span>
+                            }
+                            else
+                            {
+                                <span>Criar e Editar Percurso <i class="bi bi-arrow-right ms-2"></i></span>
+                            }
+                        </button>
+                        
+                        <!-- O novo botão para os Templates -->
+                        <button class="btn w-100 fw-bold py-3 shadow-sm text-secondary" style="border-radius: 10px; background-color: #E2ECEF; border: none;"
+                                @onclick='() => Nav.NavigateTo("/templates")'>
+                            <i class="bi bi-collection me-2"></i> Explorar e Gerir Moldes Base
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
