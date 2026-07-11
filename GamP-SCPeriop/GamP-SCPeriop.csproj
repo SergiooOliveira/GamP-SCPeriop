@@ -11,7 +11,15 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Content Remove="Pages\PathwayBuilderComponent.razor" />
+  </ItemGroup>
+
+  <ItemGroup>
     <None Remove="Pages\PathwayBuilder.razor.css" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="Components\PathwayBuilderComponent.razor" />
   </ItemGroup>
 	
   <ItemGroup>
