@@ -41,5 +41,18 @@ namespace GamP_SCPeriop.Server.Controllers
 
             return Ok(template);
         }
+
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeletePathwayTemplate(int id)
+        {
+            var template = await _context.PathwayTemplates.FindAsync(id);
+            if (template == null)
+                return NotFound("Molde não encontrado.");
+
+            _context.PathwayTemplates.Remove(template);
+            await _context.SaveChangesAsync();
+
+            return Ok();
+        }
     }
 }

@@ -1,6 +1,7 @@
 ﻿@page "/templates"
 @layout TopNavBarLayout
 @inject HttpClient Http
+@inject IJSRuntime JSRuntime
 @using GamP_SCPeriop.Shared.Data.Template
 
 <div class="container-fluid">
@@ -41,6 +42,7 @@
                         <div class="card-footer bg-transparent d-flex justify-content-end gap-2">
                             <!-- Botões de Ação do Cartão -->
                             <button class="btn btn-sm btn-outline-secondary">Editar</button>
+                            <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteTemplate(template.Id)">Apagar</button>
                         </div>
                     </div>
                 </div>
@@ -86,5 +88,29 @@
     private void CreateNewTemplate()
     {
         // Lógica para abrir o modal de criação
+    }
+
+    private async Task DeleteTemplate(int id)
+    {
+        // 1. Pede confirmação ao utilizador
+        bool confirmed = await JSRuntime.InvokeAsync<bool>("confirm", "Tem a certeza que deseja apagar este molde?");
+        if (!confirmed) return;
+
+        // 2. Chama a API para apagar
+        var response = await Http.DeleteAsync($"api/PathwayTemplate/{id}");
+
+        if (response.IsSuccessStatusCode)
+        {
+            // 3. Remove o cartão da lista visual sem precisar de fazer refresh à página
+            var templateToRemove = Templates.FirstOrDefault(t => t.Id == id);
+            if (templateToRemove != null)
+            {
+                Templates.Remove(templateToRemove);
+            }
+        }
+        else
+        {
+            Console.WriteLine("Erro ao apagar o molde.");
+        }
     }
 }
