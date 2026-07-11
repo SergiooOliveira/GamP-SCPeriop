@@ -1,0 +1,183 @@
+@using GamP_SCPeriop.Shared.Entity.Model
+@using GamP_SCPeriop.Shared.Enum
+
+<div class="mt-4 card shadow-sm p-4 border-0" style="border-radius: 15px;">
+    <h5 class="mb-3 fw-bold text-primary">Gestão de Módulos</h5>
+
+    @if (Modules.Any())
+    {
+        <div class="mb-4">
+            @foreach (var mod in Modules)
+            {
+                var isExpanded = expandedModuleId == mod.Id;
+
+                <div class="card border-0 shadow-sm mb-3" style="border-radius: 10px; overflow: hidden;">
+                    <!-- CABEÇALHO DO MÓDULO -->
+                    <div class="card-header bg-white border-0 p-0 d-flex align-items-center pe-4">
+                        <button class="btn btn-link text-decoration-none fw-bold text-dark text-start flex-grow-1 p-3 px-4 shadow-none"
+                                type="button" @onclick="() => ToggleModule(mod.Id)">
+                            <i class="bi bi-folder2-open text-primary me-3 fs-5"></i> @mod.Title
+                        </button>
+
+                        <!-- PESO (Escondido se for Template) -->
+                        @if (!IsTemplateMode)
+                        {
+                            <div class="d-flex align-items-center gap-2 border-end pe-3 me-3" @onclick:stopPropagation="true">
+                                <small class="text-muted fw-bold">Peso:</small>
+                                <input type="number" class="form-control form-control-sm text-center" style="width: 60px;" min="1" max="10"
+                                       @bind="mod.Weight" @bind:after="() => HandleWeightChange(mod)" />
+                                <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25" style="width: 48px;">
+                                    @GetModulePercentage(mod)%
+                                </span>
+                            </div>
+                        }
+
+                        <div class="d-flex align-items-center gap-3">
+                            <button class="btn btn-sm text-danger border-0 p-1 shadow-none" title="Eliminar Módulo"
+                                    @onclick="() => OnDeleteModule.InvokeAsync(mod.Id)" @onclick:stopPropagation="true">
+                                <i class="bi bi-trash3 fs-5"></i>
+                            </button>
+                            <i class="bi @(isExpanded ? "bi-chevron-up" : "bi-chevron-down") text-muted" style="cursor: pointer;" @onclick="() => ToggleModule(mod.Id)"></i>
+                        </div>
+                    </div>
+
+                    <!-- CORPO DO MÓDULO (Fases) -->
+                    @if (isExpanded)
+                    {
+                        <div class="card-body p-0 border-top">
+                            <div class="list-group list-group-flush">
+                                @foreach (var stageInfo in stagesToRender)
+                                {
+                                    var count = mod.Components.Count(c => c.Stage == stageInfo.Stage);
+
+                                    <div class="list-group-item d-flex flex-column border-0 border-bottom p-0" style="background-color: #f8f9fa;">
+                                        <div class="d-flex justify-content-between align-items-center px-4 py-3">
+                                            
+                                            <!-- Botão que vai abrir o Modal -->
+                                            <button type="button" class="btn btn-link text-decoration-none p-0 d-flex align-items-center flex-grow-1 text-start shadow-none"
+                                                    @onclick="() => OpenStageModal(mod, stageInfo)">
+                                                <i class="bi @stageInfo.Icon me-3 text-secondary fs-5"></i>
+                                                <span class="fw-semibold text-dark">@stageInfo.Title</span>
+                                            </button>
+
+                                            <div class="d-flex align-items-center gap-3">
+                                                <!-- DATAS / TIMELINE (Escondido se for Template ou Teórica) -->
+                                                @if (!IsTemplateMode && stageInfo.Stage != ModuleStage.Teorica)
+                                                {
+                                                    // Como a lógica de arrastar datas é complexa, no componente partilhado nós delegamos
+                                                    // as alterações de data de volta para o pai usando o evento OnUpdateTimeline
+                                                    var timeline = GetTimeline(mod, stageInfo.Stage);
+                                                    <div class="d-flex align-items-center gap-2 me-3" @onclick:stopPropagation="true">
+                                                        <small class="text-muted fw-bold" style="font-size: 0.7rem;">Início:</small>
+                                                        <input type="date" class="form-control form-control-sm text-center" style="width: 120px; font-size: 0.8rem;"
+                                                               value="@timeline?.StartDate.ToString("yyyy-MM-dd")"
+                                                               @onchange="(e) => HandleDateChange(mod.Id, stageInfo.Stage, e.Value?.ToString(), true)" />
+
+                                                        <small class="text-muted fw-bold ms-1" style="font-size: 0.7rem;">Fim:</small>
+                                                        <input type="date" class="form-control form-control-sm text-center" style="width: 120px; font-size: 0.8rem;"
+                                                               value="@timeline?.EndDate.ToString("yyyy-MM-dd")"
+                                                               @onchange="(e) => HandleDateChange(mod.Id, stageInfo.Stage, e.Value?.ToString(), false)" />
+                                                    </div>
+                                                }
+
+                                                @if (count > 0)
+                                                {
+                                                    <span class="badge bg-success bg-opacity-10 text-success rounded-pill px-3 py-1 border border-success border-opacity-25">@count itens</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-light text-muted border rounded-pill px-3 py-1">Vazio</span>
+                                                }
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    }
+
+    <!-- ADICIONAR MÓDULO -->
+    <div class="input-group shadow-sm" style="border-radius: 8px; overflow: hidden;">
+        <input @bind="newModuleTitle" class="form-control border-0 p-3 bg-light" placeholder="Ex: Módulo 1 - Fundamentos" />
+        <button @onclick="CreateModule" class="btn text-white fw-bold px-4" style="background-color: #6A96A6; border: none;">
+            Adicionar Módulo
+        </button>
+    </div>
+</div>
+
+@code {
+    [Parameter] public bool IsTemplateMode { get; set; } = false;
+    [Parameter] public string ParentTitle { get; set; } = string.Empty;
+    [Parameter] public List<BuilderModuleDto> Modules { get; set; } = new();
+
+    [Parameter] public EventCallback<string> OnCreateModule { get; set; }
+    [Parameter] public EventCallback<int> OnDeleteModule { get; set; }
+    [Parameter] public EventCallback<BuilderModuleDto> OnUpdateModuleWeight { get; set; }
+    
+    // Devolve (ModuleId, Stage, NovaData, IsStartDate)
+    [Parameter] public EventCallback<(int, ModuleStage, DateTime, bool)> OnUpdateTimeline { get; set; }
+
+    // --- VARIÁVEIS INTERNAS DE UI ---
+    private int expandedModuleId = 0;
+    private string newModuleTitle = string.Empty;
+
+    private List<(ModuleStage Stage, string Title, string Icon, ModuleStage? CopyFromStage)> stagesToRender = new()
+    {
+        (ModuleStage.Teorica, "Componente Teórica", "bi-journal-text", null),
+        (ModuleStage.ObservacaoPassiva, "Observação Passiva", "bi-eye", null),
+        (ModuleStage.ObservacaoParticipada, "Observação Participada", "bi-people", ModuleStage.ObservacaoPassiva),
+        (ModuleStage.PraticaAssistida, "Prática Assistida", "bi-person-gear", ModuleStage.ObservacaoParticipada),
+        (ModuleStage.PraticaSupervisionada, "Prática Supervisionada", "bi-person-check", ModuleStage.PraticaAssistida)
+    };
+
+    // --- MÉTODOS DE AÇÃO VISUAL ---
+    private void ToggleModule(int moduleId)
+    {
+        expandedModuleId = (expandedModuleId == moduleId) ? 0 : moduleId;
+    }
+
+    private async Task CreateModule()
+    {
+        if (string.IsNullOrWhiteSpace(newModuleTitle)) return;
+        await OnCreateModule.InvokeAsync(newModuleTitle);
+        newModuleTitle = string.Empty;
+    }
+
+    private async Task HandleWeightChange(BuilderModuleDto mod)
+    {
+        if (mod.Weight < 1) mod.Weight = 1;
+        if (mod.Weight > 10) mod.Weight = 10;
+        await OnUpdateModuleWeight.InvokeAsync(mod);
+    }
+
+    private async Task HandleDateChange(int moduleId, ModuleStage stage, string? dateStr, bool isStart)
+    {
+        if (DateTime.TryParse(dateStr, out DateTime newDate))
+        {
+            await OnUpdateTimeline.InvokeAsync((moduleId, stage, newDate, isStart));
+        }
+    }
+
+    // --- MÉTODOS AUXILIARES ---
+    private int GetModulePercentage(BuilderModuleDto mod)
+    {
+        if (!Modules.Any()) return 0;
+        var total = Modules.Sum(m => Math.Max(1, m.Weight));
+        return (int)Math.Round((double)Math.Max(1, mod.Weight) / total * 100);
+    }
+
+    private GamP_SCPeriop.Shared.Entity.Model.ModuleStageTimeline? GetTimeline(BuilderModuleDto mod, ModuleStage stage)
+    {
+        return mod.StageTimelines?.FirstOrDefault(t => t.Stage == stage);
+    }
+
+    // Modal placeholders (vamos preencher na fase seguinte)
+    private void OpenStageModal(BuilderModuleDto mod, (ModuleStage Stage, string Title, string Icon, ModuleStage? CopyFromStage) stageInfo)
+    {
+        // Lógica de abrir modal virá aqui
+    }
+}
