@@ -1,0 +1,90 @@
+﻿@page "/templates"
+@layout TopNavBarLayout
+@inject HttpClient Http
+@using GamP_SCPeriop.Shared.Data.Template
+
+<div class="container-fluid">
+    <!-- Cabeçalho e Pesquisa -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3>Modelos de Percurso</h3>
+
+        <div class="d-flex gap-2">
+            <!-- O @bind-value com bind-value:event="oninput" faz a pesquisa em tempo real -->
+            <input type="text" class="form-control" placeholder="Pesquisar molde..."
+                   @bind-value="SearchTerm" @bind-value:event="oninput" />
+
+            <button class="btn btn-primary text-nowrap" @onclick="CreateNewTemplate">
+                + Novo Molde
+            </button>
+        </div>
+    </div>
+
+    <!-- Grelha de Cartões -->
+    @if (isLoading)
+    {
+        <div class="text-center mt-5">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-2 text-muted">A carregar moldes...</p>
+        </div>
+    }
+    else
+    {
+        <div class="row row-cols-1 row-cols-md-3 g-4">
+            @foreach (var template in FilteredTemplates)
+            {
+                <div class="col">
+                    <div class="card h-100 shadow-sm">
+                        <div class="card-body">
+                            <h5 class="card-title">@template.Title</h5>
+                            <p class="card-text text-muted">@template.Description</p>
+                        </div>
+                        <div class="card-footer bg-transparent d-flex justify-content-end gap-2">
+                            <!-- Botões de Ação do Cartão -->
+                            <button class="btn btn-sm btn-outline-secondary">Editar</button>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private bool isLoading = true;
+
+    private List<PathwayTemplate> Templates = new();
+    private string SearchTerm = string.Empty;
+
+    // Propriedade calculada: sempre que o ecrã desenha, filtra automaticamente
+    private IEnumerable<PathwayTemplate> FilteredTemplates =>
+        string.IsNullOrWhiteSpace(SearchTerm)
+            ? Templates
+            : Templates.Where(t => t.Title.Contains(SearchTerm, StringComparison.OrdinalIgnoreCase));
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            // Vai buscar a lista de moldes à API
+            var result = await Http.GetFromJsonAsync<List<PathwayTemplate>>("api/PathwayTemplate");
+
+            if (result != null)
+            {
+                Templates = result;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Erro ao carregar os templates: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false; // Desliga o loading aconteça o que acontecer
+        }
+    }
+
+    private void CreateNewTemplate()
+    {
+        // Lógica para abrir o modal de criação
+    }
+}
