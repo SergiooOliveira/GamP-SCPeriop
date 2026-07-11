@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Text.Json.Serialization;
 
 namespace GamP_SCPeriop.Shared.Data.Template
 {
@@ -9,6 +10,8 @@ namespace GamP_SCPeriop.Shared.Data.Template
 
         // Chave Estrangeira para o PathwayTemplate
         public int PathwayTemplateId { get; set; }
+
+        [JsonIgnore]
         public PathwayTemplate? PathwayTemplate { get; set; }
 
         // Relação com as Tarefas do Template

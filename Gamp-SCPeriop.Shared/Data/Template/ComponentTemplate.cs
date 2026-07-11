@@ -1,5 +1,6 @@
 ﻿using GamP_SCPeriop.Shared.Enum;
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
 
 namespace GamP_SCPeriop.Shared.Data.Template
 {
@@ -16,10 +17,14 @@ namespace GamP_SCPeriop.Shared.Data.Template
 
         // Chave Estrangeira para o Módulo
         public int ModuleTemplateId { get; set; }
+
+        [JsonIgnore]
         public ModuleTemplate? ModuleTemplate { get; set; }
 
         // Relação Pai/Filho (Self-referencing) para permitir indentação
         public int? ParentComponentTemplateId { get; set; }
+
+        [JsonIgnore]
         public ComponentTemplate? ParentComponentTemplate { get; set; }
         public List<ComponentTemplate> SubComponents { get; set; } = new();
     }
