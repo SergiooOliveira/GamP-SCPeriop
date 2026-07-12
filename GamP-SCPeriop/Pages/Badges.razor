@@ -1,0 +1,98 @@
+﻿@page "/badges"
+@using Blazored.LocalStorage
+@layout TopNavBarLayout
+@inject HttpClient Http
+@inject NavigationManager Nav
+@inject ILocalStorageService LocalStorage
+@implements IAsyncDisposable
+@inject IJSRuntime JsRuntime
+
+<div class="max-width-container mt-4 px-4 pb-5">
+    
+    <!-- Cabeçalho -->
+    <div class="d-flex align-items-center mb-4 pb-2 border-bottom">
+        <i class="bi bi-award-fill text-warning fs-1 me-3"></i>
+        <div>
+            <h3 class="fw-bold mb-0 text-dark">As Minhas Conquistas</h3>
+            <span class="text-muted small">Descobre as medalhas que ganhaste ao longo do teu percurso.</span>
+        </div>
+    </div>
+
+    <!-- Grelha de Badges -->
+    <div class="row row-cols-2 row-cols-md-4 g-4 mt-2">
+        @foreach (var badge in simulacaoBadges)
+        {
+            <div class="col">
+                <div class="card h-100 border-0 badge-card-heavy text-center p-4"
+                     style="border-radius: 20px; background-color: @(badge.IsUnlocked ? "#f4f7f6" : "#f8f9fa");">
+
+                    <!-- Ícone (já sem o title) -->
+                    <div class="rounded-circle mx-auto d-flex justify-content-center align-items-center shadow-sm mb-3"
+                         style="width: 80px; height: 80px; background-color: @(badge.IsUnlocked ? badge.Color : "#e9ecef");">
+                        <i class="bi @badge.Icon text-white" style="font-size: 2.5rem; opacity: @(badge.IsUnlocked ? "1" : "0.4");"></i>
+                    </div>
+
+                    <!-- Título -->
+                    <h6 class="fw-bold @(badge.IsUnlocked ? "text-dark" : "text-muted") mb-2">@badge.Name</h6>
+
+                    <!-- Nova Descrição Visível -->
+                    <p class="small @(badge.IsUnlocked ? "text-secondary" : "text-muted opacity-50") mb-0" style="line-height: 1.4;">
+                        @badge.Reason
+                    </p>
+
+                    <!-- Indicador visual extra se estiver bloqueado -->
+                    @if (!badge.IsUnlocked)
+                    {
+                        <div class="mt-3 pt-2 border-top border-secondary border-opacity-10">
+                            <small class="text-muted fw-bold"><i class="bi bi-lock-fill me-1"></i>Bloqueado</small>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private IJSObjectReference? module;
+
+    // Modelo Rápido Temporário para testar o visual
+    private class BadgeFake 
+    {
+        public string Name { get; set; } = "";
+        public string Icon { get; set; } = "";
+        public string Color { get; set; } = "";
+        public string Reason { get; set; } = "";
+        public bool IsUnlocked { get; set; }
+    }
+
+    private List<BadgeFake> simulacaoBadges = new()
+    {
+        new BadgeFake { Name = "Primeiro Passo", Icon = "bi-lightning-charge-fill", Color = "#ffc107", Reason = "Iniciaste o teu primeiro módulo com sucesso!", IsUnlocked = true },
+        new BadgeFake { Name = "Mestre Teórico", Icon = "bi-book-half", Color = "#1a73e8", Reason = "Concluíste todas as tarefas teóricas de um percurso.", IsUnlocked = true },
+        new BadgeFake { Name = "Mãos à Obra", Icon = "bi-person-gear", Color = "#198754", Reason = "Completaste a tua primeira prática assistida.", IsUnlocked = true },
+        new BadgeFake { Name = "Supervisionado de Elite", Icon = "bi-star-fill", Color = "#dc3545", Reason = "Atingiste aprovação máxima num percurso.", IsUnlocked = false },
+        new BadgeFake { Name = "Foco Inabalável", Icon = "bi-bullseye", Color = "#6f42c1", Reason = "Mantiveste acesso regular por 7 dias seguidos.", IsUnlocked = false }
+    };
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // 1. Carrega o ficheiro JS isolado (ajusta o caminho "Pages" se estiver noutra pasta)
+            module = await JsRuntime.InvokeAsync<IJSObjectReference>("import", "./Pages/Badges.razor.js");
+
+            // 2. Chama a função exportada de dentro do módulo
+            await module.InvokeVoidAsync("initBadge3DEffect");
+        }
+    }
+
+    // É boa prática limpar a memória do módulo quando saímos da página
+    public async ValueTask DisposeAsync()
+    {
+        if (module is not null)
+        {
+            await module.DisposeAsync();
+        }
+    }
+}
