@@ -77,7 +77,8 @@
             OnSaveRapidStructureEvent="SaveRapidStructureFromBuilder"
             OnSaveTheoreticalEvent="SaveTheoreticalFromBuilder"
             OnDeleteComponent="DeleteComponentFromBuilder"
-            OnSaveBulkEditEvent="SaveBulkEditFromBuilder" />
+            OnSaveBulkEditEvent="SaveBulkEditFromBuilder"
+            OnCopyComponentsEvent="CopyComponentsFromBuilder" />
     }
 </div>
 
@@ -196,9 +197,16 @@
     
     private async Task LoadActiveTemplate(int templateId)
     {
-        isLoading = true;
-        // Pede o template com os filhos incluídos (precisa do .Include no backend)
+        // Só destrói o ecrã com o Loading se estivermos a vir da grelha de cartões
+        if (activeTemplate == null)
+        {
+            isLoading = true;
+        }
+
+        // Vai buscar os dados mais recentes à API
         activeTemplate = await Http.GetFromJsonAsync<PathwayTemplate>($"api/PathwayTemplate/{templateId}");
+
+        // Desliga o loading (caso estivesse ligado)
         isLoading = false;
     }
 
@@ -295,6 +303,57 @@
             }
         }
     
+        await LoadActiveTemplate(activeTemplate!.Id);
+    }
+
+    private async Task CopyComponentsFromBuilder((int ModuleId, ModuleStage CurrentStage, ModuleStage SourceStage) data)
+    {
+        // 1. Encontrar o módulo atual nos dados que já estão carregados na página
+        var module = activeTemplate?.ModuleTemplates?.FirstOrDefault(m => m.Id == data.ModuleId);
+        if (module == null || module.ComponentTemplates == null) return;
+
+        // 2. Isolar as tarefas que queremos copiar (da fase anterior) e apanhar só os "Pais"
+        var sourceComponents = module.ComponentTemplates.Where(c => c.Stage == data.SourceStage).ToList();
+        var topLevelComponents = sourceComponents.Where(c => c.ParentComponentTemplateId == null).ToList();
+
+        if (!topLevelComponents.Any()) return;
+
+        foreach (var parent in topLevelComponents)
+        {
+            // 3. Criar a cópia do Pai para a fase atual
+            var newParent = new ComponentTemplate
+            {
+                ModuleTemplateId = data.ModuleId,
+                Stage = data.CurrentStage,
+                Title = parent.Title,
+                Description = parent.Description
+            };
+
+            var parentResponse = await Http.PostAsJsonAsync("api/ComponentTemplate", newParent);
+            if (parentResponse.IsSuccessStatusCode)
+            {
+                var savedParent = await parentResponse.Content.ReadFromJsonAsync<ComponentTemplate>();
+                if (savedParent != null)
+                {
+                    // 4. Se o Pai foi guardado, vamos procurar os filhos dele e copiá-los também
+                    var children = sourceComponents.Where(c => c.ParentComponentTemplateId == parent.Id).ToList();
+                    foreach (var child in children)
+                    {
+                        var newChild = new ComponentTemplate
+                        {
+                            ModuleTemplateId = data.ModuleId,
+                            Stage = data.CurrentStage,
+                            Title = child.Title,
+                            Description = child.Description,
+                            ParentComponentTemplateId = savedParent.Id // <- Liga-se ao novo Pai!
+                        };
+                        await Http.PostAsJsonAsync("api/ComponentTemplate", newChild);
+                    }
+                }
+            }
+        }
+
+        // 5. Atualizar o ecrã para mostrar as novas tarefas copiadas
         await LoadActiveTemplate(activeTemplate!.Id);
     }
     #endregion
