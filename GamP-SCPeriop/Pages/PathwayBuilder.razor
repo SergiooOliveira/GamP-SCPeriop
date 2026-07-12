@@ -86,7 +86,7 @@
 
         <div class="mt-4 card shadow-sm p-4 border-0" style="border-radius: 15px;">
             <PathwayBuilderComponent 
-                IsTemplateMode="false"
+                IsTemplateMode="@false"
                 ParentTitle="@activePathway.Title"
                 Modules="@BuilderModules"
                 OnCreateModule="CreateModuleFromBuilder"
@@ -409,9 +409,51 @@
 
     private async Task CopyComponentsFromBuilder((int ModuleId, ModuleStage CurrentStage, ModuleStage SourceStage) data)
     {
-        await Http.PostAsync($"api/ModuleComponent/copy?moduleId={data.ModuleId}&fromStage={data.SourceStage}&toStage={data.CurrentStage}", null);
-        await LoadExistingPathway();
-        StateHasChanged();
+        var module = activePathway?.Modules?.FirstOrDefault(m => m.Id == data.ModuleId);
+        if (module == null || module.Components == null) return;
+
+        var sourceComponents = module.Components.Where(c => c.Stage == data.SourceStage).ToList();
+        var topLevelComponents = sourceComponents.Where(c => c.ParentComponentId == null).ToList();
+
+        if (!topLevelComponents.Any()) return; 
+
+        foreach (var parent in topLevelComponents)
+        {
+            var newParent = new ModuleComponent
+            {
+                ModuleId = data.ModuleId,
+                Stage = data.CurrentStage,
+                Title = parent.Title,
+                Description = parent.Description,
+                Weight = 0 // As percentagens nascem a zero no novo Percurso!
+            };
+
+            var parentResponse = await Http.PostAsJsonAsync("api/ModuleComponent", newParent);
+            if (parentResponse.IsSuccessStatusCode)
+            {
+                var savedParent = await parentResponse.Content.ReadFromJsonAsync<ModuleComponent>();
+                if (savedParent != null)
+                {
+                    var children = sourceComponents.Where(c => c.ParentComponentId == parent.Id).ToList();
+                    foreach (var child in children)
+                    {
+                        var newChild = new ModuleComponent
+                        {
+                            ModuleId = data.ModuleId,
+                            Stage = data.CurrentStage,
+                            Title = child.Title,
+                            Description = child.Description,
+                            Weight = 0,
+                            ParentComponentId = savedParent.Id
+                        };
+                        await Http.PostAsJsonAsync("api/ModuleComponent", newChild);
+                    }
+                }
+            }
+        }
+
+        // Altera para o nome exato do teu método de atualizar os dados da página
+        if (activePathway != null) await LoadExistingPathway(); 
     }
 
     private async Task DeleteComponentFromBuilder(int componentId)

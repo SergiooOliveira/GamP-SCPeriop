@@ -129,23 +129,36 @@
 
                 <div class="modal-body px-4 py-4">
                     <!-- Controlos de Topo Modal -->
-                    <div class="d-flex justify-content-between align-items-end mb-3">
-                        <h6 class="fw-bold text-secondary text-uppercase small mb-0">Componentes Atuais</h6>
+                    <div class="d-flex justify-content-between align-items-center mb-3 mt-4">
+                        <!-- 1. Título isolado à esquerda -->
+                        <h6 class="text-uppercase fw-bold text-secondary mb-0">Componentes Atuais</h6>
 
-                        @if (activeModalStage.Value.CopyFromStage.HasValue)
-                        {
-                            <button class="btn btn-sm btn-outline-primary" @onclick="CopyComponents" disabled="@isCopying">
-                                @if (isCopying) { <span class="spinner-border spinner-border-sm me-1" role="status"></span> }
-                                else { <i class="bi bi-copy me-1"></i> }
-                                Copiar da Fase Anterior
-                            </button>
-                        }
+                        <!-- 2. Botões agrupados à direita -->
+                        <div class="d-flex gap-2">
+                            @if (!isEditMode)
+                            {
+                                <button class="btn btn-sm btn-light border-0 shadow-sm text-secondary fw-semibold d-flex align-items-center px-3" 
+                                        @onclick="CopyComponents" disabled="@isCopying">
+                                    @if (isCopying) { <span class="spinner-border spinner-border-sm me-2" role="status"></span> }
+                                    else { <i class="bi bi-copy me-2"></i> }
+                                    Copiar da Fase Anterior
+                                </button>
 
-                       <button class="btn btn-sm @(isEditMode ? "btn-success" : "btn-outline-primary") ms-2" 
-                                @onclick="async () => { if (isEditMode) await SaveChangesBulk(); else ToggleEditMode(); }" >
-                            <i class="bi @(isEditMode ? "bi-check2-circle" : "bi-pencil-square") me-1"></i>
-                            @(isEditMode ? "Concluir Edição" : "Editar Fase")
-                        </button>
+                                <button class="btn btn-sm btn-primary shadow-sm border-0 text-white fw-semibold d-flex align-items-center px-3" 
+                                        @onclick="ToggleEditMode">
+                                    <i class="bi bi-pencil-square me-2"></i> Editar Fase
+                                </button>
+                            }
+                            else
+                            {
+                                <button class="btn btn-sm btn-outline-secondary fw-semibold px-3" @onclick="CancelEditMode">
+                                    Cancelar
+                                </button>
+                                <button class="btn btn-sm btn-success shadow-sm border-0 text-white fw-semibold px-3" @onclick="SaveChangesBulk">
+                                    <i class="bi bi-check-circle me-2"></i> Guardar Alterações
+                                </button>
+                            }
+                        </div>
                     </div>
 
                     <!-- Mensagem de Validação -->
@@ -475,16 +488,22 @@
         activeModalModule = mod;
         activeModalStage = stageInfo;
         isEditMode = false;
+        validationError = null;
         editModeNewChildren.Clear();
         ResetForm();
     }
 
     private void CloseStageModal()
     {
+        if (isEditMode) CancelEditMode();
+
         activeModalModule = null;
         activeModalStage = null;
         isEditMode = false;
+        validationError = null;
         editModeNewChildren.Clear();
+        originalComponentStates.Clear();
+        ResetForm();
     }
 
     private void ResetForm()
@@ -511,6 +530,30 @@
         }
     }
 
+    private void CancelEditMode()
+    {
+        isEditMode = false;
+        validationError = null;
+        editModeNewChildren.Clear();
+
+        if (activeModalModule != null && activeModalStage.HasValue)
+        {
+            var stageComponents = activeModalModule.Components.Where(c => c.Stage == activeModalStage.Value.Stage).ToList();
+            foreach (var c in stageComponents)
+            {
+                if (originalComponentStates.TryGetValue(c.Id, out var original))
+                {
+                    c.Title = original.Title;
+                    c.Weight = original.Weight;
+                }
+            }
+        }
+        
+        originalComponentStates.Clear();
+        ResetForm();
+        StateHasChanged();        
+    }
+    
     #endregion
 
     #region [ Processamento de Gravações ]
@@ -546,14 +589,28 @@
 
     #region [ Edição em Massa (Bulk Edit) ]
 
+    private Dictionary<int, (string Title, int Weight)> originalComponentStates = new();
+
     private void ToggleEditMode()
     {
         isEditMode = true;
         validationError = null;
         editModeNewChildren.Clear();
+        originalComponentStates.Clear();
     
-        var topLevel = activeModalModule?.Components.Where(c => c.ParentComponentId == null && c.Stage == activeModalStage?.Stage).ToList() ?? new();
-        foreach (var p in topLevel) editModeNewChildren[p.Id] = new List<DraftChild> { new DraftChild() };
+        var stageComponents = activeModalModule?.Components.Where(c => c.Stage == activeModalStage?.Stage).ToList() ?? new();
+
+        foreach (var c in stageComponents)
+        {
+            // 2. Tira a fotografia a TODOS eles!
+            originalComponentStates[c.Id] = (c.Title, c.Weight);
+
+            // 3. Mas só cria a caixa de novos rascunhos debaixo dos Pais
+            if (c.ParentComponentId == null)
+            {
+                editModeNewChildren[c.Id] = new List<DraftChild> { new DraftChild() };
+            }
+        }
     }
 
     private void CheckEditModeChildrenState(int parentId)

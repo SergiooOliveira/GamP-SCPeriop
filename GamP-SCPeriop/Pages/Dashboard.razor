@@ -2,11 +2,13 @@
 @using GamP_SCPeriop.Shared.Entity.Model
 @using GamP_SCPeriop.Shared.Enum
 @using GamP_SCPeriop.Shared.Data
+@using GamP_SCPeriop.Shared.Data.Template
 @using Blazored.LocalStorage
 @layout TopNavBarLayout
 @inject HttpClient Http
 @inject NavigationManager Nav
 @inject ILocalStorageService LocalStorage
+@inject IJSRuntime JsRuntime
 
 <div class="max-width-container mt-3 px-3 pb-5">
     
@@ -15,21 +17,22 @@
         {
             @foreach (var summary in pathwaySummaries)
             {
-                <div class="card border-0 shadow-sm flex-shrink-0" style="width: 240px; border-radius: 20px; background-color: #E2ECEF;">
-                    <div @onclick='() => Nav.NavigateTo($"/pathway/{summary.Id}/students")' class="card-body p-4">
-                        
+                <div class="card border-0 shadow-sm flex-shrink-0 position-relative" style="width: 240px; border-radius: 20px; background-color: #E2ECEF;">
+
+                    <!-- Novo Botão de Apagar -->
+                    <button class="btn btn-link text-danger position-absolute top-0 end-0 p-2"
+                            style="z-index: 10;"
+                            @onclick="() => DeletePathway(summary.Id)"
+                            @onclick:stopPropagation="true">
+                        <i class="bi bi-trash3 fs-5"></i>
+                    </button>
+
+                    <div @onclick='() => Nav.NavigateTo($"/pathway/{summary.Id}/students")' class="card-body p-4" style="cursor: pointer;">
                         <h6 class="fw-bold mb-3 fs-5">@summary.Title</h6>
-                        
                         <div class="mb-4 d-flex align-items-baseline">
                             <span class="fs-2 fw-bold me-2">@summary.StudentCount</span>
                             <span class="text-muted small">Supervisionados</span>
                         </div>
-                        
-                       @*  <button @onclick='@(() => Nav.NavigateTo($"/supervisor/pathway-builder/{summary.Id}?from=dashboard"))'
-                                class="btn w-100 text-white fw-semibold"
-                                style="border-radius: 12px; background-color: #6A96A6; border: none; padding: 10px;">
-                            Editar Pathway
-                        </button> *@
                     </div>
                 </div>
             }
@@ -243,13 +246,28 @@
                         </div>
                     </div>
 
+                    <div class="mb-4">
+                        <label class="form-label text-muted small fw-bold mb-1">Molde Base (Opcional)</label>
+                        <select class="form-select form-select-sm bg-light border-0" @bind="selectedTemplateId">
+                            <option value="0">Nenhum (Criar percurso em branco)</option>
+                            @if (availableTemplates != null)
+                            {
+                                @foreach (var template in availableTemplates)
+                                {
+                                    <option value="@template.Id">@template.Title</option>
+                                }
+                            }
+                        </select>
+                    </div>
+
                     <div class="d-flex flex-column gap-2 mt-2">
                         <!-- O teu botão original -->
                         <button class="btn w-100 text-white fw-bold py-3 shadow-sm" style="border-radius: 10px; background-color: #6A96A6;"
                                 @onclick="CreatePathway" disabled="@isCreatingPathway">
                             @if (isCreatingPathway)
                             {
-                                <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true">A criar...</span>
+                                <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                <span>A criar...</span>
                             }
                             else
                             {
@@ -291,6 +309,9 @@
     private List<PathwayTagDto> availablePathways = new();
     private List<PathwayTagDto> unassignedPathways = new();
 
+    private int selectedTemplateId = 0;
+    private List<PathwayTemplate> availableTemplates = new();
+
     // --- CREATE PATHWAY VARIABLES ---
     private bool showCreatePathwayModal = false;
     private bool isCreatingPathway = false;
@@ -313,6 +334,8 @@
 
             currentUser = await LocalStorage.GetItemAsync<User>("user");
             if (currentUser?.Role != UserRole.Supervisor) { Nav.NavigateTo("/"); return; }
+
+            availableTemplates = await Http.GetFromJsonAsync<List<PathwayTemplate>>("api/PathwayTemplate") ?? new();
 
             await LoadDashboardData();
         }
@@ -418,6 +441,9 @@
         Console.WriteLine($"Creating a new pathway with a currentUser.id: {currentUser.Id}");
         pathwayDto.ProfessorId = currentUser.Id;
 
+        // A TUA NOVA LINHA AQUI: Passa a escolha do Molde para o DTO
+        pathwayDto.TemplateId = selectedTemplateId > 0 ? selectedTemplateId : null;
+
         var response = await Http.PostAsJsonAsync("api/Pathway", pathwayDto);
         if (response.IsSuccessStatusCode)
         {
@@ -435,5 +461,19 @@
         }
         
         isCreatingPathway = false;
+    }
+
+    private async Task DeletePathway(int pathwayId)
+    {
+        bool confirmed = await JsRuntime.InvokeAsync<bool>("confirm", "Tem a certeza que deseja apagar este percurso? Esta ação não pode ser revertida.");
+        if (!confirmed) return;
+
+        var response = await Http.DeleteAsync($"api/Pathway/{pathwayId}");
+        if (response.IsSuccessStatusCode)
+        {
+            // Remove da lista em memória e atualiza o ecrã instantaneamente
+            pathwaySummaries.RemoveAll(p => p.Id == pathwayId);
+            StateHasChanged();
+        }
     }
 }

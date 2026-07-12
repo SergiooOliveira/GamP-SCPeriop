@@ -10,5 +10,6 @@ namespace GamP_SCPeriop.Shared.Entity.Model
         public int MinimumPassScore { get; set; }
         public int MinimumApprovalScore { get; set; }
         public int ProfessorId { get; set; }
+        public int? TemplateId { get; set; }
     }
 }
