@@ -267,15 +267,16 @@
 
     private async Task SaveBulkEditFromBuilder((int ModuleId, ModuleStage Stage, List<BuilderComponentDto> UpdatedComponents, Dictionary<int, List<(string Title, int Weight)>> NewSubTasks) data)
     {
-        // 1. Atualizar Títulos (Pesos são ignorados no Template)
+        // 1. Atualizar Títulos DIRETAMENTE (Sem fazer GET)
         foreach (var comp in data.UpdatedComponents)
         {
-            var dbComp = await Http.GetFromJsonAsync<ComponentTemplate>($"api/ComponentTemplate/{comp.Id}");
-            if (dbComp != null)
-            {
-                dbComp.Title = comp.Title;
-                await Http.PutAsJsonAsync($"api/ComponentTemplate/{comp.Id}", dbComp);
-            }
+            // Cria um objeto temporário só com a informação que a API precisa para atualizar
+            var dummyComp = new ComponentTemplate 
+            { 
+                Id = comp.Id, 
+                Title = comp.Title 
+            };
+            await Http.PutAsJsonAsync($"api/ComponentTemplate/{comp.Id}", dummyComp);
         }
 
         // 2. Criar Novas Tarefas
@@ -283,10 +284,17 @@
         {
             foreach (var task in kvp.Value)
             {
-                var dtoChild = new ComponentTemplate { ModuleTemplateId = data.ModuleId, Title = task.Title, Stage = data.Stage, ParentComponentTemplateId = kvp.Key };
+                var dtoChild = new ComponentTemplate 
+                { 
+                    ModuleTemplateId = data.ModuleId, 
+                    Title = task.Title, 
+                    Stage = data.Stage, 
+                    ParentComponentTemplateId = kvp.Key 
+                };
                 await Http.PostAsJsonAsync("api/ComponentTemplate", dtoChild);
             }
         }
+    
         await LoadActiveTemplate(activeTemplate!.Id);
     }
     #endregion

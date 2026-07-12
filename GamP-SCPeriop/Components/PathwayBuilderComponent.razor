@@ -570,25 +570,29 @@
         var componentsToUpdate = activeModalModule.Components.Where(c => c.Stage == activeModalStage.Value.Stage).ToList();
         var topLevel = componentsToUpdate.Where(c => c.ParentComponentId == null).ToList();
 
-        // VALIDAÇÃO 1: Os Pais têm de somar 100%
-        if (topLevel.Any() && topLevel.Sum(c => c.Weight) != 100)
+        // A MAGIA ESTÁ AQUI: Só valida as percentagens se NÃO for um molde base!
+        if (!IsTemplateMode)
         {
-            validationError = "A soma das percentagens dos parâmetros principais tem de ser exatamente 100%.";
-            return;
-        }
-
-        // VALIDAÇÃO 2: Os Filhos de cada Pai têm de somar 100% (Contando com os novos!)
-        foreach (var parent in topLevel)
-        {
-            var existingChildren = componentsToUpdate.Where(c => c.ParentComponentId == parent.Id).ToList();
-            var newChildren = editModeNewChildren.ContainsKey(parent.Id) ? editModeNewChildren[parent.Id].Where(c => !string.IsNullOrWhiteSpace(c.Text)).ToList() : new();
-
-            var totalWeight = existingChildren.Sum(c => c.Weight) + newChildren.Sum(c => c.Weight);
-
-            if ((existingChildren.Any() || newChildren.Any()) && totalWeight != 100)
+            // VALIDAÇÃO 1: Os Pais têm de somar 100%
+            if (topLevel.Any() && topLevel.Sum(c => c.Weight) != 100)
             {
-                validationError = $"A soma das percentagens dos sub-parâmetros de '{parent.Title}' tem de ser exatamente 100%.";
+                validationError = "A soma das percentagens dos parâmetros principais tem de ser exatamente 100%.";
                 return;
+            }
+
+            // VALIDAÇÃO 2: Os Filhos de cada Pai têm de somar 100%
+            foreach (var parent in topLevel)
+            {
+                var existingChildren = componentsToUpdate.Where(c => c.ParentComponentId == parent.Id).ToList();
+                var newChildren = editModeNewChildren.ContainsKey(parent.Id) ? editModeNewChildren[parent.Id].Where(c => !string.IsNullOrWhiteSpace(c.Text)).ToList() : new();
+            
+                var totalWeight = existingChildren.Sum(c => c.Weight) + newChildren.Sum(c => c.Weight);
+
+                if ((existingChildren.Any() || newChildren.Any()) && totalWeight != 100)
+                {
+                    validationError = $"A soma das percentagens dos sub-parâmetros de '{parent.Title}' tem de ser exatamente 100%.";
+                    return;
+                }
             }
         }
 
@@ -604,7 +608,7 @@
         }
 
         await OnSaveBulkEditEvent.InvokeAsync((activeModalModule.Id, activeModalStage.Value.Stage, componentsToUpdate, newSubTasksDict));
-    
+
         isSavingModal = false;
         isEditMode = false;
     }

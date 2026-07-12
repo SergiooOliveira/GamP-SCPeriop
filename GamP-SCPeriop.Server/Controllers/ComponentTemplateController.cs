@@ -60,5 +60,14 @@ namespace GamP_SCPeriop.Server.Controllers
 
             return Ok();
         }
+
+        [HttpGet("{id}")]
+        public async Task<ActionResult<ComponentTemplate>> GetComponentTemplate(int id)
+        {
+            var component = await _context.ComponentTemplates.FindAsync(id);
+            if (component == null) return NotFound();
+
+            return Ok(component);
+        }
     }
 }
