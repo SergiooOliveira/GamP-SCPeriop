@@ -425,7 +425,7 @@
                 Stage = data.CurrentStage,
                 Title = parent.Title,
                 Description = parent.Description,
-                Weight = 0 // As percentagens nascem a zero no novo Percurso!
+                Weight = parent.Weight // As percentagens nascem a zero no novo Percurso!
             };
 
             var parentResponse = await Http.PostAsJsonAsync("api/ModuleComponent", newParent);
@@ -443,7 +443,7 @@
                             Stage = data.CurrentStage,
                             Title = child.Title,
                             Description = child.Description,
-                            Weight = 0,
+                            Weight = child.Weight,
                             ParentComponentId = savedParent.Id
                         };
                         await Http.PostAsJsonAsync("api/ModuleComponent", newChild);
