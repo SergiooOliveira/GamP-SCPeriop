@@ -1,13 +1,12 @@
-﻿// Substitui pelo namespace correto do teu DbContext se for diferente
-using GamP_SCPeriop.Server.Data;
+﻿using GamP_SCPeriop.Server.Data;
 using GamP_SCPeriop.Shared.Data.Template;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace GamP_SCPeriop.Server.Controllers
 {
-    [Route("api/[controller]")]
     [ApiController]
+    [Route("api/[controller]")]
     public class PathwayTemplateController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -17,41 +16,43 @@ namespace GamP_SCPeriop.Server.Controllers
             _context = context;
         }
 
-        // 1. LER todos os Templates (já com os módulos e componentes)
+        // Devolve a lista de moldes para a grelha inicial
         [HttpGet]
-        public async Task<ActionResult<List<PathwayTemplate>>> GetPathwayTemplates()
+        public async Task<ActionResult<List<PathwayTemplate>>> GetTemplates()
         {
-            var templates = await _context.PathwayTemplates
-                .Include(p => p.ModuleTemplates)
-                    .ThenInclude(m => m.ComponentTemplates)
-                .ToListAsync();
-
-            return Ok(templates);
+            return await _context.PathwayTemplates.ToListAsync();
         }
 
-        // 2. CRIAR um novo Template Base
-        [HttpPost]
-        public async Task<ActionResult<PathwayTemplate>> CreatePathwayTemplate(PathwayTemplate template)
+        // Devolve UM molde específico com a estrutura toda (O QUE ESTAVA A FALHAR)
+        [HttpGet("{id}")]
+        public async Task<ActionResult<PathwayTemplate>> GetTemplate(int id)
         {
-            if (template == null)
-                return BadRequest("O template não pode ser nulo.");
+            var template = await _context.PathwayTemplates
+                .Include(p => p.ModuleTemplates)
+                    .ThenInclude(m => m.ComponentTemplates)
+                .FirstOrDefaultAsync(p => p.Id == id);
 
-            _context.PathwayTemplates.Add(template);
-            await _context.SaveChangesAsync();
+            if (template == null) return NotFound();
 
             return Ok(template);
         }
 
+        [HttpPost]
+        public async Task<ActionResult<PathwayTemplate>> CreateTemplate(PathwayTemplate template)
+        {
+            _context.PathwayTemplates.Add(template);
+            await _context.SaveChangesAsync();
+            return Ok(template);
+        }
+
         [HttpDelete("{id}")]
-        public async Task<IActionResult> DeletePathwayTemplate(int id)
+        public async Task<IActionResult> DeleteTemplate(int id)
         {
             var template = await _context.PathwayTemplates.FindAsync(id);
-            if (template == null)
-                return NotFound("Molde não encontrado.");
+            if (template == null) return NotFound();
 
             _context.PathwayTemplates.Remove(template);
             await _context.SaveChangesAsync();
-
             return Ok();
         }
     }

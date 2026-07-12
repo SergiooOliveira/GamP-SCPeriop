@@ -43,7 +43,6 @@ namespace GamP_SCPeriop.Server.Data
         public DbSet<PathwayTemplate> PathwayTemplates { get; set; }
         public DbSet<ModuleTemplate> ModuleTemplates { get; set; }
         public DbSet<ComponentTemplate> ComponentTemplates { get; set; }
-
         #endregion
 
         #region Model Configuration

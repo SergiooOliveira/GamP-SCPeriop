@@ -65,8 +65,6 @@
                                                 <!-- DATAS / TIMELINE (Escondido se for Template ou Teórica) -->
                                                 @if (!IsTemplateMode && stageInfo.Stage != ModuleStage.Teorica)
                                                 {
-                                                    // Como a lógica de arrastar datas é complexa, no componente partilhado nós delegamos
-                                                    // as alterações de data de volta para o pai usando o evento OnUpdateTimeline
                                                     var timeline = GetTimeline(mod, stageInfo.Stage);
                                                     <div class="d-flex align-items-center gap-2 me-3" @onclick:stopPropagation="true">
                                                         <small class="text-muted fw-bold" style="font-size: 0.7rem;">Início:</small>
@@ -110,6 +108,9 @@
     </div>
 </div>
 
+<!-- ============================================== -->
+<!-- JANELA MODAL (FASES E TAREFAS)                 -->
+<!-- ============================================== -->
 @if (activeModalModule != null && activeModalStage.HasValue)
 {
     <div class="modal-backdrop fade show" style="background-color: rgba(0,0,0,0.6); position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1040;"></div>
@@ -117,6 +118,7 @@
         <div class="modal-dialog modal-dialog-centered modal-lg">
             <div class="modal-content border-0 shadow" style="border-radius: 15px; background-color: #f4f7f6;">
 
+                <!-- Cabeçalho Modal -->
                 <div class="modal-header border-bottom-0 pb-2 pt-4 px-4 bg-white" style="border-radius: 15px 15px 0 0;">
                     <div>
                         <span class="badge bg-secondary bg-opacity-10 text-secondary border mb-2">@activeModalModule.Title</span>
@@ -126,25 +128,36 @@
                 </div>
 
                 <div class="modal-body px-4 py-4">
+                    <!-- Controlos de Topo Modal -->
                     <div class="d-flex justify-content-between align-items-end mb-3">
                         <h6 class="fw-bold text-secondary text-uppercase small mb-0">Componentes Atuais</h6>
 
                         @if (activeModalStage.Value.CopyFromStage.HasValue)
                         {
                             <button class="btn btn-sm btn-outline-primary" @onclick="CopyComponents" disabled="@isCopying">
-                                @if (isCopying)
-                                {
-                                    <span class="spinner-border spinner-border-sm me-1" role="status"></span>
-                                }
-                                else
-                                {
-                                    <i class="bi bi-copy me-1"></i>
-                                }
+                                @if (isCopying) { <span class="spinner-border spinner-border-sm me-1" role="status"></span> }
+                                else { <i class="bi bi-copy me-1"></i> }
                                 Copiar da Fase Anterior
                             </button>
                         }
+
+                       <button class="btn btn-sm @(isEditMode ? "btn-success" : "btn-outline-primary") ms-2" 
+                                @onclick="async () => { if (isEditMode) await SaveChangesBulk(); else ToggleEditMode(); }" >
+                            <i class="bi @(isEditMode ? "bi-check2-circle" : "bi-pencil-square") me-1"></i>
+                            @(isEditMode ? "Concluir Edição" : "Editar Fase")
+                        </button>
                     </div>
 
+                    <!-- Mensagem de Validação -->
+                    @if (!string.IsNullOrEmpty(validationError))
+                    {
+                        <div class="alert alert-danger py-2 mb-3 shadow-sm d-flex align-items-center">
+                            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                            <strong>Atenção:</strong>&nbsp;@validationError
+                        </div>
+                    }
+
+                    <!-- Lista de Tarefas -->
                     @if (activeModalModule.Components != null && activeModalModule.Components.Any(c => c.Stage == activeModalStage.Value.Stage))
                     {
                         <div class="list-group mb-4 shadow-sm" style="border-radius: 8px;">
@@ -157,95 +170,97 @@
                             {
                                 var children = stageComponents.Where(c => c.ParentComponentId == comp.Id).ToList();
 
-                                <div class="list-group-item d-flex justify-content-between align-items-center py-2 border-0 border-bottom bg-light">
-                                    @if (inlineEditId == comp.Id)
-                                    {
-                                        <div class="d-flex w-100 align-items-center">
-                                            <input type="text" class="form-control form-control-sm me-2 fw-bold" @bind="inlineEditTitle" />
-                                            <button class="btn btn-sm btn-success me-1 shadow-sm" @onclick="() => SaveInlineEdit(comp)"><i class="bi bi-check-lg"></i></button>
-                                            <button class="btn btn-sm btn-light border" @onclick="CancelInlineEdit"><i class="bi bi-x-lg"></i></button>
+                                @if (isEditMode)
+                                {
+                                    <div class="mb-2">
+                                        <!-- MODO EDIÇÃO: Pai -->
+                                        <div class="d-flex align-items-center mb-1">
+                                            <input type="text" class="form-control border-success fw-bold" @bind="comp.Title" />
+                                            @if (!IsTemplateMode)
+                                            {
+                                                <div class="input-group input-group-sm mx-2" style="width: 80px;">
+                                                    <input type="text" inputmode="numeric" class="form-control text-center px-1" style="width: 30px;" @bind="comp.Weight" />
+                                                    <span class="input-group-text px-1">%</span>
+                                                </div>
+                                            }
+                                            <button class="btn btn-link text-danger p-0 ms-1" @onclick="() => OnDeleteComponent.InvokeAsync(comp.Id)"><i class="bi bi-x-lg fs-5"></i></button>
                                         </div>
-                                    }
-                                    else
-                                    {
+
+                                        <!-- MODO EDIÇÃO: Filhos Existentes -->
+                                        @foreach (var child in children)
+                                        {
+                                            <div class="d-flex align-items-center ms-4 mb-2">
+                                                <i class="bi bi-arrow-return-right text-muted me-2"></i>
+                                                <input type="text" class="form-control border-dark" @bind="child.Title" />
+                                                @if (!IsTemplateMode)
+                                                {
+                                                    <div class="input-group input-group-sm mx-2" style="width: 80px;">
+                                                        <input type="text" inputmode="numeric" class="form-control text-center px-1" style="width: 30px;" @bind="child.Weight" />
+                                                        <span class="input-group-text px-1">%</span>
+                                                    </div>
+                                                }
+                                                <button class="btn btn-link text-danger p-0 ms-1" @onclick="() => OnDeleteComponent.InvokeAsync(child.Id)"><i class="bi bi-x-lg fs-5"></i></button>
+                                            </div>
+                                        }
+
+                                        <!-- MODO EDIÇÃO: Rascunho para Novos Filhos -->
+                                        @if (editModeNewChildren.ContainsKey(comp.Id))
+                                        {
+                                            @foreach (var newChild in editModeNewChildren[comp.Id])
+                                            {
+                                                <div class="d-flex align-items-center ms-4 mb-1">
+                                                    <i class="bi bi-arrow-return-right text-muted me-2"></i>
+                                                    <input type="text" class="form-control @(string.IsNullOrWhiteSpace(newChild.Text) ? "draft-empty" : "draft-filled-success")"
+                                                           placeholder="Adicionar novo sub-parâmetro..."
+                                                           style="@(string.IsNullOrWhiteSpace(newChild.Text) ? "border: 2px dashed #adb5bd !important; background-color: #f8f9fa;" : "border: 2px solid #198754;")"
+                                                           @bind="newChild.Text"
+                                                           @bind:event="oninput"
+                                                           @onkeyup="() => CheckEditModeChildrenState(comp.Id)" />
+            
+                                                    <!-- NOVA CAIXA DE PERCENTAGEM QUE SÓ APARECE SE TIVER TEXTO -->
+                                                    @if (!IsTemplateMode && !string.IsNullOrWhiteSpace(newChild.Text))
+                                                    {
+                                                        <div class="input-group input-group-sm mx-2" style="width: 80px;">
+                                                            <input type="text" inputmode="numeric" class="form-control text-center px-1" @bind="newChild.Weight" />
+                                                            <span class="input-group-text px-1">%</span>
+                                                        </div>
+                                                    }
+                                                </div>
+                                            }
+                                        }
+                                    </div>
+                                }
+                                else
+                                {
+                                    <!-- MODO LEITURA: A grelha limpa -->
+                                    <div class="list-group-item d-flex justify-content-between align-items-center py-2 border-0 border-bottom bg-light">
                                         <div class="d-flex align-items-center pe-3 flex-grow-1">
                                             <i class="bi @(string.IsNullOrEmpty(comp.PdfFilePath) ? "bi-card-text text-secondary" : "bi-link-45deg text-success") fs-5 me-2 flex-shrink-0"></i>
                                             <span class="fw-bold text-dark text-wrap">@comp.Title</span>
                                         </div>
-                                        
-                                        <!-- O SEGREDO ESTÁ AQUI: Esconder os Pesos no Modo Template -->
+
                                         @if (!IsTemplateMode)
                                         {
-                                            <div class="d-flex align-items-center gap-1 me-2 border-end pe-2">
-                                                <input type="number" class="form-control form-control-sm text-center" style="width: 50px; font-size: 0.8rem;" min="1" max="10" title="Peso"
-                                                       @bind="comp.Weight" @bind:after="() => HandleComponentWeightChange(comp)" />
-                                                <span class="badge bg-secondary bg-opacity-10 text-secondary" style="font-size: 0.7rem; width: 42px;">@GetComponentPercentage(comp)%</span>
+                                            <div class="d-flex align-items-center gap-1 me-2 pe-2">
+                                                <span class="badge bg-secondary bg-opacity-10 text-secondary" style="font-size: 0.7rem;">@comp.Weight%</span>
                                             </div>
                                         }
+                                    </div>
 
-                                        <div class="d-flex align-items-center gap-2 flex-shrink-0">
-                                            <button class="btn btn-link p-0 text-primary text-decoration-none shadow-none" title="Editar" @onclick="() => StartInlineEdit(comp)">
-                                                <i class="bi bi-pencil-square fs-6 lh-1"></i>
-                                            </button>
-                                            <button class="btn btn-link p-0 text-danger text-decoration-none shadow-none" title="Remover" @onclick="() => OnDeleteComponent.InvokeAsync(comp.Id)">
-                                                <i class="bi bi-trash3 fs-6 lh-1"></i>
-                                            </button>
-                                        </div>
-                                    }
-                                </div>
-
-                                @foreach (var child in children)
-                                {
-                                    <div class="list-group-item d-flex justify-content-between align-items-center py-2 border-0 border-bottom ms-4">
-                                        @if (inlineEditId == child.Id)
-                                        {
-                                            <div class="d-flex w-100 align-items-center">
-                                                <input type="text" class="form-control form-control-sm me-2" @bind="inlineEditTitle" />
-                                                <button class="btn btn-sm btn-success me-1 shadow-sm" @onclick="() => SaveInlineEdit(child)"><i class="bi bi-check-lg"></i></button>
-                                                <button class="btn btn-sm btn-light border" @onclick="CancelInlineEdit"><i class="bi bi-x-lg"></i></button>
-                                            </div>
-                                        }
-                                        else
-                                        {
+                                    @foreach (var child in children)
+                                    {
+                                        <div class="list-group-item d-flex justify-content-between align-items-center py-2 border-0 border-bottom ms-4">
                                             <div class="d-flex align-items-center pe-3 flex-grow-1">
                                                 <i class="bi @(string.IsNullOrEmpty(child.PdfFilePath) ? "bi-card-text text-secondary" : "bi-link-45deg text-success") fs-6 me-2 flex-shrink-0"></i>
                                                 <span class="fw-semibold text-dark text-wrap" style="font-size: 0.95rem;">@child.Title</span>
                                             </div>
 
-                                            <!-- O SEGREDO ESTÁ AQUI: Esconder os Pesos no Modo Template -->
                                             @if (!IsTemplateMode)
                                             {
-                                                <div class="d-flex align-items-center gap-1 me-2 border-end pe-2">
-                                                    <input type="number" class="form-control form-control-sm text-center" style="width: 50px; font-size: 0.8rem;" min="1" max="10" title="Peso"
-                                                           @bind="child.Weight" @bind:after="() => HandleComponentWeightChange(child)" />
-                                                    <span class="badge bg-secondary bg-opacity-10 text-secondary" style="font-size: 0.7rem; width: 42px;">@GetComponentPercentage(child)%</span>
+                                                <div class="d-flex align-items-center gap-1 me-2 pe-2">
+                                                    <span class="badge bg-secondary bg-opacity-10 text-secondary" style="font-size: 0.7rem;">@child.Weight%</span>
                                                 </div>
                                             }
-
-                                            <div class="d-flex align-items-center gap-2 flex-shrink-0">
-                                                <button class="btn btn-link p-0 text-primary text-decoration-none shadow-none" title="Editar" @onclick="() => StartInlineEdit(child)">
-                                                    <i class="bi bi-pencil-square fs-6 lh-1"></i>
-                                                </button>
-                                                <button class="btn btn-link p-0 text-danger text-decoration-none shadow-none" title="Remover" @onclick="() => OnDeleteComponent.InvokeAsync(child.Id)">
-                                                    <i class="bi bi-trash3 fs-6 lh-1"></i>
-                                                </button>
-                                            </div>
-                                        }
-                                    </div>
-                                }
-
-                                @if (inlineEditId == comp.Id && comp.ParentComponentId == null)
-                                {
-                                    @foreach (var newChild in inlineNewChildren)
-                                    {
-                                        <div class="list-group-item d-flex align-items-center py-2 border-0 border-bottom ms-4" style="background-color: #f8f9fa;">
-                                            <i class="bi bi-arrow-return-right text-muted me-2"></i>
-                                            <input type="text"
-                                                   class="form-control form-control-sm @(string.IsNullOrWhiteSpace(newChild.Text) ? "draft-empty" : "draft-filled-success")"
-                                                   placeholder="Adicionar novo sub-parâmetro..."
-                                                   @bind="newChild.Text"
-                                                   @bind:event="oninput"
-                                                   @onkeyup="CheckInlineChildrenState" />
                                         </div>
                                     }
                                 }
@@ -259,17 +274,13 @@
                         </div>
                     }
 
-                    <!-- Aqui é o bloco de adicionar componentes (teóricas ou rápidas) -->
-                    <!-- Para não encher demasiado o código, a lógica do formulário de baixo mantém-se intacta como no original, ligada aos novos DTOs -->
+                    <!-- Adicionar Novos Componentes -->
                     <div class="p-4 rounded bg-white shadow-sm" style="border: 1px dashed #ced4da;">
                         @if (activeModalStage.Value.Stage == ModuleStage.Teorica)
                         {
                             <div class="d-flex justify-content-between align-items-center mb-3">
-                                <h6 class="fw-bold text-primary mb-0">@(componentToEdit.Id == 0 ? "Adicionar Nova Componente Teórica" : "A Editar Item...")</h6>
-                                @if (componentToEdit.Id != 0)
-                                {
-                                    <button class="btn btn-sm btn-light border" @onclick="ResetForm">Cancelar Edição</button>
-                                }
+                                <h6 class="fw-bold text-primary mb-0">Adicionar Nova Componente Teórica</h6>
+                                <button class="btn btn-sm btn-light border" @onclick="ResetForm">Limpar</button>
                             </div>
 
                             <div class="mb-3">
@@ -332,17 +343,13 @@
                             {
                                 <div class="text-end mt-2">
                                     <button class="btn btn-success px-4 fw-bold shadow-sm" @onclick="SaveRapidStructure" disabled="@isSavingModal">
-                                        @if (isSavingModal)
-                                        {
-                                            <span class="spinner-border spinner-border-sm me-2"></span>
-                                        }
+                                        @if (isSavingModal) { <span class="spinner-border spinner-border-sm me-2"></span> }
                                         Guardar Estrutura
                                     </button>
                                 </div>
                             }
                         }
                     </div>
-
                 </div>
             </div>
         </div>
@@ -350,42 +357,51 @@
 }
 
 @code {
-    // --- 1. PARÂMETROS E EVENTOS ---
+    #region [ Parâmetros e Eventos (Comunicação com o Pai) ]
+    
     [Parameter] public bool IsTemplateMode { get; set; } = false;
     [Parameter] public string ParentTitle { get; set; } = string.Empty;
     [Parameter] public List<BuilderModuleDto> Modules { get; set; } = new();
 
+    // Eventos de Módulos e Datas
     [Parameter] public EventCallback<string> OnCreateModule { get; set; }
     [Parameter] public EventCallback<int> OnDeleteModule { get; set; }
     [Parameter] public EventCallback<BuilderModuleDto> OnUpdateModuleWeight { get; set; }
-    [Parameter] public EventCallback<(int, ModuleStage, DateTime, bool)> OnUpdateTimeline { get; set; }
+    [Parameter] public EventCallback<(int ModuleId, ModuleStage Stage, DateTime Date, bool IsStart)> OnUpdateTimeline { get; set; }
 
-    // (NOVOS) Eventos para as tarefas
-    [Parameter] public EventCallback<BuilderComponentDto> OnSaveComponent { get; set; }
+    // Eventos de Tarefas / Modal
     [Parameter] public EventCallback<int> OnDeleteComponent { get; set; }
+    [Parameter] public EventCallback<(int ModuleId, ModuleStage Stage, List<DraftParent> Drafts)> OnSaveRapidStructureEvent { get; set; }
+    [Parameter] public EventCallback<(int ModuleId, BuilderComponentDto Component)> OnSaveTheoreticalEvent { get; set; }
+    [Parameter] public EventCallback<(int ModuleId, ModuleStage CurrentStage, ModuleStage SourceStage)> OnCopyComponentsEvent { get; set; }
+    [Parameter] public EventCallback<(int ModuleId, ModuleStage Stage, List<BuilderComponentDto> UpdatedComponents, Dictionary<int, List<(string Title, int Weight)>> NewSubTasks)> OnSaveBulkEditEvent { get; set; }  
 
-    // --- 2. VARIÁVEIS INTERNAS DE UI ---
+    #endregion
+
+    #region [ Variáveis de Estado UI ]
+
     private int expandedModuleId = 0;
     private string newModuleTitle = string.Empty;
 
-    // (CORRIGIDO) Agora usam os DTOs do construtor
+    // Estado do Modal
     private BuilderModuleDto? activeModalModule;
     private BuilderComponentDto componentToEdit = new();
-
     private (ModuleStage Stage, string Title, string Icon, ModuleStage? CopyFromStage)? activeModalStage;
     private bool isSavingModal = false;
     private bool isCopying = false;
+    
+    // Estado do Bulk Edit (Edição em Massa)
+    private bool isEditMode = false;
+    private string? validationError;
+    private Dictionary<int, List<DraftChild>> editModeNewChildren = new();
 
-    // --- 3. VARIÁVEIS DE EDIÇÃO INLINE E DRAFTS ---
-    private int? inlineEditId = null;
-    private string inlineEditTitle = string.Empty;
-    private List<DraftChild> inlineNewChildren = new() { new DraftChild() };
+    // Estado do Rascunho (Adicionar Nova Estrutura)
+    public class DraftParent { public string Text { get; set; } = ""; public List<DraftChild> Children { get; set; } = new() { new DraftChild() }; }
+    public class DraftChild { public string Text { get; set; } = ""; public int Weight { get; set; } = 0; }
+    private List<DraftParent> drafts = new() { new DraftParent() };
     private DraftParent? activeDraftParent = null;
 
-    public class DraftParent { public string Text { get; set; } = ""; public List<DraftChild> Children { get; set; } = new() { new DraftChild() }; }
-    public class DraftChild { public string Text { get; set; } = ""; }
-    private List<DraftParent> drafts = new() { new DraftParent() };
-
+    // Definição estática das fases
     private List<(ModuleStage Stage, string Title, string Icon, ModuleStage? CopyFromStage)> stagesToRender = new()
     {
         (ModuleStage.Teorica, "Componente Teórica", "bi-journal-text", null),
@@ -395,7 +411,25 @@
         (ModuleStage.PraticaSupervisionada, "Prática Supervisionada", "bi-person-check", ModuleStage.PraticaAssistida)
     };
 
-    // --- 4. MÉTODOS DE AÇÃO VISUAL (Módulos) ---
+    #endregion
+
+    #region [ Ciclo de Vida ]
+
+    /// <summary>
+    /// Mantém o Modal atualizado sempre que a Base de Dados sofre alterações e redesenha.
+    /// </summary>
+    protected override void OnParametersSet()
+    {
+        if (activeModalModule != null)
+        {
+            activeModalModule = Modules.FirstOrDefault(m => m.Id == activeModalModule.Id);
+        }
+    }
+
+    #endregion
+
+    #region [ Controlo de Módulos e Visuais Base ]
+
     private void ToggleModule(int moduleId) => expandedModuleId = (expandedModuleId == moduleId) ? 0 : moduleId;
 
     private async Task CreateModule()
@@ -427,24 +461,30 @@
         return (int)Math.Round((double)Math.Max(1, mod.Weight) / total * 100);
     }
 
-    private GamP_SCPeriop.Shared.Entity.Model.ModuleStageTimeline? GetTimeline(BuilderModuleDto mod, ModuleStage stage)
+    private ModuleStageTimeline? GetTimeline(BuilderModuleDto mod, ModuleStage stage)
     {
         return mod.StageTimelines?.FirstOrDefault(t => t.Stage == stage);
     }
 
-    // --- 5. MÉTODOS DE CONTROLO DO MODAL ---
+    #endregion
+
+    #region [ Controlo do Modal e Formulários ]
+
     private void OpenStageModal(BuilderModuleDto mod, (ModuleStage Stage, string Title, string Icon, ModuleStage? CopyFromStage) stageInfo)
     {
         activeModalModule = mod;
         activeModalStage = stageInfo;
+        isEditMode = false;
+        editModeNewChildren.Clear();
         ResetForm();
-        CancelInlineEdit();
     }
 
     private void CloseStageModal()
     {
         activeModalModule = null;
         activeModalStage = null;
+        isEditMode = false;
+        editModeNewChildren.Clear();
     }
 
     private void ResetForm()
@@ -453,13 +493,9 @@
         drafts = new List<DraftParent> { new DraftParent() };
     }
 
-    // --- 6. MÉTODOS VISUAIS DAS LISTAS (Faltavam no teu código) ---
-    private void CheckInlineChildrenState()
-    {
-        if (!string.IsNullOrWhiteSpace(inlineNewChildren.Last().Text)) inlineNewChildren.Add(new DraftChild());
-        else if (inlineNewChildren.Count > 1 && string.IsNullOrWhiteSpace(inlineNewChildren[^2].Text)) inlineNewChildren.RemoveAt(inlineNewChildren.Count - 2);
-    }
-
+    /// <summary>
+    /// Gere a criação dinâmica de novas caixas de input enquanto o utilizador escreve nos Rascunhos Base.
+    /// </summary>
     private void CheckListState(DraftParent currentParent)
     {
         if (!string.IsNullOrWhiteSpace(drafts.Last().Text)) drafts.Add(new DraftParent());
@@ -475,36 +511,103 @@
         }
     }
 
-    // --- 7. MÉTODOS DE EDIÇÃO E GRAVAÇÃO ---
-    private void StartInlineEdit(BuilderComponentDto comp)
+    #endregion
+
+    #region [ Processamento de Gravações ]
+
+    private async Task SaveRapidStructure()
     {
-        inlineEditId = comp.Id;
-        inlineEditTitle = comp.Title;
-        inlineNewChildren = new List<DraftChild> { new DraftChild() };
+        if (activeModalModule == null || !activeModalStage.HasValue) return;
+        isSavingModal = true;
+        await OnSaveRapidStructureEvent.InvokeAsync((activeModalModule.Id, activeModalStage.Value.Stage, drafts));
+        isSavingModal = false;
+        ResetForm();
     }
 
-    private void CancelInlineEdit()
+    private async Task SaveComponent()
     {
-        inlineEditId = null;
-        inlineNewChildren.Clear();
+        if (activeModalModule == null || !activeModalStage.HasValue) return;
+        isSavingModal = true;
+        componentToEdit.Stage = activeModalStage.Value.Stage;
+        await OnSaveTheoreticalEvent.InvokeAsync((activeModalModule.Id, componentToEdit));
+        isSavingModal = false;
+        ResetForm();
     }
 
-    private async Task HandleComponentWeightChange(BuilderComponentDto comp)
+    private async Task CopyComponents()
     {
-        if (comp.Weight < 1) comp.Weight = 1;
-        await OnSaveComponent.InvokeAsync(comp);
+        if (activeModalModule == null || !activeModalStage.HasValue || !activeModalStage.Value.CopyFromStage.HasValue) return;
+        isCopying = true;
+        await OnCopyComponentsEvent.InvokeAsync((activeModalModule.Id, activeModalStage.Value.Stage, activeModalStage.Value.CopyFromStage.Value));
+        isCopying = false;
     }
 
-    private int GetComponentPercentage(BuilderComponentDto comp)
+    #endregion
+
+    #region [ Edição em Massa (Bulk Edit) ]
+
+    private void ToggleEditMode()
     {
-        var peers = activeModalModule?.Components.Where(c => c.Stage == comp.Stage && c.ParentComponentId == comp.ParentComponentId).ToList() ?? new();
-        var total = peers.Sum(c => Math.Max(1, c.Weight));
-        return total == 0 ? 0 : (int)Math.Round((double)Math.Max(1, comp.Weight) / total * 100);
+        isEditMode = true;
+        validationError = null;
+        editModeNewChildren.Clear();
+    
+        var topLevel = activeModalModule?.Components.Where(c => c.ParentComponentId == null && c.Stage == activeModalStage?.Stage).ToList() ?? new();
+        foreach (var p in topLevel) editModeNewChildren[p.Id] = new List<DraftChild> { new DraftChild() };
     }
 
-    // Esqueletos dos botões de gravar que faltavam (vamos ligá-los à API na página pai no próximo passo)
-    private async Task SaveComponent() { /* A ligar à API em breve */ }
-    private async Task SaveRapidStructure() { /* A ligar à API em breve */ }
-    private async Task SaveInlineEdit(BuilderComponentDto comp) { /* A ligar à API em breve */ }
-    private async Task CopyComponents() { /* A ligar à API em breve */ }
+    private void CheckEditModeChildrenState(int parentId)
+    {
+        var list = editModeNewChildren[parentId];
+        if (!string.IsNullOrWhiteSpace(list.Last().Text)) list.Add(new DraftChild());
+        else if (list.Count > 1 && string.IsNullOrWhiteSpace(list[^2].Text)) list.RemoveAt(list.Count - 2);
+    }
+
+    private async Task SaveChangesBulk()
+    {
+        if (activeModalModule == null || !activeModalStage.HasValue) return;
+
+        var componentsToUpdate = activeModalModule.Components.Where(c => c.Stage == activeModalStage.Value.Stage).ToList();
+        var topLevel = componentsToUpdate.Where(c => c.ParentComponentId == null).ToList();
+
+        // VALIDAÇÃO 1: Os Pais têm de somar 100%
+        if (topLevel.Any() && topLevel.Sum(c => c.Weight) != 100)
+        {
+            validationError = "A soma das percentagens dos parâmetros principais tem de ser exatamente 100%.";
+            return;
+        }
+
+        // VALIDAÇÃO 2: Os Filhos de cada Pai têm de somar 100% (Contando com os novos!)
+        foreach (var parent in topLevel)
+        {
+            var existingChildren = componentsToUpdate.Where(c => c.ParentComponentId == parent.Id).ToList();
+            var newChildren = editModeNewChildren.ContainsKey(parent.Id) ? editModeNewChildren[parent.Id].Where(c => !string.IsNullOrWhiteSpace(c.Text)).ToList() : new();
+
+            var totalWeight = existingChildren.Sum(c => c.Weight) + newChildren.Sum(c => c.Weight);
+
+            if ((existingChildren.Any() || newChildren.Any()) && totalWeight != 100)
+            {
+                validationError = $"A soma das percentagens dos sub-parâmetros de '{parent.Title}' tem de ser exatamente 100%.";
+                return;
+            }
+        }
+
+        // Sem erros: Prepara empacotamento
+        validationError = null;
+        isSavingModal = true;
+
+        var newSubTasksDict = new Dictionary<int, List<(string Title, int Weight)>>();
+        foreach (var kvp in editModeNewChildren)
+        {
+            var validTasks = kvp.Value.Where(c => !string.IsNullOrWhiteSpace(c.Text)).Select(c => (c.Text, c.Weight)).ToList();
+            if (validTasks.Any()) newSubTasksDict[kvp.Key] = validTasks;
+        }
+
+        await OnSaveBulkEditEvent.InvokeAsync((activeModalModule.Id, activeModalStage.Value.Stage, componentsToUpdate, newSubTasksDict));
+    
+        isSavingModal = false;
+        isEditMode = false;
+    }
+
+    #endregion
 }

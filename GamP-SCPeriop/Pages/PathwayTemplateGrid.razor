@@ -3,24 +3,12 @@
 @inject HttpClient Http
 @inject IJSRuntime JSRuntime
 @using GamP_SCPeriop.Shared.Data.Template
+@using GamP_SCPeriop.Shared.Entity.Model
+@using GamP_SCPeriop.Components
+@using GamP_SCPeriop.Shared.Enum
 
-<div class="container-fluid">
-    <!-- Cabeçalho e Pesquisa -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h3>Modelos de Percurso</h3>
-
-        <div class="d-flex gap-2">
-            <!-- O @bind-value com bind-value:event="oninput" faz a pesquisa em tempo real -->
-            <input type="text" class="form-control" placeholder="Pesquisar molde..."
-                   @bind-value="SearchTerm" @bind-value:event="oninput" />
-
-            <button class="btn btn-primary text-nowrap" @onclick="CreateNewTemplate">
-                + Novo Molde
-            </button>
-        </div>
-    </div>
-
-    <!-- Grelha de Cartões -->
+<div class="container-fluid mt-4">
+    
     @if (isLoading)
     {
         <div class="text-center mt-5">
@@ -28,63 +16,96 @@
             <p class="mt-2 text-muted">A carregar moldes...</p>
         </div>
     }
-    else
+    else if (activeTemplate == null)
     {
+        <!-- ESTADO 1: GRELHA DE MOLDES (O teu ecrã original) -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h3 class="fw-bold">Modelos de Percurso</h3>
+            <div class="d-flex gap-2">
+                <input type="text" class="form-control shadow-sm border-0" placeholder="Pesquisar molde..."
+                       @bind-value="SearchTerm" @bind-value:event="oninput" />
+                <button class="btn text-white fw-bold shadow-sm text-nowrap" style="background-color: #6A96A6;" @onclick="CreateNewTemplate">
+                    <i class="bi bi-plus-lg me-1"></i> Novo Molde
+                </button>
+            </div>
+        </div>
+
         <div class="row row-cols-1 row-cols-md-3 g-4">
             @foreach (var template in FilteredTemplates)
             {
                 <div class="col">
-                    <div class="card h-100 shadow-sm">
+                    <div class="card h-100 shadow-sm border-0" style="border-radius: 15px;">
                         <div class="card-body">
-                            <h5 class="card-title">@template.Title</h5>
-                            <p class="card-text text-muted">@template.Description</p>
+                            <h5 class="card-title fw-bold text-primary">@template.Title</h5>
+                            <p class="card-text text-muted small">@template.Description</p>
                         </div>
-                        <div class="card-footer bg-transparent d-flex justify-content-end gap-2">
-                            <!-- Botões de Ação do Cartão -->
-                            <button class="btn btn-sm btn-outline-secondary">Editar</button>
-                            <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteTemplate(template.Id)">Apagar</button>
+                        <div class="card-footer bg-transparent border-0 d-flex justify-content-end gap-2 pb-3">
+                            <button class="btn btn-sm btn-outline-primary" @onclick="() => LoadActiveTemplate(template.Id)">
+                                <i class="bi bi-pencil-square me-1"></i> Editar Estrutura
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteTemplate(template.Id)">
+                                <i class="bi bi-trash3"></i>
+                            </button>
                         </div>
                     </div>
                 </div>
             }
         </div>
     }
+    else
+    {
+        <!-- ESTADO 2: O CONSTRUTOR ATIVO (Usando o Motor Partilhado) -->
+        <div class="alert alert-primary d-flex justify-content-between align-items-center shadow-sm border-0" style="border-radius: 10px; background-color: #e9f2f9;">
+            <div>
+                <span class="text-muted small fw-bold text-uppercase">A Editar Molde Base:</span><br />
+                <strong class="fs-5 text-primary">@activeTemplate.Title</strong>
+            </div>
+            <div>
+                <button class="btn btn-sm btn-primary shadow-sm" @onclick="CloseActiveTemplate">
+                    <i class="bi bi-arrow-left me-1"></i> Voltar aos Moldes
+                </button>
+            </div>
+        </div>
+
+        <!-- O Motor Partilhado configurado para IsTemplateMode = true -->
+        <PathwayBuilderComponent 
+            IsTemplateMode="true"
+            ParentTitle="@activeTemplate.Title"
+            Modules="@BuilderModules"
+            OnCreateModule="CreateModuleFromBuilder"
+            OnDeleteModule="DeleteActiveModule"
+            OnSaveRapidStructureEvent="SaveRapidStructureFromBuilder"
+            OnSaveTheoreticalEvent="SaveTheoreticalFromBuilder"
+            OnDeleteComponent="DeleteComponentFromBuilder"
+            OnSaveBulkEditEvent="SaveBulkEditFromBuilder" />
+    }
 </div>
 
+<!-- Modal de Criação (Mantém-se igual ao original) -->
 @if (showCreateModal)
 {
     <div class="modal-backdrop fade show" style="background-color: rgba(0,0,0,0.5);"></div>
     <div class="modal fade show d-block" tabindex="-1" @onclick="CloseCreateModal">
         <div class="modal-dialog modal-dialog-centered" @onclick:stopPropagation="true">
             <div class="modal-content border-0 shadow" style="border-radius: 20px;">
-
                 <div class="modal-header border-0 pb-0 mt-4 d-flex flex-column align-items-center">
                     <button type="button" class="btn-close position-absolute top-0 end-0 m-3" @onclick="CloseCreateModal"></button>
                     <h4 class="fw-bold mb-0 text-dark">Novo Molde Base</h4>
                     <p class="text-muted small mb-2">Estrutura inicial do template</p>
                 </div>
-
                 <div class="modal-body px-4 pb-4 mt-2">
                     <div class="mb-3">
                         <label class="form-label fw-semibold text-secondary small mb-1">Título do Molde</label>
                         <input class="form-control border-0 shadow-sm bg-light" style="border-radius: 10px; padding: 12px;" @bind="newTemplate.Title" />
                     </div>
-
                     <div class="mb-4">
                         <label class="form-label fw-semibold text-secondary small mb-1">Descrição</label>
                         <textarea class="form-control border-0 shadow-sm bg-light" style="border-radius: 10px; padding: 12px; resize: none;" rows="2" @bind="newTemplate.Description"></textarea>
                     </div>
-
                     <button class="btn w-100 text-white fw-bold py-3 shadow-sm" style="border-radius: 10px; background-color: #6A96A6;"
                             @onclick="SaveNewTemplate" disabled="@isSubmitting">
-                        @if (isSubmitting)
-                        {
-                            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                        }
-                        else
-                        {
-                            <span>Criar Molde</span>
-                        }
+                        @if (isSubmitting) { <span class="spinner-border spinner-border-sm me-2"></span> }
+                        else { <span>Criar Molde</span> }
                     </button>
                 </div>
             </div>
@@ -93,104 +114,180 @@
 }
 
 @code {
+    #region [ Variáveis de Estado da Lista ]
     private bool isLoading = true;
-
     private List<PathwayTemplate> Templates = new();
     private string SearchTerm = string.Empty;
-
-    // Variáveis de estado do modal
     private bool showCreateModal = false;
     private bool isSubmitting = false;
     private PathwayTemplate newTemplate = new();
 
-    // Propriedade calculada: sempre que o ecrã desenha, filtra automaticamente
     private IEnumerable<PathwayTemplate> FilteredTemplates =>
-        string.IsNullOrWhiteSpace(SearchTerm)
-            ? Templates
-            : Templates.Where(t => t.Title.Contains(SearchTerm, StringComparison.OrdinalIgnoreCase));
+        string.IsNullOrWhiteSpace(SearchTerm) ? Templates : Templates.Where(t => t.Title.Contains(SearchTerm, StringComparison.OrdinalIgnoreCase));
+    #endregion
+
+    #region [ Variáveis de Estado do Construtor ]
+    private PathwayTemplate? activeTemplate;
+
+    // TRADUTOR: Converte os ModuleTemplates da BD para o formato visual que o Motor precisa
+    private List<BuilderModuleDto> BuilderModules => activeTemplate?.ModuleTemplates?.Select(m => new BuilderModuleDto
+    {
+        Id = m.Id,
+        Title = m.Title,
+        Weight = 0, // Ignorado no Template
+        StageTimelines = new(), // Ignorado no Template
+        Components = m.ComponentTemplates?.Select(c => new BuilderComponentDto
+        {
+            Id = c.Id,
+            Title = c.Title,
+            Description = c.Description,
+            Stage = c.Stage,
+            Weight = 0, // Ignorado no Template
+            ParentComponentId = c.ParentComponentTemplateId,
+            PdfFilePath = ""
+        }).ToList() ?? new List<BuilderComponentDto>()
+    }).ToList() ?? new List<BuilderModuleDto>();
+    #endregion
 
     protected override async Task OnInitializedAsync()
     {
+        await LoadTemplatesList();
+    }
+
+    private async Task LoadTemplatesList()
+    {
         try
         {
-            // Vai buscar a lista de moldes à API
+            isLoading = true;
             var result = await Http.GetFromJsonAsync<List<PathwayTemplate>>("api/PathwayTemplate");
-
-            if (result != null)
-            {
-                Templates = result;
-            }
+            if (result != null) Templates = result;
         }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Erro ao carregar os templates: {ex.Message}");
-        }
-        finally
-        {
-            isLoading = false; // Desliga o loading aconteça o que acontecer
-        }
+        catch (Exception ex) { Console.WriteLine($"Erro: {ex.Message}"); }
+        finally { isLoading = false; }
     }
 
-    private void CreateNewTemplate()
-    {
-        newTemplate = new PathwayTemplate(); // Limpa o formulário
-        showCreateModal = true;
-    }
+    #region [ Gestão da Lista e Modal Criar ]
+    private void CreateNewTemplate() { newTemplate = new PathwayTemplate(); showCreateModal = true; }
+    private void CloseCreateModal() { showCreateModal = false; }
 
-    private void CloseCreateModal()
-    {
-        showCreateModal = false;
-    }
-
-    // Função de gravação
     private async Task SaveNewTemplate()
     {
         if (string.IsNullOrWhiteSpace(newTemplate.Title)) return;
-
         isSubmitting = true;
-
         var response = await Http.PostAsJsonAsync("api/PathwayTemplate", newTemplate);
-
         if (response.IsSuccessStatusCode)
         {
-            var createdTemplate = await response.Content.ReadFromJsonAsync<PathwayTemplate>();
-            if (createdTemplate != null)
-            {
-                Templates.Add(createdTemplate); // Atualiza a grelha visualmente
-                CloseCreateModal();
-            }
+            await LoadTemplatesList();
+            CloseCreateModal();
         }
-        else
-        {
-            Console.WriteLine("Erro ao criar o molde.");
-        }
-
         isSubmitting = false;
     }
 
     private async Task DeleteTemplate(int id)
     {
-        // 1. Pede confirmação ao utilizador
         bool confirmed = await JSRuntime.InvokeAsync<bool>("confirm", "Tem a certeza que deseja apagar este molde?");
         if (!confirmed) return;
-
-        // 2. Chama a API para apagar
         var response = await Http.DeleteAsync($"api/PathwayTemplate/{id}");
+        if (response.IsSuccessStatusCode) await LoadTemplatesList();
+    }
+    #endregion
 
-        if (response.IsSuccessStatusCode)
+    #region [ Gestão do Construtor Ativo (Comunicação com o Motor) ]
+    
+    private async Task LoadActiveTemplate(int templateId)
+    {
+        isLoading = true;
+        // Pede o template com os filhos incluídos (precisa do .Include no backend)
+        activeTemplate = await Http.GetFromJsonAsync<PathwayTemplate>($"api/PathwayTemplate/{templateId}");
+        isLoading = false;
+    }
+
+    private void CloseActiveTemplate()
+    {
+        activeTemplate = null;
+        StateHasChanged();
+    }
+
+    private async Task CreateModuleFromBuilder(string title)
+    {
+        // 1. Criar o objeto para a API (Assumindo que tens uma rota POST api/ModuleTemplate)
+        var newMod = new ModuleTemplate { Title = title, PathwayTemplateId = activeTemplate!.Id };
+        await Http.PostAsJsonAsync("api/ModuleTemplate", newMod);
+        await LoadActiveTemplate(activeTemplate.Id); // Recarrega os dados visuais
+    }
+
+    private async Task DeleteActiveModule(int moduleId)
+    {
+        await Http.DeleteAsync($"api/ModuleTemplate/{moduleId}");
+        await LoadActiveTemplate(activeTemplate!.Id);
+    }
+
+    private async Task SaveRapidStructureFromBuilder((int ModuleId, ModuleStage Stage, List<PathwayBuilderComponent.DraftParent> Drafts) data)
+    {
+        // NOTA: Requer o controlador ComponentTemplate configurado
+        foreach (var parent in data.Drafts.Where(p => !string.IsNullOrWhiteSpace(p.Text)))
         {
-            // 3. Remove o cartão da lista visual sem precisar de fazer refresh à página
-            var templateToRemove = Templates.FirstOrDefault(t => t.Id == id);
-            if (templateToRemove != null)
+            var dtoParent = new ComponentTemplate { ModuleTemplateId = data.ModuleId, Title = parent.Text, Stage = data.Stage };
+            var response = await Http.PostAsJsonAsync("api/ComponentTemplate", dtoParent);
+            if (response.IsSuccessStatusCode)
             {
-                Templates.Remove(templateToRemove);
+                var savedParent = await response.Content.ReadFromJsonAsync<ComponentTemplate>();
+                if (savedParent != null)
+                {
+                    foreach (var child in parent.Children.Where(f => !string.IsNullOrWhiteSpace(f.Text)))
+                    {
+                        var dtoChild = new ComponentTemplate { ModuleTemplateId = data.ModuleId, Title = child.Text, Stage = data.Stage, ParentComponentTemplateId = savedParent.Id };
+                        await Http.PostAsJsonAsync("api/ComponentTemplate", dtoChild);
+                    }
+                }
             }
+        }
+        await LoadActiveTemplate(activeTemplate!.Id);
+    }
+
+    private async Task SaveTheoreticalFromBuilder((int ModuleId, BuilderComponentDto Component) data)
+    {
+        if (data.Component.Id == 0)
+        {
+            var dto = new ComponentTemplate { ModuleTemplateId = data.ModuleId, Title = data.Component.Title, Description = data.Component.Description, Stage = data.Component.Stage };
+            await Http.PostAsJsonAsync("api/ComponentTemplate", dto);
         }
         else
         {
-            Console.WriteLine("Erro ao apagar o molde.");
+            await Http.PutAsJsonAsync($"api/ComponentTemplate/{data.Component.Id}", data.Component);
         }
+        await LoadActiveTemplate(activeTemplate!.Id);
     }
 
+    private async Task DeleteComponentFromBuilder(int componentId)
+    {
+        await Http.DeleteAsync($"api/ComponentTemplate/{componentId}");
+        await LoadActiveTemplate(activeTemplate!.Id);
+    }
 
+    private async Task SaveBulkEditFromBuilder((int ModuleId, ModuleStage Stage, List<BuilderComponentDto> UpdatedComponents, Dictionary<int, List<(string Title, int Weight)>> NewSubTasks) data)
+    {
+        // 1. Atualizar Títulos (Pesos são ignorados no Template)
+        foreach (var comp in data.UpdatedComponents)
+        {
+            var dbComp = await Http.GetFromJsonAsync<ComponentTemplate>($"api/ComponentTemplate/{comp.Id}");
+            if (dbComp != null)
+            {
+                dbComp.Title = comp.Title;
+                await Http.PutAsJsonAsync($"api/ComponentTemplate/{comp.Id}", dbComp);
+            }
+        }
+
+        // 2. Criar Novas Tarefas
+        foreach (var kvp in data.NewSubTasks)
+        {
+            foreach (var task in kvp.Value)
+            {
+                var dtoChild = new ComponentTemplate { ModuleTemplateId = data.ModuleId, Title = task.Title, Stage = data.Stage, ParentComponentTemplateId = kvp.Key };
+                await Http.PostAsJsonAsync("api/ComponentTemplate", dtoChild);
+            }
+        }
+        await LoadActiveTemplate(activeTemplate!.Id);
+    }
+    #endregion
 }

@@ -30,13 +30,14 @@ namespace GamP_SCPeriop.Server.Controllers
                 Description = dto.Description,
                 PdfFilePath = dto.PdfFilePath ?? string.Empty,
                 Status = ComponentStatus.Pending,
-                ParentComponentId = dto.ParentComponentId
+                ParentComponentId = dto.ParentComponentId,
+                Weight = dto.Weight
             };
 
             _context.ModuleComponents.Add(component);
             await _context.SaveChangesAsync();
 
-            // Returns the object with its new Database ID so the Frontend can edit/delete it immediately
+            // Devolve o objeto com o novo ID da BD para o Frontend poder editar/apagar imediatamente
             return CreatedAtAction(nameof(GetComponent), new { id = component.Id }, component);
         }
 
@@ -49,10 +50,11 @@ namespace GamP_SCPeriop.Server.Controllers
             var existingComponent = await _context.ModuleComponents.FindAsync(id);
             if (existingComponent == null) return NotFound();
 
-            // Update only the fields the supervisor is allowed to change
+            // Atualiza apenas os campos permitidos
             existingComponent.Title = updatedComponent.Title;
             existingComponent.Description = updatedComponent.Description;
             existingComponent.PdfFilePath = updatedComponent.PdfFilePath ?? string.Empty;
+            existingComponent.Weight = updatedComponent.Weight; // <-- CORREÇÃO: O peso é agora atualizado na edição
 
             await _context.SaveChangesAsync();
             return NoContent();
@@ -65,21 +67,22 @@ namespace GamP_SCPeriop.Server.Controllers
             var component = await _context.ModuleComponents.FindAsync(id);
             if (component == null) return NotFound();
 
-            // 1. Procurar e apagar todos os filhos primeiro (A MAGIA ACONTECE AQUI)
+            // Procurar e apagar todos os filhos primeiro (Cascata manual)
             var children = await _context.ModuleComponents.Where(c => c.ParentComponentId == id).ToListAsync();
             if (children.Any())
             {
                 _context.ModuleComponents.RemoveRange(children);
             }
 
-            // 2. Apagar o Pai em segurança
+            // Apagar o Pai em segurança
             _context.ModuleComponents.Remove(component);
             await _context.SaveChangesAsync();
 
             return Ok();
         }
 
-        // --- 4. GET SINGLE --- (Required for the CreatedAtAction to work properly)
+        // --- 4. GET SINGLE ---
+        // (Necessário para o CreatedAtAction funcionar corretamente no POST)
         [HttpGet("{id}")]
         public async Task<ActionResult<ModuleComponent>> GetComponent(int id)
         {
