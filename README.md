@@ -1,22 +1,3 @@
-# GamP_SCPeriop
-
-## Conceito do Projeto
-O *GamP_SCPeriop* é uma plataforma de gestão e gamificação de percursos de aprendizagem focada no ensino perioperatório. O projeto combina a estruturação rigorosa de planos de estudo (Pathways) com um sistema de recompensas interativo. O objetivo é duplo: facilitar a vida aos supervisores na monitorização de turmas e combater a monotonia do ensino tradicional, aumentando a motivação e o foco dos estudantes através de um ambiente gamificado.
-
-## O Que o Projeto Faz
-* **Estruturação:** Os supervisores criam percursos detalhados, divididos por Módulos, Componentes teóricos/práticos e Fases Temporais.
-* **Sistema de Moldes (Templates):** Utilização de moldes base para clonar estruturas pré-definidas e acelerar a criação de novos percursos.
-* **Acompanhamento (Dashboard):** Atribuição direta de planos de estudo a alunos e monitorização visual do progresso global de cada um.
-* **Gamificação Base:** Os estudantes têm acesso a uma interface interativa de "Conquistas" (Badges), onde podem visualizar as medalhas ganhas à medida que progridem no seu percurso.
-
-## Futuras Ideias (Roadmap)
-* **Motor de Triggers e Notificações:** Criar um processo prático para adicionar novas Badges e definir as ações exatas que as desencadeiam (ex: % de conclusão de módulo). Implementar alertas em tempo real ("Nova Conquista Desbloqueada!").
-* **Polimento Visual:** Melhorar a UI/UX das badges (aumentar o contraste dos cartões com o fundo) e introduzir *Tiers* (ex: 5 níveis distintos) para dar mais profundidade ao sistema de recompensas.
-* **Painel de Administração:** Criar um Dashboard exclusivo para o Admin com o objetivo de centralizar a gestão de Badges e *Pathway Templates*, removendo parâmetros complexos do painel do Supervisor.
-* **Evolução da Avaliação:** Integrar pesos (*weights*) lógicos e definir elementos obrigatórios para avaliação diretamente nos moldes dos percursos.
-
----
-
 # GamP_SCPeriop (English)
 
 ## Project Concept
