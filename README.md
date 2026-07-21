@@ -1,4 +1,4 @@
-# GamP_SCPeriop (English)
+# GamP_SCPeriop
 
 ## Project Concept
 *GamP_SCPeriop* is a learning pathway management and gamification platform focused on perioperative education. The project combines the rigorous structuring of study plans (Pathways) with an interactive reward system. The goal is twofold: to make it easier for supervisors to track their students, and to break the monotony of traditional learning, boosting student motivation and focus through a gamified environment.
