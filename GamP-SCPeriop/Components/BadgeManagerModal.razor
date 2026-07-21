@@ -74,13 +74,55 @@
                                 </div>
                             </div>
 
-                            <div class="mb-5 pb-3">
-                                <!-- Margem extra para o utilizador conseguir ver bem o fundo -->
-                                <label class="form-label small fw-semibold text-muted">Desbloqueada ao concluir:</label>
-                                <select class="form-select bg-light border-0 shadow-sm">
-                                    <option value="">Selecione o Módulo...</option>
-                                    <option value="1">Módulo 1 - Fundamentos</option>
+                            <!-- REGRA DE DESBLOQUEIO DINÂMICA -->
+                            <div class="mb-5 pb-3 border-top pt-3">
+                                <h6 class="fw-bold text-primary mb-3"><i class="bi bi-unlock me-2"></i>Condição de Desbloqueio</h6>
+
+                                <!-- 1. Escolha do Tipo de Regra -->
+                                <select class="form-select bg-light border-0 shadow-sm mb-3 fw-semibold text-dark" @bind="newBadge.RuleType">
+                                    <option value="ModuleCompletion">Ao concluir um Módulo inteiro</option>
+                                    <option value="StageCompletion">Ao concluir uma Fase Prática específica</option>
+                                    <option value="ExcellenceScore">Ao atingir nota de Excelência</option>
+                                    <option value="PathwayCompletion">Ao concluir todo o Pathway</option>
                                 </select>
+
+                                <!-- 2. Escolha do Módulo (Esconde se for para o Percurso Todo) -->
+                                @if (newBadge.RuleType != "PathwayCompletion")
+                                {
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-semibold text-muted">Qual é o Módulo?</label>
+                                        <select class="form-select bg-light border-0 shadow-sm" @bind="newBadge.TargetModuleId">
+                                            <option value="">Selecione o Módulo...</option>
+                                            <option value="1">Módulo 1 - Fundamentos</option>
+                                            <option value="2">Módulo 2 - Avançado</option>
+                                        </select>
+                                    </div>
+                                }
+
+                                <!-- 3. Escolha da Fase (Aparece SÓ se a regra for "StageCompletion") -->
+                                @if (newBadge.RuleType == "StageCompletion")
+                                {
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-semibold text-muted">Qual é a Fase?</label>
+                                        <select class="form-select bg-light border-0 shadow-sm" @bind="newBadge.TargetStage">
+                                            <option value="">Selecione a Fase...</option>
+                                            <option value="PraticaAssistida">Prática Assistida</option>
+                                            <option value="PraticaSupervisionada">Prática Supervisionada</option>
+                                        </select>
+                                    </div>
+                                }
+
+                                <!-- 4. Escolha da Nota (Aparece SÓ se a regra for "ExcellenceScore") -->
+                                @if (newBadge.RuleType == "ExcellenceScore")
+                                {
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-semibold text-muted">Nota Mínima (Percentagem)</label>
+                                        <div class="input-group shadow-sm" style="width: 140px;">
+                                            <input type="number" class="form-control bg-light border-0 text-center fw-bold" @bind="newBadge.TargetScore" min="50" max="100" />
+                                            <span class="input-group-text bg-white border-0 fw-bold">%</span>
+                                        </div>
+                                    </div>
+                                }
                             </div>
                         </div>
 
@@ -140,8 +182,7 @@
     {
         // Lógica de gravação virá aqui
     }
-
-    // Adiciona esta lista perto da variável newBadge
+    
     private List<string> availableIcons = new()
     {
         "bi-award-fill", "bi-star-fill", "bi-trophy-fill", "bi-medal-fill",
@@ -156,5 +197,11 @@
         public string Description { get; set; } = "";
         public string IconClass { get; set; } = "bi-star-fill";
         public string ColorHex { get; set; } = "#f39c12";
+
+        // Properties for the rule configuration
+        public string RuleType { get; set; } = "ModuleCompletion"; // Default rule type
+        public int? TargetModuleId { get; set; }
+        public string TargetStage { get; set; } = "";
+        public int TargetScore { get; set; } = 90; // Ex: 90%
     }
 }
