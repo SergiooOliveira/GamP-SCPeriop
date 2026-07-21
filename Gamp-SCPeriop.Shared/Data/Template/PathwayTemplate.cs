@@ -9,6 +9,9 @@ namespace GamP_SCPeriop.Shared.Data.Template
         public string Description { get; set; } = string.Empty;
         public int MinimumApprovalScore { get; set; } = 100;
 
+        public bool IsAdminBase { get; set; } = true;
+        public int? SupervisorOwnerId { get; set; }
+
         // Relação com os Módulos do Template
         public List<ModuleTemplate> ModuleTemplates { get; set; } = new();
     }

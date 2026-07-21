@@ -3,7 +3,14 @@
 @using GamP_SCPeriop.Shared.Enum
 
 <div class="mt-4 card shadow-sm p-4 border-0" style="border-radius: 15px;">
-    <h5 class="mb-3 fw-bold text-primary">Gestão de Módulos</h5>
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="fw-bold text-primary mb-0">Gestão de Módulos</h5>
+    
+        <button class="btn btn-warning shadow-sm fw-bold text-dark" @onclick="() => OnOpenBadges.InvokeAsync()">
+            <i class="bi bi-award me-1"></i> Gerir Badges
+        </button>
+    </div>
 
     @if (Modules.Any())
     {
@@ -188,15 +195,20 @@
                                     <div class="mb-2">
                                         <!-- MODO EDIÇÃO: Pai -->
                                         <div class="d-flex align-items-center mb-1">
-                                            <input type="text" class="form-control border-success fw-bold" @bind="comp.Title" />
-                                            @if (!IsTemplateMode)
+                                            <!-- Título trancado se não for Admin -->
+                                            <input type="text" class="form-control border-success fw-bold" @bind="comp.Title" disabled="@(!IsTemplateMode)" />
+    
+                                            <!-- Peso trancado se não for Admin -->
+                                            <div class="input-group input-group-sm mx-2" style="width: 80px;">
+                                                <input type="text" inputmode="numeric" class="form-control text-center px-1" style="width: 30px;" @bind="comp.Weight" disabled="@(!IsTemplateMode)" />
+                                                <span class="input-group-text px-1">%</span>
+                                            </div>
+    
+                                            <!-- Só o Admin pode apagar o parâmetro principal -->
+                                            @if (IsTemplateMode)
                                             {
-                                                <div class="input-group input-group-sm mx-2" style="width: 80px;">
-                                                    <input type="text" inputmode="numeric" class="form-control text-center px-1" style="width: 30px;" @bind="comp.Weight" />
-                                                    <span class="input-group-text px-1">%</span>
-                                                </div>
+                                                <button class="btn btn-link text-danger p-0 ms-1" @onclick="() => OnDeleteComponent.InvokeAsync(comp.Id)"><i class="bi bi-x-lg fs-5"></i></button>
                                             }
-                                            <button class="btn btn-link text-danger p-0 ms-1" @onclick="() => OnDeleteComponent.InvokeAsync(comp.Id)"><i class="bi bi-x-lg fs-5"></i></button>
                                         </div>
 
                                         <!-- MODO EDIÇÃO: Filhos Existentes -->
@@ -205,13 +217,10 @@
                                             <div class="d-flex align-items-center ms-4 mb-2">
                                                 <i class="bi bi-arrow-return-right text-muted me-2"></i>
                                                 <input type="text" class="form-control border-dark" @bind="child.Title" />
-                                                @if (!IsTemplateMode)
-                                                {
-                                                    <div class="input-group input-group-sm mx-2" style="width: 80px;">
-                                                        <input type="text" inputmode="numeric" class="form-control text-center px-1" style="width: 30px;" @bind="child.Weight" />
-                                                        <span class="input-group-text px-1">%</span>
-                                                    </div>
-                                                }
+                                                <div class="input-group input-group-sm mx-2" style="width: 80px;">
+                                                    <input type="text" inputmode="numeric" class="form-control text-center px-1" style="width: 30px;" @bind="child.Weight" />
+                                                    <span class="input-group-text px-1">%</span>
+                                                </div>
                                                 <button class="btn btn-link text-danger p-0 ms-1" @onclick="() => OnDeleteComponent.InvokeAsync(child.Id)"><i class="bi bi-x-lg fs-5"></i></button>
                                             </div>
                                         }
@@ -231,7 +240,7 @@
                                                            @onkeyup="() => CheckEditModeChildrenState(comp.Id)" />
             
                                                     <!-- NOVA CAIXA DE PERCENTAGEM QUE SÓ APARECE SE TIVER TEXTO -->
-                                                    @if (!IsTemplateMode && !string.IsNullOrWhiteSpace(newChild.Text))
+                                                    @if (!string.IsNullOrWhiteSpace(newChild.Text))
                                                     {
                                                         <div class="input-group input-group-sm mx-2" style="width: 80px;">
                                                             <input type="text" inputmode="numeric" class="form-control text-center px-1" @bind="newChild.Weight" />
@@ -252,12 +261,9 @@
                                             <span class="fw-bold text-dark text-wrap">@comp.Title</span>
                                         </div>
 
-                                        @if (!IsTemplateMode)
-                                        {
-                                            <div class="d-flex align-items-center gap-1 me-2 pe-2">
-                                                <span class="badge bg-secondary bg-opacity-10 text-secondary" style="font-size: 0.7rem;">@comp.Weight%</span>
-                                            </div>
-                                        }
+                                        <div class="d-flex align-items-center gap-1 me-2 pe-2">
+                                            <span class="badge bg-secondary bg-opacity-10 text-secondary" style="font-size: 0.7rem;">@comp.Weight%</span>
+                                        </div>
                                     </div>
 
                                     @foreach (var child in children)
@@ -311,7 +317,7 @@
                                 </button>
                             </div>
                         }
-                        else
+                        else if (IsTemplateMode)
                         {
                             <h6 class="fw-bold mb-3 text-primary"><i class="bi bi-list-task me-2"></i>Adicionar Parâmetros</h6>
 
@@ -375,6 +381,7 @@
     [Parameter] public bool IsTemplateMode { get; set; } = false;
     [Parameter] public string ParentTitle { get; set; } = string.Empty;
     [Parameter] public List<BuilderModuleDto> Modules { get; set; } = new();
+    [Parameter] public EventCallback OnOpenBadges { get; set; }
 
     // Eventos de Módulos e Datas
     [Parameter] public EventCallback<string> OnCreateModule { get; set; }
@@ -627,29 +634,25 @@
         var componentsToUpdate = activeModalModule.Components.Where(c => c.Stage == activeModalStage.Value.Stage).ToList();
         var topLevel = componentsToUpdate.Where(c => c.ParentComponentId == null).ToList();
 
-        // A MAGIA ESTÁ AQUI: Só valida as percentagens se NÃO for um molde base!
-        if (!IsTemplateMode)
+        // VALIDAÇÃO 1: Os Pais têm de somar 100%
+        if (topLevel.Any() && topLevel.Sum(c => c.Weight) != 100)
         {
-            // VALIDAÇÃO 1: Os Pais têm de somar 100%
-            if (topLevel.Any() && topLevel.Sum(c => c.Weight) != 100)
-            {
-                validationError = "A soma das percentagens dos parâmetros principais tem de ser exatamente 100%.";
-                return;
-            }
+            validationError = "A soma das percentagens dos parâmetros principais tem de ser exatamente 100%.";
+            return;
+        }
 
-            // VALIDAÇÃO 2: Os Filhos de cada Pai têm de somar 100%
-            foreach (var parent in topLevel)
-            {
-                var existingChildren = componentsToUpdate.Where(c => c.ParentComponentId == parent.Id).ToList();
-                var newChildren = editModeNewChildren.ContainsKey(parent.Id) ? editModeNewChildren[parent.Id].Where(c => !string.IsNullOrWhiteSpace(c.Text)).ToList() : new();
+        // VALIDAÇÃO 2: Os Filhos de cada Pai têm de somar 100%
+        foreach (var parent in topLevel)
+        {
+            var existingChildren = componentsToUpdate.Where(c => c.ParentComponentId == parent.Id).ToList();
+            var newChildren = editModeNewChildren.ContainsKey(parent.Id) ? editModeNewChildren[parent.Id].Where(c => !string.IsNullOrWhiteSpace(c.Text)).ToList() : new();
             
-                var totalWeight = existingChildren.Sum(c => c.Weight) + newChildren.Sum(c => c.Weight);
+            var totalWeight = existingChildren.Sum(c => c.Weight) + newChildren.Sum(c => c.Weight);
 
-                if ((existingChildren.Any() || newChildren.Any()) && totalWeight != 100)
-                {
-                    validationError = $"A soma das percentagens dos sub-parâmetros de '{parent.Title}' tem de ser exatamente 100%.";
-                    return;
-                }
+            if ((existingChildren.Any() || newChildren.Any()) && totalWeight != 100)
+            {
+                validationError = $"A soma das percentagens dos sub-parâmetros de '{parent.Title}' tem de ser exatamente 100%.";
+                return;
             }
         }
 

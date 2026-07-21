@@ -1,0 +1,160 @@
+﻿@using GamP_SCPeriop.Shared.Data.Template
+
+<div class="modal fade show" style="display:block; background-color: rgba(0,0,0,0.5);" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content shadow" style="height: 650px; overflow: hidden;">
+
+            <div class="modal-header border-bottom-0 pb-0">
+                <h5 class="modal-title fw-bold">
+                    @ModalTitle
+                </h5>
+                <button type="button" class="btn-close" @onclick="CloseModal" aria-label="Close"></button>
+            </div>
+
+            <div class="modal-body p-0 d-flex flex-column" style="overflow: hidden;">
+
+                @if (!isCreating)
+                {
+                    <!-- ESTADO 1: LISTA -->
+                    <div class="p-4 flex-grow-1" style="overflow-y: auto;">
+                        <p class="text-muted small mb-4">Lista ordenada por raridade e ordem alfabética.</p>
+                        <!-- A lista de badges entrará aqui -->
+                    </div>
+
+                    <!-- Botão Fixo no Fundo (Agora com Flexbox) -->
+                    <div class="w-100 bg-white border-top p-3 d-flex justify-content-end mt-auto">
+                        <button class="btn btn-primary px-4" @onclick="OpenCreateMode">
+                            <i class="bi bi-plus-lg me-2"></i> Adicionar Nova Badge
+                        </button>
+                    </div>
+                }
+                else
+                {
+                    <!-- ESTADO 2: CRIAÇÃO (Agora com o espaço perfeitamente calculado) -->
+                    <div class="row m-0 flex-grow-1" style="overflow: hidden;">
+
+                        <!-- Coluna da Esquerda: Formulário -->
+                        <div class="col-md-7 p-4 border-end" style="height: 100%; overflow-y: auto;">
+                            <h6 class="fw-bold text-primary mb-4"><i class="bi bi-pencil-square me-2"></i>Detalhes da Badge</h6>
+
+                            <div class="mb-3">
+                                <label class="form-label small fw-semibold text-muted">Título da Badge</label>
+                                <input class="form-control bg-light border-0 shadow-sm" placeholder="Ex: Mestre da Ventilação" @bind="newBadge.Title" @bind:event="oninput" />
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label small fw-semibold text-muted">Mensagem de Parabéns (Descrição)</label>
+                                <textarea class="form-control bg-light border-0 shadow-sm" rows="3" placeholder="Ex: Parabéns por concluíres com sucesso..." @bind="newBadge.Description" @bind:event="oninput"></textarea>
+                            </div>
+
+                            <!-- Cor e Grelha de Ícones -->
+                            <div class="mb-3">
+                                <label class="form-label small fw-semibold text-muted">Cor Principal</label>
+                                <div class="d-flex align-items-center gap-3">
+                                    <input type="color" class="form-control form-control-color bg-light border-0 shadow-sm" style="width: 80px;" @bind="newBadge.ColorHex" @bind:event="oninput" />
+                                    <span class="text-secondary small">Clica para alterar a cor do cartão</span>
+                                </div>
+                            </div>
+
+                            <div class="mb-4">
+                                <label class="form-label small fw-semibold text-muted mb-2">Escolher Ícone</label>
+                                <div class="d-flex flex-wrap gap-2">
+                                    @foreach (var icon in availableIcons)
+                                    {
+                                        <button type="button"
+                                                class="btn border-0 shadow-sm d-flex align-items-center justify-content-center transition-all"
+                                                style="width: 45px; height: 45px; border-radius: 12px;
+                                            background-color: @(newBadge.IconClass == icon ? newBadge.ColorHex + "20" : "#f8f9fa");
+                                            color: @(newBadge.IconClass == icon ? newBadge.ColorHex : "#6c757d");
+                                            transform: @(newBadge.IconClass == icon ? "scale(1.1)" : "scale(1)");"
+                                                @onclick="() => newBadge.IconClass = icon">
+                                            <i class="bi @icon fs-5"></i>
+                                        </button>
+                                    }
+                                </div>
+                            </div>
+
+                            <div class="mb-5 pb-3">
+                                <!-- Margem extra para o utilizador conseguir ver bem o fundo -->
+                                <label class="form-label small fw-semibold text-muted">Desbloqueada ao concluir:</label>
+                                <select class="form-select bg-light border-0 shadow-sm">
+                                    <option value="">Selecione o Módulo...</option>
+                                    <option value="1">Módulo 1 - Fundamentos</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Coluna da Direita: Pré-visualização -->
+                        <div class="col-md-5 bg-light p-4 d-flex flex-column align-items-center justify-content-center" style="height: 100%; border-radius: 0 0 15px 0;">
+                            <span class="text-muted small mb-4 text-uppercase fw-bold" style="letter-spacing: 1px;">Pré-visualização</span>
+
+                            <div class="card border-0 shadow text-center p-4" style="width: 260px; border-radius: 20px; transition: all 0.3s ease;">
+                                <div class="mx-auto mb-3 d-flex align-items-center justify-content-center shadow-sm" style="@PreviewCircleStyle">
+                                    <i class="bi @PreviewIconClass" style="@PreviewIconStyle"></i>
+                                </div>
+
+                                <h5 class="fw-bold text-dark mb-2">@PreviewTitle</h5>
+                                <p class="text-muted small mb-0" style="line-height: 1.4;">@PreviewDescription</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Botões de Ação do Form (Agora com Flexbox mt-auto) -->
+                    <div class="w-100 bg-white border-top p-3 d-flex justify-content-between mt-auto">
+                        <button class="btn btn-light" @onclick="CloseCreateMode">Cancelar</button>
+                        <button class="btn btn-success px-4" @onclick="SaveBadge">Guardar Badge</button>
+                    </div>
+                }
+
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private bool isCreating = true;
+    private BadgeDraft newBadge = new();
+
+    // =========================================================================
+    // HELPERS
+    // =========================================================================
+    private string ModalTitle => isCreating ? "Criar Nova Badge" : "Badges do Template";
+
+    private string PreviewCircleStyle => $"width: 90px; height: 90px; border-radius: 50%; background-color: {newBadge.ColorHex}20; border: 3px solid {newBadge.ColorHex};";
+
+    private string PreviewIconClass => string.IsNullOrWhiteSpace(newBadge.IconClass) ? "bi-award-fill" : newBadge.IconClass;
+
+    private string PreviewIconStyle => $"font-size: 2.5rem; color: {newBadge.ColorHex};";
+
+    private string PreviewTitle => string.IsNullOrWhiteSpace(newBadge.Title) ? "Título da Badge" : newBadge.Title;
+
+    private string PreviewDescription => string.IsNullOrWhiteSpace(newBadge.Description) ? "A descrição que o aluno vai ler ao desbloquear aparecerá aqui." : newBadge.Description;
+
+    private async Task CloseModal() => await OnClose.InvokeAsync();
+    private void OpenCreateMode() => isCreating = true;
+    private void CloseCreateMode() => isCreating = false;
+
+    private void SaveBadge()
+    {
+        // Lógica de gravação virá aqui
+    }
+
+    // Adiciona esta lista perto da variável newBadge
+    private List<string> availableIcons = new()
+    {
+        "bi-award-fill", "bi-star-fill", "bi-trophy-fill", "bi-medal-fill",
+        "bi-patch-check-fill", "bi-shield-fill-check", "bi-heart-fill",
+        "bi-lightning-fill", "bi-gem", "bi-book-fill", "bi-check-circle-fill",
+        "bi-fire", "bi-magic", "bi-mortarboard-fill", "bi-person-arms-up"
+    };
+
+    private class BadgeDraft
+    {
+        public string Title { get; set; } = "";
+        public string Description { get; set; } = "";
+        public string IconClass { get; set; } = "bi-star-fill";
+        public string ColorHex { get; set; } = "#f39c12";
+    }
+}

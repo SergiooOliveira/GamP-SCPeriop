@@ -20,10 +20,12 @@ namespace GamP_SCPeriop.Server.Controllers
         [HttpGet]
         public async Task<ActionResult<List<PathwayTemplate>>> GetTemplates()
         {
-            return await _context.PathwayTemplates.ToListAsync();
+            return await _context.PathwayTemplates
+                              .Include(p => p.ModuleTemplates)
+                              .ToListAsync();
         }
 
-        // Devolve UM molde específico com a estrutura toda (O QUE ESTAVA A FALHAR)
+        // Devolve UM molde específico com a estrutura toda
         [HttpGet("{id}")]
         public async Task<ActionResult<PathwayTemplate>> GetTemplate(int id)
         {

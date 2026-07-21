@@ -1,0 +1,10 @@
+.admin-module-card {
+    background-color: #ebf1f4;
+    border-radius: 1.25rem;
+    cursor: pointer;
+    transition: transform 0.2s ease-in-out;
+}
+
+.admin-module-card:hover {
+    transform: scale(1.02);
+}

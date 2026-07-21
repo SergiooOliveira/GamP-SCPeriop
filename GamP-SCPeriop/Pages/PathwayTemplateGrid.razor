@@ -18,34 +18,58 @@
     }
     else if (activeTemplate == null)
     {
-        <!-- ESTADO 1: GRELHA DE MOLDES (O teu ecrã original) -->
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h3 class="fw-bold">Modelos de Percurso</h3>
+        <!-- ESTADO 1: GRELHA DE MOLDES -->
+        <div class="d-flex justify-content-between align-items-center mb-5">
+            <div>
+                <h3 class="fw-bold mb-0">Modelos de Percurso</h3>
+                <p class="text-muted small">Cria e gere os moldes dos percursos (Pathways) e as suas regras.</p>
+            </div>
             <div class="d-flex gap-2">
                 <input type="text" class="form-control shadow-sm border-0" placeholder="Pesquisar molde..."
+                       style="border-radius: 0.75rem;"
                        @bind-value="SearchTerm" @bind-value:event="oninput" />
-                <button class="btn text-white fw-bold shadow-sm text-nowrap" style="background-color: #6A96A6;" @onclick="CreateNewTemplate">
+                <button class="btn btn-primary shadow-sm text-nowrap" style="border-radius: 0.75rem;" @onclick="CreateNewTemplate">
                     <i class="bi bi-plus-lg me-1"></i> Novo Molde
                 </button>
             </div>
         </div>
 
-        <div class="row row-cols-1 row-cols-md-3 g-4">
+        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
             @foreach (var template in FilteredTemplates)
             {
                 <div class="col">
-                    <div class="card h-100 shadow-sm border-0" style="border-radius: 15px;">
-                        <div class="card-body">
-                            <h5 class="card-title fw-bold text-primary">@template.Title</h5>
-                            <p class="card-text text-muted small">@template.Description</p>
-                        </div>
-                        <div class="card-footer bg-transparent border-0 d-flex justify-content-end gap-2 pb-3">
-                            <button class="btn btn-sm btn-outline-primary" @onclick="() => LoadActiveTemplate(template.Id)">
-                                <i class="bi bi-pencil-square me-1"></i> Editar Estrutura
+                    <!-- Cartão Clicável -->
+                    <div class="card border-0 h-100 template-card shadow-sm" @onclick="() => LoadActiveTemplate(template.Id)">
+                
+                        <div class="card-body p-4 position-relative d-flex flex-column">
+                    
+                            <!-- Ícone de Lixo (Impede abertura do template ao apagar) -->
+                            <button class="btn btn-link text-danger p-0 position-absolute" 
+                                    style="top: 1.25rem; right: 1.25rem;" 
+                                    @onclick:stopPropagation="true" 
+                                    @onclick="() => DeleteTemplate(template.Id)">
+                                <i class="bi bi-trash fs-5"></i>
                             </button>
-                            <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteTemplate(template.Id)">
-                                <i class="bi bi-trash3"></i>
-                            </button>
+
+                            <!-- Título e Descrição do Template -->
+                            <h4 class="fw-bold text-dark mb-2 pe-5" style="line-height: 1.2;">
+                                @template.Title
+                            </h4>
+                    
+                            <p class="text-muted small mb-4 pe-4">
+                                @(string.IsNullOrWhiteSpace(template.Description) ? "Sem descrição" : template.Description)
+                            </p>
+
+                            <!-- Zona dos Números (Módulos) -->
+                            <div class="mt-auto pt-2 border-top border-light">
+                                <div class="d-flex align-items-baseline mt-3">
+                                    <span class="fw-bold text-dark me-2" style="font-size: 2.2rem; line-height: 1;">
+                                        @(template.ModuleTemplates?.Count ?? 0)
+                                    </span>
+                                    <span class="text-secondary fs-6">Módulos</span>
+                                </div>
+                            </div>
+
                         </div>
                     </div>
                 </div>
@@ -78,11 +102,17 @@
             OnSaveTheoreticalEvent="SaveTheoreticalFromBuilder"
             OnDeleteComponent="DeleteComponentFromBuilder"
             OnSaveBulkEditEvent="SaveBulkEditFromBuilder"
-            OnCopyComponentsEvent="CopyComponentsFromBuilder" />
+            OnCopyComponentsEvent="CopyComponentsFromBuilder" 
+            OnOpenBadges="OpenBadgesModal" />
+
+        @if (showBadgesModal)
+        {
+            <BadgeManagerModal OnClose="CloseBadgesModal" />
+        }
     }
 </div>
 
-<!-- Modal de Criação (Mantém-se igual ao original) -->
+<!-- Modal de Criação -->
 @if (showCreateModal)
 {
     <div class="modal-backdrop fade show" style="background-color: rgba(0,0,0,0.5);"></div>
@@ -122,6 +152,11 @@
     private bool showCreateModal = false;
     private bool isSubmitting = false;
     private PathwayTemplate newTemplate = new();
+
+    // Badges
+    private bool showBadgesModal = false;
+    private void OpenBadgesModal() { showBadgesModal = true; }
+    private void CloseBadgesModal() { showBadgesModal = false; }
 
     private IEnumerable<PathwayTemplate> FilteredTemplates =>
         string.IsNullOrWhiteSpace(SearchTerm) ? Templates : Templates.Where(t => t.Title.Contains(SearchTerm, StringComparison.OrdinalIgnoreCase));
