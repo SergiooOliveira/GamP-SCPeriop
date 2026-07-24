@@ -6,10 +6,13 @@
 
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h5 class="fw-bold text-primary mb-0">Gestão de Módulos</h5>
-    
-        <button class="btn btn-warning shadow-sm fw-bold text-dark" @onclick="() => OnOpenBadges.InvokeAsync()">
-            <i class="bi bi-award me-1"></i> Gerir Badges
-        </button>
+        
+@*         @if (currentUser.Role == UserRole.Admin)
+        { *@
+            <button class="btn btn-warning shadow-sm fw-bold text-dark" @onclick="() => OnOpenBadges.InvokeAsync()">
+                <i class="bi bi-award me-1"></i> Gerir Badges
+            </button>
+        @* }         *@
     </div>
 
     @if (Modules.Any())
@@ -294,9 +297,10 @@
                     }
 
                     <!-- Adicionar Novos Componentes -->
-                    <div class="p-4 rounded bg-white shadow-sm" style="border: 1px dashed #ced4da;">
-                        @if (activeModalStage.Value.Stage == ModuleStage.Teorica)
-                        {
+                    @if (activeModalStage.Value.Stage == ModuleStage.Teorica)
+                    {
+                        <div class="p-4 rounded bg-white shadow-sm" style="border: 1px dashed #ced4da;">
+                        
                             <div class="d-flex justify-content-between align-items-center mb-3">
                                 <h6 class="fw-bold text-primary mb-0">Adicionar Nova Componente Teórica</h6>
                                 <button class="btn btn-sm btn-light border" @onclick="ResetForm">Limpar</button>
@@ -316,59 +320,60 @@
                                     <i class="bi bi-save me-2"></i> @(isSavingModal ? "A Guardar..." : "Guardar")
                                 </button>
                             </div>
-                        }
-                        else if (IsTemplateMode)
-                        {
-                            <h6 class="fw-bold mb-3 text-primary"><i class="bi bi-list-task me-2"></i>Adicionar Parâmetros</h6>
+                    }
+                    else if (IsTemplateMode)
+                    {
+                        <h6 class="fw-bold mb-3 text-primary"><i class="bi bi-list-task me-2"></i>Adicionar Parâmetros</h6>
 
-                            <div class="d-flex flex-column gap-2 mb-3">
-                                @foreach (var parent in drafts)
-                                {
-                                    <div @onfocusin="() => activeDraftParent = parent">
-                                        <input type="text"
-                                               class="form-control mb-1 @(string.IsNullOrWhiteSpace(parent.Text) ? "text-muted" : "border-success fw-bold")"
-                                               placeholder="Grupo ou Tarefa principal..."
-                                               style="@(string.IsNullOrWhiteSpace(parent.Text) ? "border: 2px dashed #adb5bd !important; background-color: #f8f9fa;" : "border: 2px solid #198754;")"
-                                               @bind="parent.Text"
-                                               @bind:event="oninput"
-                                               @onkeyup="() => CheckListState(parent)" />
-
-                                        @if (!string.IsNullOrWhiteSpace(parent.Text) || parent.Children.Any(f => !string.IsNullOrWhiteSpace(f.Text)))
-                                        {
-                                            <div class="ms-4 mb-2 d-flex flex-column gap-1">
-                                                @foreach (var child in parent.Children)
-                                                {
-                                                    @if (!string.IsNullOrWhiteSpace(child.Text) || activeDraftParent == parent)
-                                                    {
-                                                        <div class="d-flex align-items-center">
-                                                            <i class="bi bi-arrow-return-right text-muted me-2"></i>
-                                                            <input type="text"
-                                                                   class="form-control form-control-sm @(string.IsNullOrWhiteSpace(child.Text) ? "text-muted" : "border-dark")"
-                                                                   placeholder="Sub-parâmetro..."
-                                                                   style="@(string.IsNullOrWhiteSpace(child.Text) ? "border: 2px dashed #adb5bd !important; background-color: #f8f9fa;" : "border: 2px solid #343a40;")"
-                                                                   @bind="child.Text"
-                                                                   @bind:event="oninput"
-                                                                   @onkeyup="() => CheckListState(parent)" />
-                                                        </div>
-                                                    }
-                                                }
-                                            </div>
-                                        }
-                                    </div>
-                                }
-                            </div>
-
-                            @if (drafts.Any(p => !string.IsNullOrWhiteSpace(p.Text)))
+                        <div class="d-flex flex-column gap-2 mb-3">
+                            @foreach (var parent in drafts)
                             {
-                                <div class="text-end mt-2">
-                                    <button class="btn btn-success px-4 fw-bold shadow-sm" @onclick="SaveRapidStructure" disabled="@isSavingModal">
-                                        @if (isSavingModal) { <span class="spinner-border spinner-border-sm me-2"></span> }
-                                        Guardar Estrutura
-                                    </button>
+                                <div @onfocusin="() => activeDraftParent = parent">
+                                    <input type="text"
+                                            class="form-control mb-1 @(string.IsNullOrWhiteSpace(parent.Text) ? "text-muted" : "border-success fw-bold")"
+                                            placeholder="Grupo ou Tarefa principal..."
+                                            style="@(string.IsNullOrWhiteSpace(parent.Text) ? "border: 2px dashed #adb5bd !important; background-color: #f8f9fa;" : "border: 2px solid #198754;")"
+                                            @bind="parent.Text"
+                                            @bind:event="oninput"
+                                            @onkeyup="() => CheckListState(parent)" />
+
+                                    @if (!string.IsNullOrWhiteSpace(parent.Text) || parent.Children.Any(f => !string.IsNullOrWhiteSpace(f.Text)))
+                                    {
+                                        <div class="ms-4 mb-2 d-flex flex-column gap-1">
+                                            @foreach (var child in parent.Children)
+                                            {
+                                                @if (!string.IsNullOrWhiteSpace(child.Text) || activeDraftParent == parent)
+                                                {
+                                                    <div class="d-flex align-items-center">
+                                                        <i class="bi bi-arrow-return-right text-muted me-2"></i>
+                                                        <input type="text"
+                                                                class="form-control form-control-sm @(string.IsNullOrWhiteSpace(child.Text) ? "text-muted" : "border-dark")"
+                                                                placeholder="Sub-parâmetro..."
+                                                                style="@(string.IsNullOrWhiteSpace(child.Text) ? "border: 2px dashed #adb5bd !important; background-color: #f8f9fa;" : "border: 2px solid #343a40;")"
+                                                                @bind="child.Text"
+                                                                @bind:event="oninput"
+                                                                @onkeyup="() => CheckListState(parent)" />
+                                                    </div>
+                                                }
+                                            }
+                                        </div>
+                                    }
                                 </div>
                             }
+                        </div>
+
+                        @if (drafts.Any(p => !string.IsNullOrWhiteSpace(p.Text)))
+                        {
+                            <div class="text-end mt-2">
+                                <button class="btn btn-success px-4 fw-bold shadow-sm" @onclick="SaveRapidStructure" disabled="@isSavingModal">
+                                    @if (isSavingModal) { <span class="spinner-border spinner-border-sm me-2"></span> }
+                                    Guardar Estrutura
+                                </button>
+                            </div>
                         }
-                    </div>
+                        
+                        </div>
+                    }
                 </div>
             </div>
         </div>

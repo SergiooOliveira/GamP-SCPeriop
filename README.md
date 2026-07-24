@@ -14,3 +14,6 @@
 * **Visual Polish:** Improve the UI/UX of the badges (increase card contrast against the background) and introduce Tiers (e.g., 5 distinct levels) to add depth to the reward system.
 * **Administration Panel:** Build an exclusive Admin Dashboard to centralize the management of Badges and Pathway Templates, removing complex parameters from the Supervisor's view.
 * **Evaluation Evolution:** Integrate logical weights and define mandatory evaluation elements directly within the pathway templates.
+
+##
+ssh soliveira@IP

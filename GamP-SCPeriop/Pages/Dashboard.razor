@@ -19,7 +19,7 @@
             {
                 <div class="card border-0 shadow-sm flex-shrink-0 position-relative" style="width: 240px; border-radius: 20px; background-color: #E2ECEF;">
 
-                    <!-- Novo Botão de Apagar -->
+                    <!-- Botão de Apagar -->
                     <button class="btn btn-link text-danger position-absolute top-0 end-0 p-2"
                             style="z-index: 10;"
                             @onclick="() => DeletePathway(summary.Id)"
@@ -330,7 +330,7 @@
         try
         {
             var hasUser = await LocalStorage.ContainKeyAsync("user");
-            if (!hasUser) { Nav.NavigateTo("/login"); return; }
+            if (!hasUser) { Nav.NavigateTo("/"); return; }
 
             currentUser = await LocalStorage.GetItemAsync<User>("user");
             if (currentUser?.Role != UserRole.Supervisor) { Nav.NavigateTo("/"); return; }

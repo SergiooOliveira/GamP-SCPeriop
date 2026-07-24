@@ -1,10 +1,15 @@
 ﻿@page "/"
+@attribute [AllowAnonymous]
+
+@layout EmptyLayout
+
 @using GamP_SCPeriop.Shared.Entity.Model
 @using GamP_SCPeriop.Shared.Enum
 @using GamP_SCPeriop.Shared.Data
-@layout EmptyLayout
-@inject ILocalStorageService LocalStorage
+@using Microsoft.AspNetCore.Components.Authorization
 
+@inject AuthenticationStateProvider AuthStateProvider
+@inject ILocalStorageService LocalStorage
 @inject HttpClient Http
 @inject NavigationManager Nav
 
@@ -62,34 +67,40 @@
 
     private async Task HandleLogin()
     {
-        // Handle form submission logic here
         var response = await Http.PostAsJsonAsync("/api/auth/login", loginModel);
-        var rawText = await response.Content.ReadAsStringAsync();
 
         if (response.IsSuccessStatusCode)
         {
             try
             {
-                var options = new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-                var loggedInUser = System.Text.Json.JsonSerializer.Deserialize<User>(rawText, options);
+                // Lemos a nova estrutura em vez do "User" diretamente
+                var authResponse = await response.Content.ReadFromJsonAsync<LoginResponseDTO>();
 
-                if (loggedInUser != null)
+                if (authResponse != null && authResponse.User != null)
                 {
-                    await LocalStorage.SetItemAsync("user", loggedInUser);
+                    // Guarda os dados na cache (o User antigo para o ecrã e o Token novo para segurança)
+                    await LocalStorage.SetItemAsync("user", authResponse.User);
+                    await LocalStorage.SetItemAsync("authToken", authResponse.Token);
 
-                    if (loggedInUser.Role == UserRole.Supervisor)
+                    // Avisa o Guarda-Costas para ativar o crachá
+                    var customAuthStateProvider = (GamP_SCPeriop.Client.Auth.CustomAuthStateProvider)AuthStateProvider;
+                    customAuthStateProvider.MarkUserAsAuthenticated(authResponse.Token);
+
+                    // A tua navegação original
+                    if (authResponse.User.Role == UserRole.Supervisor)
                         Nav.NavigateTo("/dashboard");
                     else
                         Nav.NavigateTo("/my-profile");
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                error = $"JSON Error. The server actually sent this: {rawText}";
+                error = $"Erro na leitura dos dados de segurança: {ex.Message}";
             }
         }
         else
         {
+            var rawText = await response.Content.ReadAsStringAsync();
             error = $"Login Failed ({response.StatusCode}): {rawText}";
         }
     }
