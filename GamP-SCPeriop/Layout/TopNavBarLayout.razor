@@ -2,121 +2,124 @@
 @using GamP_SCPeriop.Shared.Data
 @using GamP_SCPeriop.Shared.Entity.Model
 @using GamP_SCPeriop.Shared.Enum
+@using System.Security.Claims
+@using GamP_SCPeriop.Client.Auth
 @inherits LayoutComponentBase
-@inject Blazored.LocalStorage.ILocalStorageService LocalStorage
+@inject AuthenticationStateProvider AuthStateProvider
 @inject NavigationManager Nav
 @inject HttpClient Http
 
-<div class="page">
-    <header class="sticky-top bg-light p-3 no-select">
-        <div class="d-flex justify-content-between align-items-center max-width-container">
-            <div>
-                <small class="text-muted d-block">Universidade</small>
-                <small class="text-muted fw-bold">do minho</small>
-            </div>
-
-            @if (currentUser != null)
-            {
-                <div class="d-flex align-items-center gap-3">
-
-                    <div class="position-relative">
-                        <button class="btn btn-link text-dark position-relative p-0 shadow-none border-0" @onclick="ToggleNotificationDropdown">
-                            <i class="bi bi-bell fs-4" style="color: #6A96A6;"></i>
-
-                            @if (unreadCount > 0)
-                            {
-                                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 0.65rem; padding: 0.35em 0.5em;">
-                                    @unreadCount
-                                </span>
-                            }
-                        </button>
-
-                        @if (isNotificationOpen)
-                        {
-                            <div class="position-fixed top-0 start-0 w-100 h-100" style="z-index: 99;" @onclick="CloseNotificationDropdown"></div>
-
-                            <ul class="card position-absolute end-0 mt-2 shadow-sm border-0 p-2" style="width: 320px; border-radius: 12px; max-height: 400px; overflow-y: auto; z-index: 100; list-style: none; margin: 0;">
-                                <li class="p-2 border-bottom mb-1">
-                                    <span class="fw-bold small text-secondary">Notificações</span>
-                                </li>
-
-                                @if (notifications == null)
-                                {
-                                    <li class="text-center p-3">
-                                        <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
-                                    </li>
-                                }
-                                else if (!notifications.Any())
-                                {
-                                    <li class="text-center text-muted small p-3">
-                                        <i class="bi bi-bell-slash d-block fs-4 mb-2"></i>
-                                        Sem notificações novas
-                                    </li>
-                                }
-                                else
-                                {
-                                    @foreach (var notif in notifications)
-                                    {
-                                        <li class="p-2 mb-1 @(notif.IsRead ? "opacity-75" : "bg-light fw-semibold border")"
-                                            style="cursor: pointer; border-radius: 8px;"
-                                            @onclick="() => HandleNotificationClick(notif)">
-
-                                            <div class="d-flex justify-content-between align-items-start mb-1">
-                                                <span class="text-dark small text-truncate pe-2" style="max-width: 200px;">@notif.Title</span>
-                                                <small class="text-muted" style="font-size: 0.65rem;">@notif.CreatedAt.ToString("dd MMM HH:mm")</small>
-                                            </div>
-                                            <p class="mb-0 text-secondary small text-wrap" style="font-size: 0.75rem; line-height: 1.2;">
-                                                @notif.Message
-                                            </p>
-                                        </li>
-                                    }
-                                }
-                            </ul>
-                        }
-                    </div>
-
-                    <div class="position-relative">
-                        <div class="user-pill shadow-sm" style="cursor: pointer;" @onclick="ToggleDropdown">
-                            <div class="user-info">
-                                <div class="fw-bold small">@currentUser.DisplayShortName</div>
-                                <small class="text-muted">@currentUser.Role</small>
-                            </div>
-                            <div class="avatar">@currentUser.DisplayShortName[0]</div>
+<AuthorizeView>
+    <Authorized>
+        @if (currentUser != null)
+        {
+            <div class="page">
+                <header class="sticky-top bg-light p-3 no-select">
+                    <div class="d-flex justify-content-between align-items-center max-width-container">
+                        <div>
+                            <small class="text-muted d-block">Universidade</small>
+                            <small class="text-muted fw-bold">do minho</small>
                         </div>
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="position-relative">
+                                <button class="btn btn-link text-dark position-relative p-0 shadow-none border-0" @onclick="ToggleNotificationDropdown">
+                                    <i class="bi bi-bell fs-4" style="color: #6A96A6;"></i>
 
-                        @if (isDropdownOpen)
-                        {
-                            <div class="position-fixed top-0 start-0 w-100 h-100" style="z-index: 99;" @onclick="CloseDropdown"></div>
-
-                            <div class="card position-absolute end-0 mt-2 shadow-sm border-0 py-1" style="min-width: 150px; z-index: 100; border-radius: 8px;">
-            
-                                <!-- NOVO BOTÃO: Só aparece para Supervisionados -->
-                                @if (currentUser.Role == UserRole.Supervisionado)
-                                {
-                                    <button class="btn btn-white text-dark text-start px-3 py-2 w-100 border-0" @onclick='() => Nav.NavigateTo("/badges")'>
-                                        <i class="bi bi-award me-2 text-warning"></i> Conquistas
-                                    </button>
-                                    <hr class="dropdown-divider my-1">
-                                }
-
-                                <button class="btn btn-white text-danger text-start px-3 py-2 w-100 border-0" @onclick="Logout">
-                                    <i class="bi bi-box-arrow-right me-2"></i> Sair
+                                    @if (unreadCount > 0)
+                                    {
+                                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 0.65rem; padding: 0.35em 0.5em;">
+                                            @unreadCount
+                                        </span>
+                                    }
                                 </button>
+
+                                @if (isNotificationOpen)
+                                {
+                                    <div class="position-fixed top-0 start-0 w-100 h-100" style="z-index: 99;" @onclick="CloseNotificationDropdown"></div>
+
+                                    <ul class="card position-absolute end-0 mt-2 shadow-sm border-0 p-2" style="width: 320px; border-radius: 12px; max-height: 400px; overflow-y: auto; z-index: 100; list-style: none; margin: 0;">
+                                        <li class="p-2 border-bottom mb-1">
+                                            <span class="fw-bold small text-secondary">Notificações</span>
+                                        </li>
+
+                                        @if (notifications == null)
+                                        {
+                                            <li class="text-center p-3">
+                                                <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                                            </li>
+                                        }
+                                        else if (!notifications.Any())
+                                        {
+                                            <li class="text-center text-muted small p-3">
+                                                <i class="bi bi-bell-slash d-block fs-4 mb-2"></i>
+                                                Sem notificações novas
+                                            </li>
+                                        }
+                                        else
+                                        {
+                                            @foreach (var notif in notifications)
+                                            {
+                                                <li class="p-2 mb-1 @(notif.IsRead ? "opacity-75" : "bg-light fw-semibold border")"
+                                                style="cursor: pointer; border-radius: 8px;"
+                                                @onclick="() => HandleNotificationClick(notif)">
+
+                                                    <div class="d-flex justify-content-between align-items-start mb-1">
+                                                        <span class="text-dark small text-truncate pe-2" style="max-width: 200px;">@notif.Title</span>
+                                                        <small class="text-muted" style="font-size: 0.65rem;">@notif.CreatedAt.ToString("dd MMM HH:mm")</small>
+                                                    </div>
+                                                    <p class="mb-0 text-secondary small text-wrap" style="font-size: 0.75rem; line-height: 1.2;">
+                                                        @notif.Message
+                                                    </p>
+                                                </li>
+                                            }
+                                        }
+                                    </ul>
+                                }
                             </div>
-                        }
+
+                            <div class="position-relative">
+                                <div class="user-pill shadow-sm" style="cursor: pointer;" @onclick="ToggleDropdown">
+                                    <div class="user-info">
+                                        <div class="fw-bold small">@currentUser.DisplayShortName</div>
+                                        <small class="text-muted">@currentUser.Role</small>
+                                    </div>
+                                    <div class="avatar">@(currentUser.DisplayShortName?.FirstOrDefault() ?? '?')</div>
+                                </div>
+
+                                @if (isDropdownOpen)
+                                {
+                                    <div class="position-fixed top-0 start-0 w-100 h-100" style="z-index: 99;" @onclick="CloseDropdown"></div>
+
+                                    <div class="card position-absolute end-0 mt-2 shadow-sm border-0 py-1" style="min-width: 150px; z-index: 100; border-radius: 8px;">
+
+                                        <!-- NOVO BOTÃO: Só aparece para Supervisionados -->
+                                        @if (currentUser.Role == UserRole.Supervisionado)
+                                        {
+                                            <button class="btn btn-white text-dark text-start px-3 py-2 w-100 border-0" @onclick='() => Nav.NavigateTo("/badges")'>
+                                                <i class="bi bi-award me-2 text-warning"></i> Conquistas
+                                            </button>
+                                            <hr class="dropdown-divider my-1">
+                                        }
+
+                                        <button class="btn btn-white text-danger text-start px-3 py-2 w-100 border-0" @onclick="Logout">
+                                            <i class="bi bi-box-arrow-right me-2"></i> Sair
+                                        </button>
+                                    </div>
+                                }
+                            </div>
+                        </div>
                     </div>
+                </header>
 
-                </div>
-            }
-        </div>
-    </header>
-
-    <main class="p-3">
-        <div>
-            @Body
-        </div>
-    </main>
-</div>
+                <main class="p-3">
+                    <div>
+                        @Body
+                    </div>
+                </main>
+            </div>
+        }
+    </Authorized>
+</AuthorizeView>
 
 @code {
     private User? currentUser;
@@ -131,11 +134,26 @@
 
     protected override async Task OnInitializedAsync()
     {
-        currentUser = await LocalStorage.GetItemAsync<User>("user");
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var tokenUser = authState.User;
 
-        // Carrega notificações mal o layout inicie
-        if (currentUser != null)
+        if (tokenUser.Identity is not null && tokenUser.Identity.IsAuthenticated)
         {
+            // Procura o nome longo ou o nome comprimido ("nameid", "unique_name", "role")
+            var userIdStr = tokenUser.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? tokenUser.FindFirst("nameid")?.Value;
+            var userName = tokenUser.FindFirst(ClaimTypes.Name)?.Value ?? tokenUser.FindFirst("unique_name")?.Value;
+            var userRoleStr = tokenUser.FindFirst(ClaimTypes.Role)?.Value ?? tokenUser.FindFirst("role")?.Value;
+
+            // TryParse evita o erro ArgumentNullException se a string vier vazia
+            int.TryParse(userIdStr, out int parsedId);
+
+            currentUser = new User
+            {
+                Id = parsedId,
+                FullName = userName ?? "Utilizador",
+                Role = Enum.TryParse<UserRole>(userRoleStr, out var parsedRole) ? parsedRole : default
+            };
+
             await LoadNotifications();
         }
     }
@@ -209,7 +227,11 @@
 
     private async Task Logout()
     {
-        await LocalStorage.RemoveItemAsync("user");
+        // 1. Avisamos o sistema central para destruir a sessão
+        var customAuthStateProvider = (CustomAuthStateProvider)AuthStateProvider;
+        await customAuthStateProvider.LogoutAsync();
+
+        // 2. Voltamos à página inicial (Landing Page)
         Nav.NavigateTo("/", forceLoad: true);
     }
 }

@@ -7,9 +7,10 @@
 @using GamP_SCPeriop.Shared.Enum
 @using GamP_SCPeriop.Shared.Data
 @using Microsoft.AspNetCore.Components.Authorization
+@using Blazored.SessionStorage
 
 @inject AuthenticationStateProvider AuthStateProvider
-@inject ILocalStorageService LocalStorage
+@inject ISessionStorageService SessionStorage
 @inject HttpClient Http
 @inject NavigationManager Nav
 
@@ -78,9 +79,8 @@
 
                 if (authResponse != null && authResponse.User != null)
                 {
-                    // Guarda os dados na cache (o User antigo para o ecrã e o Token novo para segurança)
-                    await LocalStorage.SetItemAsync("user", authResponse.User);
-                    await LocalStorage.SetItemAsync("authToken", authResponse.Token);
+                    // Guarda APENAS o Token na sessão (o objeto User já é lido a partir do Token no layout)
+                    await SessionStorage.SetItemAsync("authToken", authResponse.Token);
 
                     // Avisa o Guarda-Costas para ativar o crachá
                     var customAuthStateProvider = (GamP_SCPeriop.Client.Auth.CustomAuthStateProvider)AuthStateProvider;
@@ -89,8 +89,10 @@
                     // A tua navegação original
                     if (authResponse.User.Role == UserRole.Supervisor)
                         Nav.NavigateTo("/dashboard");
-                    else
+                    else if (authResponse.User.Role == UserRole.Supervisionado)
                         Nav.NavigateTo("/my-profile");
+                    else
+                        Console.WriteLine("Unknown role: " + authResponse.User.Role);
                 }
             }
             catch (Exception ex)

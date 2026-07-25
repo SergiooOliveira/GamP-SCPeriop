@@ -1,18 +1,18 @@
 ﻿using System.Security.Claims;
 using System.Text.Json;
 using Microsoft.AspNetCore.Components.Authorization;
-using Blazored.LocalStorage;
+using Blazored.SessionStorage;
 
 namespace GamP_SCPeriop.Client.Auth
 {
     public class CustomAuthStateProvider : AuthenticationStateProvider
     {
-        private readonly ILocalStorageService _localStorage;
+        private readonly ISessionStorageService _sessionStorage;
         private const string TokenKey = "authToken";
 
-        public CustomAuthStateProvider(ILocalStorageService localStorage)
+        public CustomAuthStateProvider(ISessionStorageService sessionStorage)
         {
-            _localStorage = localStorage;
+            _sessionStorage = sessionStorage;
         }
 
         // Este é o método que o Blazor chama a toda a hora para verificar se a página pode abrir
@@ -22,11 +22,11 @@ namespace GamP_SCPeriop.Client.Auth
 
             try
             {
-                token = await _localStorage.GetItemAsync<string>(TokenKey);
+                token = await _sessionStorage.GetItemAsync<string>(TokenKey);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Erro ao ler token do localStorage: {ex.Message}");
+                Console.WriteLine($"Erro ao ler token do sessionStorage: {ex.Message}");
             }
 
             if (string.IsNullOrWhiteSpace(token))
@@ -101,6 +101,19 @@ namespace GamP_SCPeriop.Client.Auth
                 case 3: base64 += "="; break;
             }
             return Convert.FromBase64String(base64);
+        }
+
+        public async Task LogoutAsync()
+        {
+            // 1. Apaga o Token da SessionStorage (Mesma que o Login)
+            await _sessionStorage.RemoveItemAsync(TokenKey);
+
+            // 2. Cria um utilizador vazio (Anónimo)
+            var anonymousUser = new ClaimsPrincipal(new ClaimsIdentity());
+            var authState = Task.FromResult(new AuthenticationState(anonymousUser));
+
+            // 3. Grita para toda a aplicação: "O utilizador saiu!"
+            NotifyAuthenticationStateChanged(authState);
         }
     }
 }

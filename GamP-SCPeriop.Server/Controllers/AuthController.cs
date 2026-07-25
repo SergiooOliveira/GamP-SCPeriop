@@ -83,7 +83,7 @@ namespace GamP_SCPeriop.Server.Controllers
             // 4. Limpamos a password por segurança e devolvemos o Token + Dados do Utilizador
             user.Password = string.Empty;
 
-            return Ok(new
+            return Ok(new LoginResponseDTO
             {
                 Token = tokenString,
                 User = user
