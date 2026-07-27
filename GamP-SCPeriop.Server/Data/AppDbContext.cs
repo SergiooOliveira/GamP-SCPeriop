@@ -54,18 +54,6 @@ namespace GamP_SCPeriop.Server.Data
             // ==========================================
             // 1. USERS
             // ==========================================
-            modelBuilder.Entity<User>().HasData(
-                // Your existing users
-                new User { Id = 6, University = "IPCA", Password = "123", Email = "miguel@ipca.com", FullName = "Miguel Teixeira", Role = UserRole.Supervisor },
-                new User { Id = 7, University = "IPCA", Password = "123", Email = "a100@alunos.ipca.pt", FullName = "Rúben Peixoto", Role = UserRole.Supervisionado },
-                new User { Id = 8, University = "IPCA", Password = "123", Email = "professorTeste@ipca.pt", FullName = "Teste de nome", Role = UserRole.Supervisor },
-
-                // New Dummy Users (Password is also 123 for easy testing)
-                new User { Id = 9, University = "Hospital Central", Password = "123", Email = "armando.costa@hospital.pt", FullName = "Dr. Armando Costa", Role = UserRole.Supervisor },
-                new User { Id = 10, University = "Hospital Central", Password = "123", Email = "beatriz.sousa@hospital.pt", FullName = "Enf. Beatriz Sousa", Role = UserRole.Supervisor },
-                new User { Id = 11, University = "Universidade do Minho", Password = "123", Email = "a101@alunos.ipca.pt", FullName = "Ana Silva", Role = UserRole.Supervisionado },
-                new User { Id = 12, University = "Universidade do Porto", Password = "123", Email = "a102@alunos.ipca.pt", FullName = "Carlos Martins", Role = UserRole.Supervisionado }
-            );
 
             // Relationships
             modelBuilder.Entity<Enrollment>()
@@ -79,14 +67,6 @@ namespace GamP_SCPeriop.Server.Data
                 .WithMany()
                 .HasForeignKey(e => e.ProfessorId)
                 .OnDelete(DeleteBehavior.Restrict);
-
-            // ==========================================
-            // 2. PATHWAYS
-            // ==========================================
-            modelBuilder.Entity<Pathway>().HasData(
-                new Pathway { Id = 1, Title = "Enfermagem Cirúrgica", MinimumPassScore = 50, MinimumApprovalScore = 75, ProfessorId = 9 },
-                new Pathway { Id = 2, Title = "Anestesia Básica", MinimumPassScore = 50, MinimumApprovalScore = 80, ProfessorId = 10 }
-            );
 
             // ==========================================
             // 3. MODULES
@@ -139,15 +119,6 @@ namespace GamP_SCPeriop.Server.Data
 
                 // Parâmetro Solto
                 new ModuleComponent { Id = 22, ModuleId = 4, Title = "Regista adequadamente a administração de estupefacientes em folha própria (Mod.3)", Stage = ModuleStage.ObservacaoPassiva }
-            );
-
-            // ==========================================
-            // 5. ENROLLMENTS
-            // ==========================================
-            modelBuilder.Entity<Enrollment>().HasData(
-                // New Dummy Enrollments
-                new Enrollment { Id = 3, StudentId = 11, ProfessorId = 10, PathwayId = 2, ProgressPercentage = 0, StartDate = new DateTime(2026, 1, 1), EndDate = new DateTime(2026, 5, 20) },
-    new Enrollment { Id = 4, StudentId = 12, ProfessorId = 9, PathwayId = 1, ProgressPercentage = 0, StartDate = new DateTime(2026, 1, 1), EndDate = new DateTime(2026, 12, 10) }
             );
 
             // ==========================================

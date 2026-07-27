@@ -29,7 +29,7 @@ namespace GamP_SCPeriop.Server.Controllers
             var newUser = new User
             {
                 Email = request.Email,
-                Password = request.Password,
+                Password = BCrypt.Net.BCrypt.HashPassword(request.Password),
                 FullName = request.FullName,
                 Role = request.Role,
                 University = request.University
@@ -46,9 +46,9 @@ namespace GamP_SCPeriop.Server.Controllers
         {
             // Verifica na base de dados se as credenciais estão corretas
             var user = await _context.Users
-                .FirstOrDefaultAsync(u => u.Email == request.Email && u.Password == request.Password);
+                .FirstOrDefaultAsync(u => u.Email == request.Email);
 
-            if (user == null)
+            if (user == null || !BCrypt.Net.BCrypt.Verify(request.Password, user.Password))
             {
                 return BadRequest("User not found or password incorrect");
             }
