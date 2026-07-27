@@ -113,7 +113,9 @@
 
                 <main class="p-3">
                     <div>
-                        @Body
+                        <CascadingValue Value="currentUser">
+                            @Body
+                        </CascadingValue>
                     </div>
                 </main>
             </div>

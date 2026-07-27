@@ -1,10 +1,9 @@
 ﻿@page "/pathway/{PathwayId:int}"
 @using GamP_SCPeriop.Shared.Data
-@using Blazored.LocalStorage
+@using GamP_SCPeriop.Shared.Enum
 @layout TopNavBarLayout
 @inject HttpClient Http
 @inject NavigationManager Nav
-@inject ILocalStorageService LocalStorage
 
 <div class="max-width-container mt-4">
     @if (pathway == null)
@@ -70,6 +69,9 @@
 </div>
 
 @code {
+    [CascadingParameter]
+    public User? currentUser { get; set; }
+
     [Parameter] public int PathwayId { get; set; }
     private Pathway? pathway;
     private List<Enrollment> enrollments = new();
@@ -82,8 +84,9 @@
             pathway = await Http.GetFromJsonAsync<Pathway>($"api/Pathway/{PathwayId}");
 
             // 2. Get the specific students for this supervisor on THIS pathway
-            var user = await LocalStorage.GetItemAsync<User>("user");
-            var allEnrollments = await Http.GetFromJsonAsync<List<Enrollment>>($"api/Enrollment/supervisor/{user.Id}");
+            if (currentUser?.Role != UserRole.Supervisor) { Nav.NavigateTo("/"); return; }
+
+            var allEnrollments = await Http.GetFromJsonAsync<List<Enrollment>>($"api/Enrollment/supervisor/{currentUser.Id}");
             
             if (allEnrollments != null)
             {

@@ -73,7 +73,13 @@ namespace GamP_SCPeriop.Client.Auth
             var jsonBytes = ParseBase64WithoutPadding(payload);
             var keyValuePairs = JsonSerializer.Deserialize<Dictionary<string, object>>(jsonBytes);
 
+            // 1. Procuramos pela chave oficial OU pela chave curta ("role")
             keyValuePairs.TryGetValue(ClaimTypes.Role, out object roles);
+            if (roles == null)
+            {
+                keyValuePairs.TryGetValue("role", out roles);
+            }
+
             if (roles != null)
             {
                 if (roles.ToString().Trim().StartsWith("["))
@@ -84,9 +90,11 @@ namespace GamP_SCPeriop.Client.Auth
                 }
                 else
                 {
+                    // 2. Garantimos que é guardado com a etiqueta oficial (ClaimTypes.Role)
                     claims.Add(new Claim(ClaimTypes.Role, roles.ToString()));
                 }
                 keyValuePairs.Remove(ClaimTypes.Role);
+                keyValuePairs.Remove("role"); // Limpamos a chave curta para não ir duplicada
             }
 
             claims.AddRange(keyValuePairs.Select(kvp => new Claim(kvp.Key, kvp.Value.ToString())));

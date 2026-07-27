@@ -1,12 +1,10 @@
 ﻿@page "/module/{ModuleId:int}"
 @using GamP_SCPeriop.Shared.Data
 @using GamP_SCPeriop.Shared.Enum
-@using Blazored.LocalStorage
 @using static GamP_SCPeriop.Helpers.UIHelpers
 @layout TopNavBarLayout
 @inject HttpClient Http
 @inject NavigationManager Nav
-@inject ILocalStorageService LocalStorage
 
 <div class="max-width-container mt-3 px-3">
     <div class="mb-3">
@@ -184,6 +182,9 @@
 </div>
 
 @code {
+    [CascadingParameter]
+    public User? currentUser { get; set; }
+
     [Parameter] public int ModuleId { get; set; }
 
     private Module? module;
@@ -200,7 +201,7 @@
         try
         {
             isLoading = true;
-            var currentUser = await LocalStorage.GetItemAsync<User>("user");
+            
             if (currentUser != null)
             {
                 module = await Http.GetFromJsonAsync<Module>($"api/Module/{ModuleId}/student/{currentUser.Id}");

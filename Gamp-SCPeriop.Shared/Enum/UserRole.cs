@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace GamP_SCPeriop.Shared.Enum
+﻿namespace GamP_SCPeriop.Shared.Enum
 {
     public enum UserRole
     {

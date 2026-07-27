@@ -1,13 +1,11 @@
 ﻿@page "/dashboard"
+@attribute [Authorize(Roles = "Supervisor")]
 @using GamP_SCPeriop.Shared.Entity.Model
-@using GamP_SCPeriop.Shared.Enum
 @using GamP_SCPeriop.Shared.Data
 @using GamP_SCPeriop.Shared.Data.Template
-@using Blazored.LocalStorage
 @layout TopNavBarLayout
 @inject HttpClient Http
 @inject NavigationManager Nav
-@inject ILocalStorageService LocalStorage
 @inject IJSRuntime JsRuntime
 
 <div class="max-width-container mt-3 px-3 pb-5">
@@ -288,8 +286,8 @@
 }
 
 @code {
-    // --- STATE VARIABLES ---
-    private User? currentUser;
+    [CascadingParameter]
+    public User? currentUser { get; set; }
 
     // Top Cards Data
     private List<Enrollment> supervisedEnrollments = new();
@@ -329,12 +327,6 @@
     {
         try
         {
-            var hasUser = await LocalStorage.ContainKeyAsync("user");
-            if (!hasUser) { Nav.NavigateTo("/"); return; }
-
-            currentUser = await LocalStorage.GetItemAsync<User>("user");
-            if (currentUser?.Role != UserRole.Supervisor) { Nav.NavigateTo("/"); return; }
-
             availableTemplates = await Http.GetFromJsonAsync<List<PathwayTemplate>>("api/PathwayTemplate") ?? new();
 
             await LoadDashboardData();
@@ -438,7 +430,7 @@
 
         isCreatingPathway = true;
 
-        Console.WriteLine($"Creating a new pathway with a currentUser.id: {currentUser.Id}");
+        Console.WriteLine($"Creating a new pathway with a currentUser.id: {currentUser?.Id}");
         pathwayDto.ProfessorId = currentUser.Id;
 
         // A TUA NOVA LINHA AQUI: Passa a escolha do Molde para o DTO

@@ -1,11 +1,11 @@
 ﻿@page "/badges"
-@using Blazored.LocalStorage
 @layout TopNavBarLayout
+@attribute [Authorize(Roles = "Supervisionado")]
+@using GamP_SCPeriop.Shared.Data
 @inject HttpClient Http
 @inject NavigationManager Nav
-@inject ILocalStorageService LocalStorage
-@implements IAsyncDisposable
 @inject IJSRuntime JsRuntime
+@implements IAsyncDisposable
 
 <div class="max-width-container mt-4 px-4 pb-5">
     
@@ -54,6 +54,9 @@
 </div>
 
 @code {
+    [CascadingParameter]
+    public User? currentUser { get; set; }
+
     private IJSObjectReference? module;
 
     // Modelo Rápido Temporário para testar o visual

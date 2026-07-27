@@ -1,11 +1,10 @@
 ﻿@page "/my-profile"
-@using Blazored.LocalStorage
+@attribute [Authorize(Roles = "Supervisionado")]
 @using GamP_SCPeriop.Shared.Enum
 @using GamP_SCPeriop.Shared.Data
 @layout TopNavBarLayout
 @inject HttpClient Http
 @inject NavigationManager Nav
-@inject ILocalStorageService LocalStorage
 
 <div class="container mt-4">
     <div class="row justify-content-center">
@@ -142,7 +141,8 @@
 </div>
 
 @code {
-    private User? currentUser;
+    [CascadingParameter]
+    public User? currentUser { get; set; }
     private List<Enrollment>? enrollments;
 
     // We only need to track open pathways now
@@ -152,23 +152,6 @@
     {
         try
         {
-            var hasUser = await LocalStorage.ContainKeyAsync("user");
-
-            if (!hasUser)
-            {
-                Nav.NavigateTo("/login");
-                return;
-            }
-
-            currentUser = await LocalStorage.GetItemAsync<User>("user");
-
-            // Redirect supervisors away from the student profile
-            if (currentUser?.Role == UserRole.Supervisor)
-            {
-                Nav.NavigateTo("/dashboard");
-                return;
-            }
-
             // Fetch the enrollments for the student
             enrollments = await Http.GetFromJsonAsync<List<Enrollment>>($"api/Enrollment/student/{currentUser!.Id}");
         }
