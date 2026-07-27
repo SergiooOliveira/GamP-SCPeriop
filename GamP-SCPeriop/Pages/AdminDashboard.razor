@@ -11,7 +11,7 @@
 
         <!-- Cartão: Pathway Templates -->
         <div class="col">
-            <div class="card border-0 h-100 admin-module-card" @onclick="NavigateToTemplates">
+            <div class="card border-0 h-100 admin-module-card" @onclick='@(() => Nav.NavigateTo("/templates"))'>
                 <div class="card-body p-4 d-flex flex-column">
 
                     <!-- Ícone ilustrativo -->
@@ -31,6 +31,26 @@
             </div>
         </div>
 
+        <!-- Cartão: Gestão de Utilizadores -->
+        <div class="col">
+            <div class="card border-0 h-100 admin-module-card" @onclick='@(() => Nav.NavigateTo("/admin/users"))'>
+                <div class="card-body p-4 d-flex flex-column">
+                    <!-- Ícone ilustrativo (verde para contrastar com o primary) -->
+                    <div class="mb-4 text-success">
+                        <i class="bi bi-people-fill" style="font-size: 2.5rem;"></i>
+                    </div>
+
+                    <h4 class="fw-bold text-dark mb-2" style="line-height: 1.2;">
+                        Gestão de Utilizadores
+                    </h4>
+
+                    <p class="text-secondary small mt-auto mb-0">
+                        Cria novas contas de Professores e Alunos e gere os acessos ao sistema.
+                    </p>
+                </div>
+            </div>
+        </div>
+
         <!-- Espaço para futuros módulos (Ex: Gestão de Utilizadores, Configurações Globais) -->
         <!--
         <div class="col">
@@ -44,9 +64,11 @@
 </div>
 
 @code {
-    private void NavigateToTemplates()
+    private string GenerateRandomPassword()
     {
-        // Navega para a página que construímos anteriormente
-        Nav.NavigateTo("/templates");
+        var chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$%^&*";
+        var random = new Random();
+        return new string(Enumerable.Repeat(chars, 10)
+            .Select(s => s[random.Next(s.Length)]).ToArray());
     }
 }

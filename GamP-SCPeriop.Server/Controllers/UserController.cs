@@ -26,5 +26,16 @@ namespace GamP_SCPeriop.Server.Controllers
 
             return Ok(students);
         }
+
+        [HttpGet]
+        public async Task<ActionResult<List<User>>> GetAllUsers()
+        {
+            var users = await _context.Users
+                .Where(u => u.Role != UserRole.Admin)
+                .OrderByDescending(u => u.Id) // Coloca os registos mais recentes no topo
+                .ToListAsync();
+
+            return Ok(users);
+        }
     }
 }

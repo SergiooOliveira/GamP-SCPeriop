@@ -28,11 +28,6 @@ namespace GamP_SCPeriop.Server.Controllers
                 .Where(e => e.ProfessorId == supervisorId)
                 .ToListAsync();
 
-            if (!enrollments.Any())
-            {
-                return NotFound("Nenhum aluno encontrado para este supervisor.");
-            }
-
             return Ok(enrollments);
         }
 

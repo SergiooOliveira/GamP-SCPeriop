@@ -1,5 +1,6 @@
 ﻿@page "/dashboard"
 @attribute [Authorize(Roles = "Supervisor")]
+@using GamP_SCPeriop.Components
 @using GamP_SCPeriop.Shared.Entity.Model
 @using GamP_SCPeriop.Shared.Data
 @using GamP_SCPeriop.Shared.Data.Template
@@ -11,7 +12,12 @@
 <div class="max-width-container mt-3 px-3 pb-5">
     
     <div class="d-flex overflow-auto gap-3 mb-4 pb-2 horizontal-scroll-container">
-        @if (pathwaySummaries.Any())
+        
+        @if (isLoading)
+        {
+            <p class="text-muted flex-shrink-0 me-3 mt-3">A carregar pathways...</p>
+        }
+        else if (pathwaySummaries.Any())
         {
             @foreach (var summary in pathwaySummaries)
             {
@@ -35,10 +41,6 @@
                 </div>
             }
         }
-        else
-        {
-            <p class="text-muted flex-shrink-0 me-3">A carregar pathways...</p>
-        }
 
         <div class="card shadow-sm flex-shrink-0"
              style="width: 240px; border-radius: 20px; background-color: transparent; border: 2px dashed #6A96A6; cursor: pointer; transition: all 0.2s;"
@@ -50,88 +52,11 @@
         </div>
     </div>
 
-    <div class="mt-4">
-        <div class="row mt-5 mb-4 align-items-center">
-            <div class="col-md-6">
-                <h4 class="fw-bold mb-0 text-dark">Gestão de Alunos</h4>
-            </div>
-            <div class="col-md-6 text-md-end mt-3 mt-md-0">
-                <div class="input-group shadow-sm" style="border-radius: 20px; overflow: hidden; max-width: 350px; float: right;">
-                    <span class="input-group-text bg-white border-0"><i class="bi bi-search text-muted"></i></span>
-                    <input type="text" class="form-control border-0 bg-white" placeholder="Pesquisar aluno..." @bind="searchQuery" @bind:event="oninput">
-                </div>
-            </div>
-        </div>
+    @* Gestão de alunos *@
+    <UserManagementTableComponent IsLoading="isLoading" 
+                                  Students="students" 
+                                  OnStudentClick="OpenStudentProfile" />
 
-        <div class="card shadow-sm border-0 mb-5" style="border-radius: 20px; overflow: hidden;">
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
-                    <thead class="bg-light text-muted small text-uppercase">
-                        <tr>
-                            <th class="ps-4 fw-bold border-0 py-3">Aluno</th>
-                            <th class="fw-bold border-0 py-3">Email</th>
-                            <th class="fw-bold border-0 py-3">Percursos Ativos</th>
-                            <th class="fw-bold border-0 py-3">Progresso Global</th>
-                            <th class="fw-bold border-0 py-3 text-end pe-4">Último Acesso</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @if (students == null)
-                        {
-                            <tr><td colspan="5" class="text-center py-4 text-muted">A carregar alunos...</td></tr>
-                        }
-                        else if (!students.Any())
-                        {
-                            <tr><td colspan="5" class="text-center py-4 text-muted">Nenhum aluno encontrado no sistema.</td></tr>
-                        }
-                        else
-                        {
-                            @foreach (var student in FilteredStudents)
-                            {
-                                <tr @onclick="() => OpenStudentProfile(student.StudentId)" style="cursor: pointer;" class="bg-white">
-                                    <td class="no-select ps-4 py-3">
-                                        <div class="d-flex align-items-center gap-3">
-                                            <div class="rounded-circle text-white d-flex justify-content-center align-items-center flex-shrink-0 shadow-sm" style="width: 40px; height: 40px; background-color: #1a73e8;">
-                                                <i class="bi bi-person-fill fs-5"></i>
-                                            </div>
-                                            <div class="fw-bold text-dark">@student.FullName</div>
-                                        </div>
-                                    </td>
-                                    <td class="no-select text-muted small">@student.Email</td>
-                                    <td>
-                                        @if (!student.ActivePathways.Any())
-                                        {
-                                            <span class="text-muted small">Sem percursos</span>
-                                        }
-                                        else
-                                        {
-                                            <div class="d-flex flex-wrap gap-1">
-                                                @foreach (var tag in student.ActivePathways)
-                                                {
-                                                    <span class="badge rounded-pill bg-primary bg-opacity-10 text-primary fw-normal px-2 py-1 border border-primary border-opacity-25">@tag.Title</span>
-                                                }
-                                            </div>
-                                        }
-                                    </td>
-                                    <td class="no-select" style="width: 200px;">
-                                        <div class="d-flex align-items-center gap-2 bg-light px-3 py-2" style="border-radius: 20px;">
-                                            <div class="bg-white flex-grow-1 shadow-sm" style="height: 6px; border-radius: 10px; overflow: hidden;">
-                                                <div class="h-100" style="width: @(student.OverallProgress)%; background-color: #8ab4f8;"></div>
-                                            </div>
-                                            <small class="fw-bold text-primary" style="min-width: 30px; text-align: right;">@(student.OverallProgress)%</small>
-                                        </div>
-                                    </td>
-                                    <td class="no-select text-end pe-4 text-muted small">
-                                        @(student.LastAccess?.ToString("dd MMM yyyy") ?? "-")
-                                    </td>
-                                </tr>
-                            }
-                        }
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
 </div>
 
 @if (showModal)
@@ -289,6 +214,8 @@
     [CascadingParameter]
     public User? currentUser { get; set; }
 
+    private bool isLoading = true;
+
     // Top Cards Data
     private List<Enrollment> supervisedEnrollments = new();
     private record PathwaySummary(int Id, string Title, int StudentCount);
@@ -296,7 +223,6 @@
 
     // Table Data
     private List<StudentManagementDto>? students;
-    private string searchQuery = "";
 
     // Modal Data
     private bool showModal = false;
@@ -315,25 +241,25 @@
     private bool isCreatingPathway = false;
     private PathwayCreateDTO pathwayDto = new PathwayCreateDTO { MinimumPassScore = 50, MinimumApprovalScore = 75 };
 
-    // --- COMPUTED PROPERTIES ---
-    private IEnumerable<StudentManagementDto> FilteredStudents =>
-        string.IsNullOrWhiteSpace(searchQuery)
-            ? (students ?? new())
-            : (students ?? new()).Where(s => s.FullName.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ||
-                                             s.Email.Contains(searchQuery, StringComparison.OrdinalIgnoreCase));
-
     // --- INITIALIZATION ---
     protected override async Task OnInitializedAsync()
     {
         try
         {
             availableTemplates = await Http.GetFromJsonAsync<List<PathwayTemplate>>("api/PathwayTemplate") ?? new();
-
             await LoadDashboardData();
+
+            // Segurança: Se a API não devolver nada, garante que não fica a null
+            students ??= new();
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Critical error loading dashboard: {ex.Message}");
+            students = new(); // Fallback em caso de erro
+        }
+        finally
+        {
+            isLoading = false;
         }
     }
 

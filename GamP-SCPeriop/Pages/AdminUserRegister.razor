@@ -1,0 +1,148 @@
+﻿@page "/admin/users"
+@layout TopNavBarLayout
+@using GamP_SCPeriop.Components
+@using GamP_SCPeriop.Shared.Entity.Model
+@using GamP_SCPeriop.Shared.Enum
+@using GamP_SCPeriop.Shared.Data
+@attribute [Authorize(Roles = "Admin")]
+@inject HttpClient Http
+
+<div class="container mt-4">
+    <!-- Cabeçalho da Página -->
+    <div class="mb-4">
+        <h2 class="fw-bold mb-0">Gestão de Utilizadores</h2>
+        <p class="text-secondary">Cria novas contas e gere os acessos ao sistema.</p>
+    </div>
+
+    <!-- Cartão do Formulário -->
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-header bg-white border-bottom-0 pt-4 pb-0 px-4">
+            <h5 class="fw-bold mb-0"><i class="bi bi-person-plus text-primary me-2"></i>Criar Novo Utilizador</h5>
+        </div>
+        <div class="card-body p-4">
+            <EditForm Model="@registerModel" OnValidSubmit="HandleRegister" autocomplete="off">
+                <DataAnnotationsValidator />
+
+                <div class="row g-4">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold text-dark small">Nome Completo</label>
+                        <InputText @bind-Value="registerModel.FullName" autocomplete="none" class="form-control bg-light border-0" placeholder="Ex: Dr. João Silva" />
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold text-dark small">Email Institucional</label>
+                        <InputText @bind-Value="registerModel.Email" type="email" autocomplete="none" class="form-control bg-light border-0" placeholder="joao@uminho.pt" />
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold text-dark small">Instituição / Hospital</label>
+                        <InputText @bind-Value="registerModel.University" autocomplete="none" class="form-control bg-light border-0" placeholder="Ex: Universidade do Minho" />
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold text-dark small">Perfil de Acesso</label>
+                        <InputSelect @bind-Value="registerModel.Role" class="form-select bg-light border-0">
+                            @foreach (var role in Enum.GetValues<UserRole>())
+                            {
+                                <option value="@role">@role</option>
+                            }
+                        </InputSelect>
+                    </div>
+
+                    <div class="col-md-12">
+                        <label class="form-label fw-bold text-warning small">Password Inicial (Provisório para Testes)</label>
+                        <InputText @bind-Value="registerModel.Password" type="text" autocomplete="new-password" class="form-control border-warning" placeholder="Define a password temporária (ex: 123)" />
+                        <div class="form-text">Mais tarde, isto será substituído por um envio automático de email.</div>
+                    </div>
+                </div>
+
+                <div class="mt-4 text-end">
+                    <button type="submit" class="btn btn-primary px-4 fw-bold rounded-pill">
+                        Criar Conta
+                    </button>
+                </div>
+            </EditForm>
+
+            @if (!string.IsNullOrEmpty(statusMessage))
+            {
+                <div class="alert alert-@statusColor mt-4 mb-0 border-0 shadow-sm" role="alert">
+                    @statusMessage
+                </div>
+            }
+        </div>
+    </div>
+
+    <UserManagementTableComponent IsLoading="isLoading" 
+                             AdminUsers="allUsers" 
+                             OnEditUserClick="EditUser" 
+                             OnDeleteUserClick="DeleteUser" />
+</div>
+
+@code {
+    private bool isLoading = true;
+    private List<User> allUsers = new();
+
+    private UserRegisterDTO registerModel = new();
+    private string statusMessage = "";
+    private string statusColor = "success";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadUsers();
+    }
+
+    private async Task HandleRegister()
+    {
+        try
+        {
+            var response = await Http.PostAsJsonAsync("api/Auth/register", registerModel);
+
+            if (response.IsSuccessStatusCode)
+            {
+                statusMessage = $"Conta criada com sucesso para {registerModel.Email}!";
+                statusColor = "success";
+                registerModel = new(); // Limpa o formulário após sucesso
+            }
+            else
+            {
+                statusMessage = "Erro ao criar utilizador. Verifica se o email já existe ou se os dados estão corretos.";
+                statusColor = "danger";
+            }
+        }
+        catch (Exception)
+        {
+            statusMessage = "Erro de comunicação com a API. Verifica se o servidor está a correr.";
+            statusColor = "danger";
+        }
+    }
+
+    private async Task LoadUsers()
+    {
+        isLoading = true;
+
+        try
+        {
+            // Aponta para a nova rota do teu UserController
+            allUsers = await Http.GetFromJsonAsync<List<User>>("api/User") ?? new();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Erro ao carregar utilizadores: {ex.Message}");
+            allUsers = new();
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void EditUser(int userId)
+    {
+        Console.WriteLine($"A abrir modal de edição para o utilizador: {userId}");
+    }
+
+    private async Task DeleteUser(int userId)
+    {
+        Console.WriteLine($"A chamar API para apagar utilizador: {userId}");
+    }
+}

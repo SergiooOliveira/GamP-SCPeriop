@@ -26,6 +26,12 @@ namespace GamP_SCPeriop.Server.Controllers
         [HttpPost("register")]
         public async Task<ActionResult<User>> Register(UserRegisterDTO request)
         {
+            var emailExists = await _context.Users.AnyAsync(u => u.Email == request.Email);
+            if (emailExists)
+            {
+                return BadRequest("Email já está em uso.");
+            }
+
             var newUser = new User
             {
                 Email = request.Email,
