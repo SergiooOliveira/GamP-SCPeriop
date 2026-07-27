@@ -91,6 +91,8 @@
                         Nav.NavigateTo("/dashboard");
                     else if (authResponse.User.Role == UserRole.Supervisionado)
                         Nav.NavigateTo("/my-profile");
+                    else if (authResponse.User.Role == UserRole.Admin)
+                        Nav.NavigateTo("/admin/dashboard");
                     else
                         Console.WriteLine("Unknown role: " + authResponse.User.Role);
                 }

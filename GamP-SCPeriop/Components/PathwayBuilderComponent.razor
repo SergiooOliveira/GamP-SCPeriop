@@ -7,12 +7,13 @@
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h5 class="fw-bold text-primary mb-0">Gestão de Módulos</h5>
         
-@*         @if (currentUser.Role == UserRole.Admin)
-        { *@
-            <button class="btn btn-warning shadow-sm fw-bold text-dark" @onclick="() => OnOpenBadges.InvokeAsync()">
-                <i class="bi bi-award me-1"></i> Gerir Badges
-            </button>
-        @* }         *@
+        <AuthorizeView Roles="Admin">
+            <Authorized>
+                <button class="btn btn-warning shadow-sm fw-bold text-dark" @onclick="() => OnOpenBadges.InvokeAsync()">
+                    <i class="bi bi-award me-1"></i> Gerir Badges
+                </button>
+            </Authorized>
+        </AuthorizeView>
     </div>
 
     @if (Modules.Any())
