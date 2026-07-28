@@ -103,6 +103,38 @@ namespace GamP_SCPeriop.Server.Controllers
             _context.Pathways.Add(pathway);
             await _context.SaveChangesAsync();
 
+            // --- 🏆 INÍCIO DA CÓPIA DAS BADGES (DEEP COPY) ---
+            if (dto.TemplateId.HasValue && dto.TemplateId.Value > 0)
+            {
+                // Vamos buscar todas as badges associadas a este Template
+                var badgeTemplates = await _context.BadgeTemplates
+                    .Where(b => b.PathwayTemplateId == dto.TemplateId.Value)
+                    .ToListAsync();
+
+                if (badgeTemplates.Any())
+                {
+                    // Para cada template de badge, criamos uma cópia congelada para este aluno/turma
+                    foreach (var badgeTpl in badgeTemplates)
+                    {
+                        var newBadge = new Badge
+                        {
+                            PathwayId = pathway.Id, // Liga ao percurso instanciado!
+                            Name = badgeTpl.Name,
+                            Description = badgeTpl.Description,
+                            Icon = badgeTpl.Icon,
+                            Tier = badgeTpl.Tier,
+                            TriggerType = badgeTpl.TriggerType,
+                            TriggerValue = badgeTpl.TriggerValue
+                        };
+                        _context.Badges.Add(newBadge); // Assume que adicionaste public DbSet<Badge> Badges ao teu DbContext
+                    }
+
+                    // Gravamos as novas badges na base de dados
+                    await _context.SaveChangesAsync();
+                }
+            }
+            // --- FIM DA CÓPIA DAS BADGES ---
+
             return Ok(pathway);
         }
 
@@ -127,7 +159,7 @@ namespace GamP_SCPeriop.Server.Controllers
         public async Task<ActionResult<List<PathwayTagDto>>> GetSupervisorPathways(int supervisorId)
         {
             var pathways = await _context.Pathways
-                .Where(p => p.ProfessorId == supervisorId)
+                .Where(p => p.ProfessorId == supervisorId && !p.IsArchived)
                 .Select(p => new PathwayTagDto
                 {
                     PathwayId = p.Id,
@@ -154,25 +186,30 @@ namespace GamP_SCPeriop.Server.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeletePathway(int id)
         {
-            // Carrega o percurso completo com todas as suas ramificações
-            var pathway = await _context.Pathways
-                .Include(p => p.Modules)
-                    .ThenInclude(m => m.Components)
-                .Include(p => p.Modules)
-                    .ThenInclude(m => m.StageTimelines)
-                .FirstOrDefaultAsync(p => p.Id == id);
+            var pathway = await _context.Pathways.FirstOrDefaultAsync(p => p.Id == id);
+            if (pathway == null) return NotFound();
 
-            // Se já não existir, devolvemos 404 (pode ter sido apagado por outro separador)
-            if (pathway == null)
+            // 1. Verificamos se há alunos inscritos
+            bool hasStudents = await _context.Enrollments.AnyAsync(e => e.PathwayId == id);
+
+            if (hasStudents)
             {
-                return NotFound();
+                // ARQUIVO (SOFT DELETE): Tem alunos, não podemos destruir o histórico!
+                pathway.IsArchived = true;
+            }
+            else
+            {
+                // APAGAR REAL (HARD DELETE): Foi só um engano, ninguém está a usar isto.
+                // O Entity Framework apaga os Módulos e Componentes em cascata automaticamente
+                var badges = await _context.Badges.Where(b => b.PathwayId == id).ToListAsync();
+                if (badges.Any()) _context.Badges.RemoveRange(badges);
+
+                _context.Pathways.Remove(pathway);
             }
 
-            // Marca a árvore toda para eliminação e guarda as alterações
-            _context.Pathways.Remove(pathway);
+            // Grava as alterações (seja a mudança do boolean ou a eliminação real)
             await _context.SaveChangesAsync();
 
-            // 204 No Content é o standard HTTP para um Delete com sucesso
             return NoContent();
         }
     }

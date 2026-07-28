@@ -9,11 +9,10 @@ namespace GamP_SCPeriop.Shared.Data
 
         [Required]
         public string Title { get; set; } = string.Empty;
-
         public int MinimumPassScore { get; set; } = 50;
         public int MinimumApprovalScore { get; set; } = 80;
-
         public int ProfessorId { get; set; }
+        public bool IsArchived { get; set; } = false;
 
         public List<Module> Modules { get; set; } = new();
 

@@ -4,6 +4,7 @@ using GamP_SCPeriop.Server.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GamP_SCPeriop.Server.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260728154657_AddUserBadgesTable")]
+    partial class AddUserBadgesTable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -21,44 +24,6 @@ namespace GamP_SCPeriop.Server.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
-
-            modelBuilder.Entity("GamP_SCPeriop.Shared.Data.Badge", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Icon")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("PathwayId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("Tier")
-                        .HasColumnType("int");
-
-                    b.Property<int>("TriggerType")
-                        .HasColumnType("int");
-
-                    b.Property<string>("TriggerValue")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Badges");
-                });
 
             modelBuilder.Entity("GamP_SCPeriop.Shared.Data.ComponentEvaluation", b =>
                 {
@@ -99,12 +64,6 @@ namespace GamP_SCPeriop.Server.Migrations
 
                     b.Property<DateTime>("EndDate")
                         .HasColumnType("datetime2");
-
-                    b.Property<bool>("IsHidden")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("IsStarred")
-                        .HasColumnType("bit");
 
                     b.Property<int>("PathwayId")
                         .HasColumnType("int");
@@ -244,9 +203,6 @@ namespace GamP_SCPeriop.Server.Migrations
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<bool>("IsArchived")
-                        .HasColumnType("bit");
 
                     b.Property<int>("MinimumApprovalScore")
                         .HasColumnType("int");
@@ -612,18 +568,19 @@ namespace GamP_SCPeriop.Server.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<int>("BadgeId")
+                    b.Property<int>("BadgeTemplateId")
                         .HasColumnType("int");
 
                     b.Property<DateTime>("EarnedAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<int>("UserId")
-                        .HasColumnType("int");
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("BadgeId");
+                    b.HasIndex("BadgeTemplateId");
 
                     b.ToTable("UserBadges");
                 });
@@ -772,13 +729,13 @@ namespace GamP_SCPeriop.Server.Migrations
 
             modelBuilder.Entity("GamP_SCPeriop.Shared.Data.UserBadge", b =>
                 {
-                    b.HasOne("GamP_SCPeriop.Shared.Data.Badge", "Badge")
+                    b.HasOne("GamP_SCPeriop.Shared.Data.Template.BadgeTemplate", "BadgeTemplate")
                         .WithMany()
-                        .HasForeignKey("BadgeId")
+                        .HasForeignKey("BadgeTemplateId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Badge");
+                    b.Navigation("BadgeTemplate");
                 });
 
             modelBuilder.Entity("GamP_SCPeriop.Shared.Entity.Model.ModuleStageTimeline", b =>

@@ -16,5 +16,9 @@
         public int ProgressPercentage { get; set; } = 0;
         public DateTime StartDate { get; set; } = DateTime.UtcNow;
         public DateTime EndDate { get; set; }
+
+        // Preferências do Aluno para a sua Dashboard
+        public bool IsStarred { get; set; } = false;
+        public bool IsHidden { get; set; } = false;
     }
 }

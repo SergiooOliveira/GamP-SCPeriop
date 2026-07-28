@@ -120,35 +120,51 @@ namespace GamP_SCPeriop.Server.Controllers
 
                     // Atualiza o objeto Enrollment
                     enrollment.ProgressPercentage = (int)((double)completedComponents / totalComponents * 100);
+
+                    // --- 🏆 INÍCIO DA ATRIBUIÇÃO DE BADGES (VERSÃO CONGELADA) ---
+                    if (enrollment.ProgressPercentage == 100)
+                    {
+                        // 1. Procuramos a Badge instanciada que pertence EXATAMENTE a este Percurso
+                        var pathwayBadge = await _context.Badges
+                            .FirstOrDefaultAsync(b => b.PathwayId == enrollment.PathwayId);
+
+                        if (pathwayBadge != null)
+                        {
+                            // 2. Garantir que não damos a mesma badge duas vezes
+                            bool alreadyHasBadge = await _context.UserBadges
+                                .AnyAsync(ub => ub.UserId == enrollment.StudentId && ub.BadgeId == pathwayBadge.Id);
+
+                            if (!alreadyHasBadge)
+                            {
+                                // 3. Guardar a Badge no perfil do Aluno
+                                _context.UserBadges.Add(new UserBadge
+                                {
+                                    UserId = enrollment.StudentId,
+                                    BadgeId = pathwayBadge.Id,
+                                    EarnedAt = DateTime.UtcNow
+                                });
+
+                                // 4. Criar a Notificação de Conquista!
+                                var badgeNotification = new Notification
+                                {
+                                    ReceiverId = enrollment.StudentId,
+                                    SenderId = enrollment.ProfessorId,
+                                    Title = "Nova Conquista! 🏆",
+                                    Message = $"Parabéns! Desbloqueaste a badge '{pathwayBadge.Name}' ao concluíres o percurso {enrollment.Pathway.Title}.",
+                                    TargetUrl = "/badges",
+                                    CreatedAt = DateTime.UtcNow,
+                                    IsRead = false
+                                };
+
+                                _context.Notifications.Add(badgeNotification);
+                            }
+                        }
+                    }
+                    // --- 🏆 FIM DA ATRIBUIÇÃO DE BADGES ---
+
+                    // Grava a nova percentagem E a notificação de forma permanente na mesma transação
+                    await _context.SaveChangesAsync();
                 }
-
-                // --- INÍCIO DA CRIAÇÃO DA NOTIFICAÇÃO ---
-
-                // Encontrar o módulo exato desta avaliação para extrair o título e o ID para o link
-                var parentModule = enrollment.Pathway.Modules
-                    .FirstOrDefault(m => m.Components != null && m.Components.Any(c => c.Id == request.ModuleComponentId));
-
-                string moduleName = parentModule?.Title ?? "Módulo";
-                string pathwayName = enrollment.Pathway.Title;
-                string targetUrl = parentModule != null ? $"/module/{parentModule.Id}" : "/my-profile";
-
-                var notificacao = new Notification
-                {
-                    ReceiverId = enrollment.StudentId,
-                    SenderId = enrollment.ProfessorId,
-                    Title = "Nova Avaliação",
-                    Message = $"Atribuição de nota no {moduleName} do Percurso {pathwayName}.",
-                    TargetUrl = targetUrl,
-                    CreatedAt = DateTime.UtcNow,
-                    IsRead = false
-                };
-
-                _context.Notifications.Add(notificacao);
-
-                // --- FIM DA CRIAÇÃO DA NOTIFICAÇÃO ---
-
-                // Grava a nova percentagem E a notificação de forma permanente na mesma transação
-                await _context.SaveChangesAsync();
             }
 
             return Ok();

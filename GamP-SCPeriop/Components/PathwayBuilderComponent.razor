@@ -124,8 +124,10 @@
 <!-- ============================================== -->
 @if (isBadgeModalOpen)
 {
-    Console.WriteLine($"No Pai, a lista tem: {Modules.Count} módulos");
-    <BadgeManagerModalComponent OnClose="CloseBadgeModal" AvailableModules="Modules" />
+    <BadgeManagerModalComponent
+        OnClose="CloseBadgeModal"
+        AvailableModules="Modules"
+        CurrentPathwayTemplateId="PathwayTemplateId" />
 }
 
 <!-- ============================================== -->
@@ -484,6 +486,7 @@
 @code {
     #region [ Parâmetros e Eventos (Comunicação com o Pai) ]
 
+    [Parameter] public int PathwayTemplateId { get; set; }
     [Parameter] public bool IsTemplateMode { get; set; } = false;
     [Parameter] public string ParentTitle { get; set; } = string.Empty;
     [Parameter] public List<BuilderModuleDto> Modules { get; set; } = new();

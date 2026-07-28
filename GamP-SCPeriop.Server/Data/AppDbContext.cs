@@ -38,11 +38,14 @@ namespace GamP_SCPeriop.Server.Data
         public DbSet<Notification> Notifications { get; set; }
         public DbSet<ComponentEvaluation> ComponentEvaluations { get; set; }
         public DbSet<ModuleStageTimeline> ModuleStageTimelines { get; set; }
-
+        public DbSet<Badge> Badges { get; set; }
+        public DbSet<UserBadge> UserBadges { get; set; }
+        
         // Templates
         public DbSet<PathwayTemplate> PathwayTemplates { get; set; }
         public DbSet<ModuleTemplate> ModuleTemplates { get; set; }
         public DbSet<ComponentTemplate> ComponentTemplates { get; set; }
+        public DbSet<BadgeTemplate> BadgeTemplates { get; set; }
         #endregion
 
         #region Model Configuration

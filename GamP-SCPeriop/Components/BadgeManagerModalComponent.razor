@@ -1,5 +1,7 @@
-﻿@using GamP_SCPeriop.Shared.Enum
+﻿@using GamP_SCPeriop.Shared.Data.Template
 @using GamP_SCPeriop.Shared.Entity.Model
+@using GamP_SCPeriop.Shared.Enum
+@inject HttpClient Http
 
 <div class="modal fade show" style="display:block; background-color: rgba(0,0,0,0.5);" tabindex="-1">
     <div class="modal-dialog modal-lg modal-dialog-centered">
@@ -18,8 +20,42 @@
                 {
                     <!-- ESTADO 1: LISTA -->
                     <div class="p-4 flex-grow-1" style="overflow-y: auto;">
-                        <p class="text-muted small mb-4">Lista ordenada por raridade e ordem alfabética.</p>
-                        <!-- A lista de badges entrará aqui -->
+                        <div class="mb-4">
+                            <p class="text-muted small">Lista ordenada por raridade e ordem alfabética.</p>
+
+                            @if (!existingBadges.Any())
+                            {
+                                <div class="alert alert-light text-center text-muted" role="alert">
+                                    Ainda não existem badges configuradas para este template.
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="badge-list mt-3">
+                                    @foreach (var badge in existingBadges)
+                                    {
+                                        <div class="d-flex align-items-center justify-content-between py-3 border-bottom">
+
+                                            <!-- Lado Esquerdo: Ícone e Título -->
+                                            <div class="d-flex align-items-center">
+                                                <i class="bi @badge.Icon fs-4 text-warning me-3"></i>
+                                                <span class="fw-bold text-dark">@badge.Name</span>
+                                            </div>
+
+                                            <!-- Lado Direito: Raridade e Botão Editar -->
+                                            <div class="d-flex align-items-center">
+                                                <span class="badge bg-light text-dark border me-3">@badge.Tier</span>
+
+                                                <button class="btn btn-sm btn-outline-secondary" title="Editar Badge">
+                                                    <i class="bi bi-pencil"></i>
+                                                </button>
+                                            </div>
+
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        </div>
                     </div>
 
                     <!-- Botão Fixo no Fundo -->
@@ -105,15 +141,11 @@
                                             <option value="">Selecione o Módulo...</option>
                                             @if (AvailableModules != null)
                                             {
-                                                Console.WriteLine($"AvailableModules is not null = {AvailableModules.Count}");
                                                 @foreach (var mod in AvailableModules)
                                                 {
-                                                    Console.WriteLine($"Module: {mod.Id}");
                                                     <option value="@mod.Id">@mod.Title</option>
                                                 }
                                             }
-                                            else
-                                                Console.WriteLine("Modules is null");
                                         </select>
                                     </div>
                                 }
@@ -177,30 +209,37 @@
 @code {
     [Parameter] public EventCallback OnClose { get; set; }
     [Parameter] public List<BuilderModuleDto> AvailableModules { get; set; } = new();
+    [Parameter] public int CurrentPathwayTemplateId { get; set; }
 
-    private bool isCreating = true;
+    private bool isCreating = false;
     private BadgeTemplateCreateDto newBadge = new();
+    private List<BadgeTemplate> existingBadges = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadBadges();
+    }
 
     // =========================================================================
     // ENUMS E HELPERS DE CORES
     // =========================================================================
     private string GetTierColor(BadgeTier tier) => tier switch
     {
-        BadgeTier.Comum => "#7f8c8d",
-        BadgeTier.Incomum => "#2ecc71",
-        BadgeTier.Raro => "#3498db",
-        BadgeTier.Epico => "#9b59b6",
-        BadgeTier.Lendario => "#f1c40f",
+        BadgeTier.Common => "#7f8c8d",
+        BadgeTier.Uncommon => "#2ecc71",
+        BadgeTier.Rare => "#3498db",
+        BadgeTier.Epic => "#9b59b6",
+        BadgeTier.Legendary => "#f1c40f",
         _ => "#7f8c8d"
     };
 
     private string GetTierBackground(BadgeTier tier) => tier switch
     {
-        BadgeTier.Comum => "linear-gradient(135deg, #ffffff 0%, #f1f2f6 100%)",
-        BadgeTier.Incomum => "linear-gradient(135deg, #ffffff 0%, #e8f8f5 100%)",
-        BadgeTier.Raro => "linear-gradient(135deg, #ffffff 0%, #ebf5fb 100%)",
-        BadgeTier.Epico => "linear-gradient(135deg, #ffffff 0%, #f4ecf8 100%)",
-        BadgeTier.Lendario => "linear-gradient(135deg, #ffffff 0%, #fef9e7 100%)",
+        BadgeTier.Common => "linear-gradient(135deg, #ffffff 0%, #f1f2f6 100%)",
+        BadgeTier.Uncommon => "linear-gradient(135deg, #ffffff 0%, #e8f8f5 100%)",
+        BadgeTier.Rare => "linear-gradient(135deg, #ffffff 0%, #ebf5fb 100%)",
+        BadgeTier.Epic => "linear-gradient(135deg, #ffffff 0%, #f4ecf8 100%)",
+        BadgeTier.Legendary => "linear-gradient(135deg, #ffffff 0%, #fef9e7 100%)",
         _ => "#ffffff"
     };
 
@@ -228,11 +267,11 @@
             // Auto-define a raridade baseada na dificuldade da regra
             newBadge.Tier = newBadge.TriggerType switch
             {
-                BadgeTriggerType.ModuleCompletion => BadgeTier.Incomum,
-                BadgeTriggerType.ExcellenceGrade => BadgeTier.Epico,
-                BadgeTriggerType.SpeedFocus => BadgeTier.Raro,
-                BadgeTriggerType.PathwayMilestone => BadgeTier.Lendario,
-                _ => BadgeTier.Comum
+                BadgeTriggerType.ModuleCompletion => BadgeTier.Uncommon,
+                BadgeTriggerType.ExcellenceGrade => BadgeTier.Epic,
+                BadgeTriggerType.SpeedFocus => BadgeTier.Rare,
+                BadgeTriggerType.PathwayMilestone => BadgeTier.Legendary,
+                _ => BadgeTier.Common
             };
         }
     }
@@ -241,9 +280,59 @@
     private void OpenCreateMode() => isCreating = true;
     private void CloseCreateMode() => isCreating = false;
 
-    private void SaveBadge()
+    private async Task LoadBadges()
     {
-        // Lógica de gravação virá aqui
+        try
+        {
+            existingBadges = await Http.GetFromJsonAsync<List<BadgeTemplate>>($"api/BadgeTemplate/pathway/{CurrentPathwayTemplateId}");
+
+            // Lógica inteligente de abertura:
+            // Se a lista vier vazia, muda automaticamente para o ecrã de criação
+            if (existingBadges == null || !existingBadges.Any())
+            {
+                isCreating = true;
+            }
+            else
+            {
+                isCreating = false; // Se já há badges, garante que abre a lista
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Erro ao carregar badges: {ex.Message}");
+        }
+    }
+
+    private async Task SaveBadge()
+    {
+        try
+        {
+            newBadge.PathwayTemplateId = CurrentPathwayTemplateId;
+
+            // Log para garantirmos que o ID não está a zero!
+            Console.WriteLine($"A enviar Badge para o PathwayTemplateId: {newBadge.PathwayTemplateId}");
+
+            var response = await Http.PostAsJsonAsync("api/badgetemplate", newBadge);
+
+            if (response.IsSuccessStatusCode)
+            {
+                Console.WriteLine("Badge guardada com sucesso!");
+                newBadge = new BadgeTemplateCreateDto();
+                isCreating = false;
+                await LoadBadges();
+            }
+            else
+            {
+                // LÊ O ERRO EXATO DO BACKEND
+                var errorMessage = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"Erro ao guardar a badge. Status: {response.StatusCode}");
+                Console.WriteLine($"Detalhes do Backend: {errorMessage}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Erro crítico: {ex.Message}");
+        }
     }
 
     private List<string> availableIcons = new()
