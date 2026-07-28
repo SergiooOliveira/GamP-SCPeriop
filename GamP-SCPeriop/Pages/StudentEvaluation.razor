@@ -61,30 +61,30 @@
                                     {
                                         var currentStage = activeTabs.ContainsKey(module.Id) ? activeTabs[module.Id] : practicalStages.FirstOrDefault();
 
-                                        <div class="d-flex w-100 mb-2 shadow-sm" style="height: 50px; border-radius: 12px; overflow: hidden; border: 1px solid rgba(0,0,0,0.1);">
+                                        var chronoStage = chronologicalTabs.ContainsKey(module.Id) ? chronologicalTabs[module.Id] : practicalStages.FirstOrDefault();
+                                        var currentProgress = CalculateStageProgress(module, currentStage);
+
+                                        <!-- 1. BARRA TEMPORAL (Abas) -->
+                                        <div class="d-flex w-100 mb-4 shadow-sm" style="height: 55px; border-radius: 12px; overflow: hidden; border: 1px solid rgba(0,0,0,0.1);">
                                             @foreach (var stage in practicalStages)
                                             {
                                                 var isActive = currentStage == stage;
-                                                var isChronological = chronologicalTabs.ContainsKey(module.Id) && chronologicalTabs[module.Id] == stage;
-
-                                                var stageTimeline = module.StageTimelines?.FirstOrDefault(t => t.Stage == stage);
-                                                double stageProgress = 0;
-                                                if (stageTimeline != null)
-                                                {
-                                                    var totalD = (stageTimeline.EndDate.Date - stageTimeline.StartDate.Date).TotalDays;
-                                                    var passedD = (DateTime.Now.Date - stageTimeline.StartDate.Date).TotalDays;
-                                                    stageProgress = totalD > 0 ? Math.Clamp((passedD / totalD) * 100, 0, 100) : (passedD >= 0 ? 100 : 0);
-                                                }
+                                                var isChronological = chronoStage == stage;
                                                 
-                                                string baseColor = GetStageColor(stage);
-                                                string emptyColor = baseColor + "40";
-                                                string gradient = $"linear-gradient(to right, {baseColor} {(int)stageProgress}%, {emptyColor} {(int)stageProgress}%)";
+                                                // Lógica: Está iluminado se for o estágio atual ou um do passado
+                                                var isPastOrCurrent = (int)stage <= (int)chronoStage;
+
+                                                string baseColor = isPastOrCurrent ? GetStageColor(stage) : "#e9ecef";
+                                                string textColor = isPastOrCurrent ? "text-white" : "text-muted";
+                                                
+                                                // Destacar a aba selecionada dando opacidade total, e escurecer ligeiramente as outras
+                                                string opacity = isActive ? "1" : (isPastOrCurrent ? "0.8" : "0.5");
 
                                                 <button class="btn border-0 rounded-0 flex-grow-1 position-relative d-flex align-items-center justify-content-center p-0 shadow-none"
-                                                        style="background: @gradient; transition: all 0.2s ease; opacity: @(isActive ? "1" : "0.5"); border-right: 1px solid rgba(255,255,255,0.3);"
+                                                        style="background-color: @baseColor; transition: all 0.3s ease; opacity: @opacity; border-right: 1px solid rgba(255,255,255,0.3);"
                                                         @onclick="() => activeTabs[module.Id] = stage" title="@FormatStageName(stage)">
 
-                                                    <div class="d-flex align-items-center px-2 text-truncate text-white" style="text-shadow: 1px 1px 3px rgba(0,0,0,0.7), 0px 0px 2px rgba(0,0,0,0.6);">
+                                                    <div class="d-flex align-items-center px-2 text-truncate @textColor" style="@(isPastOrCurrent ? "text-shadow: 1px 1px 2px rgba(0,0,0,0.4);" : "")">
                                                         <i class="bi @(isActive ? "bi-check-circle-fill" : "bi-calendar-week") me-2"></i>
                                                         <span class="@(isActive ? "fw-bold" : "fw-medium") text-truncate" style="font-size: 0.85rem; letter-spacing: 0.5px;">
                                                             @FormatStageName(stage)
@@ -94,7 +94,7 @@
                                                     @if (isChronological)
                                                     {
                                                         <span class="position-absolute top-0 start-50 translate-middle-x badge bg-dark bg-opacity-75 rounded-bottom shadow-sm"
-                                                              style="font-size: 0.65rem; padding: 0.2rem 0.6rem; letter-spacing: 1px;">
+                                                              style="font-size: 0.60rem; padding: 0.2rem 0.5rem; letter-spacing: 1px;">
                                                             SEMANA ATUAL
                                                         </span>
                                                     }
@@ -102,11 +102,43 @@
                                             }
                                         </div>
 
+                                        <!-- 2. BARRA DE PROGRESSO ANIMADA (Semáforo) -->
+                                        <div class="mb-4 px-2">
+                                            <div class="d-flex justify-content-between align-items-end mb-2">
+                                                <small class="text-muted fw-bold text-uppercase" style="letter-spacing: 0.5px;">
+                                                    <i class="bi bi-bar-chart-fill me-1"></i> Progresso: @FormatStageName(currentStage)
+                                                </small>
+                                                <small class="fw-bold fs-6" style="color: @GetTrafficLightColor(currentProgress);">@(currentProgress)%</small>
+                                            </div>
+                                            
+                                            <div class="w-100 bg-light shadow-inner" style="height: 10px; border-radius: 10px; overflow: hidden; border: 1px solid #e9ecef;">
+                                                <div class="h-100" 
+                                                     style="width: @(currentProgress)%; 
+                                                            background-color: @GetTrafficLightColor(currentProgress); 
+                                                            transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.6s ease; 
+                                                            border-radius: 10px;">
+                                                </div>
+                                            </div>
+                                        </div>
+
                                         var activeTimeline = module.StageTimelines?.FirstOrDefault(t => t.Stage == currentStage);
+
+                                        // VERIFICA SE A FASE ESTÁ BLOQUEADA (Data de Início no futuro)
+                                        bool isStageBlocked = activeTimeline != null && DateTime.Now.Date < activeTimeline.StartDate.Date;
 
                                         if (activeTimeline != null)
                                         {
-                                            <div class="mb-5 px-1 text-end">
+                                            <div class="mb-5 px-1 d-flex justify-content-between align-items-center">
+                                                @if (isStageBlocked)
+                                                {
+                                                    <span class="badge bg-warning text-dark border border-warning bg-opacity-25 px-3 py-2">
+                                                        <i class="bi bi-lock-fill me-1"></i> Avaliação Bloqueada (Inicia a @activeTimeline.StartDate.ToString("dd/MM/yyyy"))
+                                                    </span>
+                                                }
+                                                else
+                                                {
+                                                    <span></span> <!-- Espaçador para manter o texto da Data Limite à direita -->
+                                                }
                                                 <small class="text-muted fw-bold">
                                                     <i class="bi bi-clock-history me-1"></i> Data Limite da Fase: <span class="text-dark">@activeTimeline.EndDate.ToString("dd/MM/yyyy")</span>
                                                 </small>
@@ -125,21 +157,21 @@
                                                 <div class="mb-3 mt-4">
                                                     <div class="d-flex align-items-center mb-2">
                                                         <div style="width: 5px; height: 22px; background-color: #6A96A6; border-radius: 4px;" class="me-3"></div>
-                                                        <h5 class="fw-bold mb-0" style="color: #1c4c5e;">@item.Title</h5>
+                                                        <h5 class="fw-bold mb-0" style="color: #1c4c5e; @(isStageBlocked ? "opacity: 0.6;" : "")">@item.Title</h5>
                                                     </div>
                                                 </div>
 
                                                 <div class="d-flex flex-column gap-2 mb-4">
                                                     @foreach (var child in children)
                                                     {
-                                                        <div class="card border-0 bg-light" style="border-radius: 10px;">
+                                                        <div class="card border-0 bg-light" style="border-radius: 10px; @(isStageBlocked ? "opacity: 0.6;" : "")">
                                                             <div class="card-body p-3 ms-4">
                                                                 <div class="row align-items-center">
                                                                     <div class="col-md-5 mb-2 mb-md-0 d-flex align-items-center">
                                                                         <h6 class="fw-semibold mb-0 text-dark" style="font-size: 0.95rem;">@child.Title</h6>
                                                                     </div>
                                                                     <div class="col-md-7">
-                                                                        @RenderAssessmentButtons(child)
+                                                                        @RenderAssessmentButtons(child, isStageBlocked)
                                                                     </div>
                                                                 </div>
                                                             </div>
@@ -149,7 +181,7 @@
                                             }
                                             else
                                             {
-                                                <div class="card border-0 bg-light mb-3" style="border-radius: 10px;">
+                                                <div class="card border-0 bg-light mb-3" style="border-radius: 10px; @(isStageBlocked ? "opacity: 0.6;" : "")">
                                                     <div class="card-body p-3">
                                                         <div class="row align-items-center">
                                                             <div class="col-md-5 mb-2 mb-md-0 d-flex align-items-center">
@@ -157,7 +189,7 @@
                                                                 <h6 class="fw-bold mb-0 text-dark">@item.Title</h6>
                                                             </div>
                                                             <div class="col-md-7">
-                                                                @RenderAssessmentButtons(item)
+                                                                @RenderAssessmentButtons(item, isStageBlocked)
                                                             </div>
                                                         </div>
                                                     </div>
@@ -366,14 +398,16 @@
     }
 
     // --- HELPER PARA RENDERIZAR OS BOTÕES SEM REPETIR CÓDIGO ---
-    private RenderFragment RenderAssessmentButtons(ModuleComponent comp) => __builder =>
+    // --- HELPER PARA RENDERIZAR OS BOTÕES SEM REPETIR CÓDIGO ---
+    private RenderFragment RenderAssessmentButtons(ModuleComponent comp, bool isBlocked) => __builder =>
     {
         @if (comp.Stage == ModuleStage.ObservacaoPassiva || comp.Stage == ModuleStage.ObservacaoParticipada)
         {
             <div class="d-flex justify-content-end">
-                <input class="form-check-input" type="checkbox" 
-                       style="width: 1.5rem; height: 1.5rem; cursor: pointer; border: 2px solid #8c98a4;"
-                       checked="@IsTaskCompleted(comp)" 
+                <input class="form-check-input" type="checkbox"
+                       style="width: 1.5rem; height: 1.5rem; cursor: @(isBlocked ? "not-allowed" : "pointer"); border: 2px solid #8c98a4;"
+                       checked="@IsTaskCompleted(comp)"
+                       disabled="@isBlocked"
                        @onchange="(e) => ToggleChecklist(comp, e.Value)" />
             </div>
         }
@@ -381,23 +415,27 @@
         {
             <div class="d-flex flex-wrap gap-2">
                 <button class="btn btn-sm flex-grow-1 @(comp.Status == ComponentStatus.Inconsistente ? "btn-danger" : "btn-outline-danger")"
-                @onclick="() => EvaluateComponent(comp, ComponentStatus.Inconsistente)">
+                        disabled="@isBlocked"
+                        @onclick="() => EvaluateComponent(comp, ComponentStatus.Inconsistente)">
                     Inconsistente
                 </button>
 
                 <button class="btn btn-sm flex-grow-1 @(comp.Status == ComponentStatus.AbaixoDaMedia ? "btn-warning text-dark" : "btn-outline-warning text-dark")"
-                @onclick="() => EvaluateComponent(comp, ComponentStatus.AbaixoDaMedia)">
+                        disabled="@isBlocked"
+                        @onclick="() => EvaluateComponent(comp, ComponentStatus.AbaixoDaMedia)">
                     Abaixo da Média
                 </button>
 
                 <button class="btn btn-sm flex-grow-1 @(comp.Status == ComponentStatus.AcimaDaMedia ? "btn-warning bg-opacity-50 text-dark border-warning" : "btn-outline-secondary")"
-                style="@(comp.Status == ComponentStatus.AcimaDaMedia ? "background-color: #ffda6a;" : "")"
-                @onclick="() => EvaluateComponent(comp, ComponentStatus.AcimaDaMedia)">
+                        style="@(comp.Status == ComponentStatus.AcimaDaMedia ? "background-color: #ffda6a;" : "")"
+                        disabled="@isBlocked"
+                        @onclick="() => EvaluateComponent(comp, ComponentStatus.AcimaDaMedia)">
                     Acima da Média
                 </button>
 
                 <button class="btn btn-sm flex-grow-1 @(comp.Status == ComponentStatus.Consistente ? "btn-success shadow-sm fw-bold" : "btn-outline-success opacity-75")"
-                @onclick="() => EvaluateComponent(comp, ComponentStatus.Consistente)">
+                        disabled="@isBlocked"
+                        @onclick="() => EvaluateComponent(comp, ComponentStatus.Consistente)">
                     @if (comp.Status == ComponentStatus.Consistente)
                     {
                         <i class="bi bi-check2-circle me-1"></i>
@@ -407,4 +445,33 @@
             </div>
         }
     };
+
+    // --- LÓGICA DO PROGRESSO INDIVIDUAL DA FASE E SEMÁFORO ---
+
+    private int CalculateStageProgress(Module module, ModuleStage stage)
+    {
+        if (module.Components == null) return 0;
+
+        // Vai buscar apenas as componentes avaliáveis DESTA FASE (ignorando as tarefas "Pai" que são só títulos)
+        var assessableComponents = module.Components
+            .Where(c => c.Stage == stage)
+            .Where(c => !module.Components.Any(child => child.ParentComponentId == c.Id))
+            .ToList();
+
+        if (!assessableComponents.Any()) return 0;
+
+        // Usa a tua própria lógica de verificar se a tarefa está concluída
+        int completed = assessableComponents.Count(c => IsTaskCompleted(c));
+
+        // Calcula a percentagem e garante que fica entre 0 e 100
+        return (int)Math.Clamp(((double)completed / assessableComponents.Count) * 100, 0, 100);
+    }
+
+    private string GetTrafficLightColor(int progress)
+    {
+        if (progress <= 49) return "#dc3545"; // Vermelho (Perigo)
+        if (progress <= 79) return "#ffc107"; // Amarelo (Atenção)
+        if (progress < 100) return "#20c997"; // Verde Claro (Quase lá)
+        return "#198754";                     // Verde Escuro (Concluído)
+    }
 }
