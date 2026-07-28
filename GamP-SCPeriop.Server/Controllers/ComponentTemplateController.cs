@@ -36,6 +36,8 @@ namespace GamP_SCPeriop.Server.Controllers
             // Num molde, só nos interessa atualizar os textos
             existingComponent.Title = updatedComponent.Title;
             existingComponent.Description = updatedComponent.Description;
+            existingComponent.Weight = updatedComponent.Weight;
+            existingComponent.PdfFilePath = updatedComponent.PdfFilePath ?? string.Empty;
 
             await _context.SaveChangesAsync();
             return NoContent();

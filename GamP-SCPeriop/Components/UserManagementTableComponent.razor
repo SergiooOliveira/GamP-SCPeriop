@@ -118,7 +118,6 @@
                             <th class="fw-bold border-0 py-3">Email</th>
                             <th class="fw-bold border-0 py-3">Instituição</th>
                             <th class="fw-bold border-0 py-3">Perfil</th>
-                            <th class="fw-bold border-0 py-3 text-end pe-4">Ações</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -140,14 +139,6 @@
                                     <td class="text-muted small">@user.University</td>
                                     <td>
                                         <span class="badge rounded-pill @GetRoleBadgeClass(user.Role) fw-normal px-3 py-1">@user.Role</span>
-                                    </td>
-                                    <td class="text-end pe-4">
-                                        <button class="btn btn-sm btn-light text-primary me-2" @onclick="() => OnEditUserClick.InvokeAsync(user.Id)" title="Editar Perfil">
-                                            <i class="bi bi-pencil-square"></i>
-                                        </button>
-                                        <button class="btn btn-sm btn-light text-danger" @onclick="() => OnDeleteUserClick.InvokeAsync(user.Id)" title="Apagar Conta">
-                                            <i class="bi bi-trash"></i>
-                                        </button>
                                     </td>
                                 </tr>
                             }

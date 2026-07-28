@@ -15,6 +15,8 @@ namespace GamP_SCPeriop.Shared.Data.Template
 
         public int Weight { get; set; } = 1; // Para o cálculo de percentagens do teu print
 
+        public string? PdfFilePath { get; set; }
+
         // Chave Estrangeira para o Módulo
         public int ModuleTemplateId { get; set; }
 

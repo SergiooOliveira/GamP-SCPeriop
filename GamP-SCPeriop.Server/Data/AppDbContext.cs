@@ -52,10 +52,8 @@ namespace GamP_SCPeriop.Server.Data
             base.OnModelCreating(modelBuilder);
 
             // ==========================================
-            // 1. USERS
+            // RELATIONS
             // ==========================================
-
-            // Relationships
             modelBuilder.Entity<Enrollment>()
                 .HasOne(e => e.Student)
                 .WithMany(u => u.Enrollments)
@@ -68,71 +66,13 @@ namespace GamP_SCPeriop.Server.Data
                 .HasForeignKey(e => e.ProfessorId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // ==========================================
-            // 3. MODULES
-            // ==========================================
-            modelBuilder.Entity<Module>().HasData(
-                new Module { Id = 1, PathwayId = 1, Title = "Módulo Teórico - Preparação" },
-                new Module { Id = 2, PathwayId = 1, Title = "Módulo Prático - Bloco Operatório" },
-                new Module { Id = 3, PathwayId = 2, Title = "Módulo Único - Fármacos" },
-                new Module { Id = 4, PathwayId = 2, Title = "UT1 - Introdução à Anestesia" }
-            );
-
-            // ==========================================
-            // 4. COMPONENTS
-            // ==========================================
-            modelBuilder.Entity<ModuleComponent>().HasData(
-                // Your existing
-                new ModuleComponent { Id = 1, ModuleId = 1, Title = "Guia de Higienização", PdfFilePath = "", Stage = ModuleStage.Teorica },
-                new ModuleComponent { Id = 2, ModuleId = 2, Title = "Checklist Cirúrgica", PdfFilePath = "", Stage = ModuleStage.ObservacaoPassiva },
-
-                // New Dummy Components
-                new ModuleComponent { Id = 3, ModuleId = 1, Title = "Manual de Acolhimento", Stage = ModuleStage.Teorica, PdfFilePath = "https://example.com/manual.pdf" },
-                new ModuleComponent { Id = 4, ModuleId = 1, Title = "Checklist de Segurança (OMS)", Stage = ModuleStage.ObservacaoPassiva, PdfFilePath = "" },
-                new ModuleComponent { Id = 5, ModuleId = 2, Title = "Preparação da Sala Operatória", Stage = ModuleStage.PraticaAssistida, PdfFilePath = "" },
-                new ModuleComponent { Id = 6, ModuleId = 2, Title = "Circulação na Sala", Stage = ModuleStage.PraticaSupervisionada, PdfFilePath = "" },
-                new ModuleComponent { Id = 7, ModuleId = 3, Title = "Tabela de Fármacos de Emergência", Stage = ModuleStage.Teorica, PdfFilePath = "https://example.com/farmacos.pdf" },
-                new ModuleComponent { Id = 8, ModuleId = 3, Title = "Preparação do Ventilação", Stage = ModuleStage.ObservacaoParticipada, PdfFilePath = "" },
-                new ModuleComponent { Id = 9, ModuleId = 3, Title = "Entubação Endotraqueal", Stage = ModuleStage.PraticaSupervisionada, PdfFilePath = "" },
-
-                // Parâmetro Solto
-                new ModuleComponent { Id = 10, ModuleId = 4, Title = "Demonstra conhecimento das Normas de prevenção da Infeção do Local Cirúrgico", Stage = ModuleStage.ObservacaoPassiva },
-                new ModuleComponent { Id = 11, ModuleId = 4, Title = "Procede aos devidos registos clínicos informáticos no intraoperatório", Stage = ModuleStage.ObservacaoPassiva },
-
-                // GRUPO: Sclínico (PAI)
-                new ModuleComponent { Id = 12, ModuleId = 4, Title = "Sclínico", Stage = ModuleStage.ObservacaoPassiva, ParentComponentId = null },
-                // Filhos do Sclínico (Apontam para o ParentComponentId = 12)
-                new ModuleComponent { Id = 13, ModuleId = 4, ParentComponentId = 12, Title = "Regista Diagnósticos de Enfermagem adequadamente", Stage = ModuleStage.ObservacaoPassiva },
-                new ModuleComponent { Id = 14, ModuleId = 4, ParentComponentId = 12, Title = "Regista Atitudes terapêuticas adequadamente", Stage = ModuleStage.ObservacaoPassiva },
-                new ModuleComponent { Id = 15, ModuleId = 4, ParentComponentId = 12, Title = "Regista SV (incluindo temperatura corporal) e Glicemia Capilar de acordo com as normas em vigor", Stage = ModuleStage.ObservacaoPassiva },
-
-                // Parâmetro Solto
-                new ModuleComponent { Id = 16, ModuleId = 4, Title = "Valida adequadamente a administração de medicação no sistema Ghaf;", Stage = ModuleStage.ObservacaoPassiva },
-
-                // GRUPO: Ghaf (PAI)
-                new ModuleComponent { Id = 17, ModuleId = 4, Title = "Ghaf", Stage = ModuleStage.ObservacaoPassiva, ParentComponentId = null },
-                // Filhos do Ghaf (Apontam para o ParentComponentId = 17)
-                new ModuleComponent { Id = 18, ModuleId = 4, ParentComponentId = 17, Title = "Administração de Antibioterapia, de acordo com a norma em vigor", Stage = ModuleStage.ObservacaoPassiva },
-                new ModuleComponent { Id = 19, ModuleId = 4, ParentComponentId = 17, Title = "Efetua débitos ao armazém", Stage = ModuleStage.ObservacaoPassiva },
-                new ModuleComponent { Id = 20, ModuleId = 4, ParentComponentId = 17, Title = "Efetua devoluções ao armazém", Stage = ModuleStage.ObservacaoPassiva },
-                new ModuleComponent { Id = 21, ModuleId = 4, ParentComponentId = 17, Title = "Efetua pedidos de dietas para o utente e acompanhante (quando aplicável)", Stage = ModuleStage.ObservacaoPassiva },
-
-                // Parâmetro Solto
-                new ModuleComponent { Id = 22, ModuleId = 4, Title = "Regista adequadamente a administração de estupefacientes em folha própria (Mod.3)", Stage = ModuleStage.ObservacaoPassiva }
-            );
-
-            // ==========================================
-            // 6. NOTIFICATIONS
-            // ==========================================
             modelBuilder.Entity<Notification>()
-                .HasOne<User>()
-                .WithMany()
+                .HasOne<User>().WithMany()
                 .HasForeignKey(n => n.ReceiverId)
-                .OnDelete(DeleteBehavior.Restrict); // Impede que apagar um utilizador apague a notificação em cascata
+                .OnDelete(DeleteBehavior.Restrict);
 
             modelBuilder.Entity<Notification>()
-                .HasOne<User>()
-                .WithMany()
+                .HasOne<User>().WithMany()
                 .HasForeignKey(n => n.SenderId)
                 .OnDelete(DeleteBehavior.Restrict);
 
@@ -140,7 +80,51 @@ namespace GamP_SCPeriop.Server.Data
                 .HasOne(ce => ce.ModuleComponent)
                 .WithMany()
                 .HasForeignKey(ce => ce.ModuleComponentId)
-                .OnDelete(DeleteBehavior.Restrict); // Corta o segundo caminho de cascata!
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // ==========================================
+            // DUMMY DATA: MOLDES (TEMPLATES)
+            // ==========================================
+
+            // 1. Criar os Moldes Base
+            modelBuilder.Entity<PathwayTemplate>().HasData(
+                new PathwayTemplate { Id = 1, Title = "Molde Standard - Bloco Operatório", Description = "Molde base que inclui preparação teórica e observação prática." },
+                new PathwayTemplate { Id = 2, Title = "Molde Avançado - Anestesia", Description = "Focado exclusivamente em procedimentos de anestesiologia." }
+            );
+
+            // 2. Módulos do Molde
+            modelBuilder.Entity<ModuleTemplate>().HasData(
+                new ModuleTemplate { Id = 1, PathwayTemplateId = 1, Title = "Módulo Teórico - Preparação" },
+                new ModuleTemplate { Id = 2, PathwayTemplateId = 1, Title = "Módulo Prático - Bloco Operatório" },
+                new ModuleTemplate { Id = 3, PathwayTemplateId = 2, Title = "Módulo Único - Fármacos" },
+                new ModuleTemplate { Id = 4, PathwayTemplateId = 2, Title = "UT1 - Introdução à Anestesia" }
+            );
+
+            // 3. Componentes do Molde (Adaptados da tua lista)
+            modelBuilder.Entity<ComponentTemplate>().HasData(
+                new ComponentTemplate { Id = 1, ModuleTemplateId = 1, Title = "Guia de Higienização", Stage = ModuleStage.Teorica, Weight = 50 },
+                new ComponentTemplate { Id = 3, ModuleTemplateId = 1, Title = "Manual de Acolhimento", Stage = ModuleStage.Teorica, Weight = 50 },
+                new ComponentTemplate { Id = 2, ModuleTemplateId = 2, Title = "Checklist Cirúrgica", Stage = ModuleStage.ObservacaoPassiva, Weight = 100 },
+
+                new ComponentTemplate { Id = 7, ModuleTemplateId = 3, Title = "Tabela de Fármacos de Emergência", Stage = ModuleStage.Teorica, Weight = 100 },
+
+                // Módulo 4 - Anestesia (Os teus grupos)
+                new ComponentTemplate { Id = 10, ModuleTemplateId = 4, Title = "Demonstra conhecimento das Normas de prevenção", Stage = ModuleStage.ObservacaoPassiva, Weight = 20 },
+                new ComponentTemplate { Id = 11, ModuleTemplateId = 4, Title = "Procede aos devidos registos clínicos", Stage = ModuleStage.ObservacaoPassiva, Weight = 20 },
+
+                // GRUPO: Sclínico (PAI = Id 12)
+                new ComponentTemplate { Id = 12, ModuleTemplateId = 4, Title = "Sclínico", Stage = ModuleStage.ObservacaoPassiva, Weight = 30 },
+                new ComponentTemplate { Id = 13, ModuleTemplateId = 4, ParentComponentTemplateId = 12, Title = "Regista Diagnósticos de Enfermagem", Stage = ModuleStage.ObservacaoPassiva, Weight = 34 },
+                new ComponentTemplate { Id = 14, ModuleTemplateId = 4, ParentComponentTemplateId = 12, Title = "Regista Atitudes terapêuticas", Stage = ModuleStage.ObservacaoPassiva, Weight = 33 },
+                new ComponentTemplate { Id = 15, ModuleTemplateId = 4, ParentComponentTemplateId = 12, Title = "Regista SV e Glicemia Capilar", Stage = ModuleStage.ObservacaoPassiva, Weight = 33 },
+
+                // GRUPO: Ghaf (PAI = Id 17)
+                new ComponentTemplate { Id = 17, ModuleTemplateId = 4, Title = "Ghaf", Stage = ModuleStage.ObservacaoPassiva, Weight = 30 },
+                new ComponentTemplate { Id = 18, ModuleTemplateId = 4, ParentComponentTemplateId = 17, Title = "Administração de Antibioterapia", Stage = ModuleStage.ObservacaoPassiva, Weight = 25 },
+                new ComponentTemplate { Id = 19, ModuleTemplateId = 4, ParentComponentTemplateId = 17, Title = "Efetua débitos ao armazém", Stage = ModuleStage.ObservacaoPassiva, Weight = 25 },
+                new ComponentTemplate { Id = 20, ModuleTemplateId = 4, ParentComponentTemplateId = 17, Title = "Efetua devoluções ao armazém", Stage = ModuleStage.ObservacaoPassiva, Weight = 25 },
+                new ComponentTemplate { Id = 21, ModuleTemplateId = 4, ParentComponentTemplateId = 17, Title = "Efetua pedidos de dietas", Stage = ModuleStage.ObservacaoPassiva, Weight = 25 }
+            );
         }
         #endregion
     }

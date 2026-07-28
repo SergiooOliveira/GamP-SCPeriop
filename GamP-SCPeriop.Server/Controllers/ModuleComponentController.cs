@@ -54,7 +54,7 @@ namespace GamP_SCPeriop.Server.Controllers
             existingComponent.Title = updatedComponent.Title;
             existingComponent.Description = updatedComponent.Description;
             existingComponent.PdfFilePath = updatedComponent.PdfFilePath ?? string.Empty;
-            existingComponent.Weight = updatedComponent.Weight; // <-- CORREÇÃO: O peso é agora atualizado na edição
+            existingComponent.Weight = updatedComponent.Weight;
 
             await _context.SaveChangesAsync();
             return NoContent();
@@ -82,7 +82,6 @@ namespace GamP_SCPeriop.Server.Controllers
         }
 
         // --- 4. GET SINGLE ---
-        // (Necessário para o CreatedAtAction funcionar corretamente no POST)
         [HttpGet("{id}")]
         public async Task<ActionResult<ModuleComponent>> GetComponent(int id)
         {

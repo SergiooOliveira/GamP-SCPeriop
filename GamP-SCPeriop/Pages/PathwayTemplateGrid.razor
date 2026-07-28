@@ -2,6 +2,7 @@
 @layout TopNavBarLayout
 @inject HttpClient Http
 @inject IJSRuntime JSRuntime
+@inject NavigationManager Nav
 @using GamP_SCPeriop.Shared.Data.Template
 @using GamP_SCPeriop.Shared.Entity.Model
 @using GamP_SCPeriop.Components
@@ -19,16 +20,28 @@
     else if (activeTemplate == null)
     {
         <!-- ESTADO 1: GRELHA DE MOLDES -->
-        <div class="d-flex justify-content-between align-items-center mb-5">
-            <div>
-                <h3 class="fw-bold mb-0">Modelos de Percurso</h3>
-                <p class="text-muted small">Cria e gere os moldes dos percursos (Pathways) e as suas regras.</p>
+        <div class="mb-5">
+            <!-- Linha 1: Títulos à esquerda e Botão de Voltar à direita -->
+            <div class="d-flex justify-content-between align-items-start mb-4">
+                <div>
+                    <h3 class="fw-bold mb-0">Modelos de Percurso</h3>
+                    <p class="text-muted small mt-1">Cria e gere os moldes dos percursos (Pathways) e as suas regras.</p>
+                </div>
+
+                <button class="btn btn-link text-decoration-none text-muted p-0 mt-1" @onclick='() => Nav.NavigateTo("/admin/dashboard")'>
+                    <i class="bi bi-arrow-left me-1"></i> Voltar ao Dashboard
+                </button>
             </div>
-            <div class="d-flex gap-2">
-                <input type="text" class="form-control shadow-sm border-0" placeholder="Pesquisar molde..."
-                       style="border-radius: 0.75rem;"
-                       @bind-value="SearchTerm" @bind-value:event="oninput" />
-                <button class="btn btn-primary shadow-sm text-nowrap" style="border-radius: 0.75rem;" @onclick="CreateNewTemplate">
+
+            <!-- Linha 2: Barra de Pesquisa e Botão Novo Molde -->
+            <div class="d-flex align-items-center gap-3">
+                <div class="input-group shadow-sm" style="border-radius: 0.75rem; overflow: hidden; max-width: 350px;">
+                    <span class="input-group-text bg-white border-0"><i class="bi bi-search text-muted"></i></span>
+                    <input type="text" class="form-control border-0 bg-white" placeholder="Pesquisar molde..."
+                           @bind-value="SearchTerm" @bind-value:event="oninput" />
+                </div>
+
+                <button class="btn btn-primary shadow-sm text-nowrap px-4" style="border-radius: 0.75rem; background-color: #1a73e8; border: none;" @onclick="CreateNewTemplate">
                     <i class="bi bi-plus-lg me-1"></i> Novo Molde
                 </button>
             </div>
@@ -178,9 +191,9 @@
             Title = c.Title,
             Description = c.Description,
             Stage = c.Stage,
-            Weight = 0, // Ignorado no Template
+            Weight = c.Weight, // Ignorado no Template
             ParentComponentId = c.ParentComponentTemplateId,
-            PdfFilePath = ""
+            PdfFilePath = c.PdfFilePath
         }).ToList() ?? new List<BuilderComponentDto>()
     }).ToList() ?? new List<BuilderModuleDto>();
     #endregion
@@ -229,7 +242,7 @@
     #endregion
 
     #region [ Gestão do Construtor Ativo (Comunicação com o Motor) ]
-    
+
     private async Task LoadActiveTemplate(int templateId)
     {
         // Só destrói o ecrã com o Loading se estivermos a vir da grelha de cartões
@@ -292,7 +305,14 @@
     {
         if (data.Component.Id == 0)
         {
-            var dto = new ComponentTemplate { ModuleTemplateId = data.ModuleId, Title = data.Component.Title, Description = data.Component.Description, Stage = data.Component.Stage };
+            var dto = new ComponentTemplate 
+            { 
+                ModuleTemplateId = data.ModuleId,
+                Title = data.Component.Title,
+                Description = data.Component.Description,
+                Stage = data.Component.Stage,
+                PdfFilePath = data.Component.PdfFilePath
+            };
             await Http.PostAsJsonAsync("api/ComponentTemplate", dto);
         }
         else
@@ -310,34 +330,36 @@
 
     private async Task SaveBulkEditFromBuilder((int ModuleId, ModuleStage Stage, List<BuilderComponentDto> UpdatedComponents, Dictionary<int, List<(string Title, int Weight)>> NewSubTasks) data)
     {
-        // 1. Atualizar Títulos DIRETAMENTE (Sem fazer GET)
+        // 1. Atualizar Títulos e PESOS
         foreach (var comp in data.UpdatedComponents)
         {
-            // Cria um objeto temporário só com a informação que a API precisa para atualizar
-            var dummyComp = new ComponentTemplate 
-            { 
-                Id = comp.Id, 
-                Title = comp.Title 
+            var dummyComp = new ComponentTemplate
+            {
+                Id = comp.Id,
+                Title = comp.Title,
+                Weight = comp.Weight,
+                Description = comp.Description
             };
             await Http.PutAsJsonAsync($"api/ComponentTemplate/{comp.Id}", dummyComp);
         }
 
-        // 2. Criar Novas Tarefas
+        // 2. Criar Novas Tarefas (e guardar o peso delas também)
         foreach (var kvp in data.NewSubTasks)
         {
             foreach (var task in kvp.Value)
             {
-                var dtoChild = new ComponentTemplate 
-                { 
-                    ModuleTemplateId = data.ModuleId, 
-                    Title = task.Title, 
-                    Stage = data.Stage, 
-                    ParentComponentTemplateId = kvp.Key 
+                var dtoChild = new ComponentTemplate
+                {
+                    ModuleTemplateId = data.ModuleId,
+                    Title = task.Title,
+                    Stage = data.Stage,
+                    ParentComponentTemplateId = kvp.Key,
+                    Weight = task.Weight
                 };
                 await Http.PostAsJsonAsync("api/ComponentTemplate", dtoChild);
             }
         }
-    
+
         await LoadActiveTemplate(activeTemplate!.Id);
     }
 

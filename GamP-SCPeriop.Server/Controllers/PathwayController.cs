@@ -49,7 +49,7 @@ namespace GamP_SCPeriop.Server.Controllers
                         var newModule = new Module
                         {
                             Title = modTpl.Title,
-                            Weight = 1, // Valor por defeito que tens na tua classe
+                            Weight = 1,
                             Components = new List<ModuleComponent>()
                         };
 
@@ -65,7 +65,8 @@ namespace GamP_SCPeriop.Server.Controllers
                                 Title = parentTpl.Title,
                                 Description = parentTpl.Description,
                                 Stage = parentTpl.Stage,
-                                Weight = 0
+                                Weight = parentTpl.Weight,
+                                PdfFilePath = parentTpl.PdfFilePath
                             };
 
                             newModule.Components.Add(newParent);
@@ -81,7 +82,8 @@ namespace GamP_SCPeriop.Server.Controllers
                                 Title = childTpl.Title,
                                 Description = childTpl.Description,
                                 Stage = childTpl.Stage,
-                                Weight = 0
+                                Weight = childTpl.Weight,
+                                PdfFilePath = childTpl.PdfFilePath
                             };
 
                             // Liga o filho ao PAI NOVO
