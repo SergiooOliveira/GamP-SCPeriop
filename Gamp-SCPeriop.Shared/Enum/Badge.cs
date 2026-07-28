@@ -16,10 +16,10 @@ namespace GamP_SCPeriop.Shared.Enum
     // 2. O Enum para os Tiers (Raridade)
     public enum BadgeTier
     {
-        Common = 1,
-        Uncommon = 2,
-        Rare = 3,
-        Epic = 4,
-        Legendary = 5
+        Comum,      // Cinza (Básico)
+        Incomum,    // Verde
+        Raro,       // Azul
+        Epico,      // Roxo
+        Lendario    // Dourado
     }
 }

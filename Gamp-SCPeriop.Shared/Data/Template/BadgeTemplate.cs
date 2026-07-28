@@ -16,7 +16,7 @@ namespace GamP_SCPeriop.Shared.Data.Template
         public string Description { get; set; } = string.Empty;
         public string Icon { get; set; } = "bi-trophy"; // Ícone Bootstrap por defeito
         public string ColorCode { get; set; } = "#ffffff";
-        public BadgeTier Tier { get; set; } = BadgeTier.Common;
+        //public BadgeTier Tier { get; set; } = BadgeTier.Common;
 
         // Regras (Modulares)
         public BadgeTriggerType TriggerType { get; set; }

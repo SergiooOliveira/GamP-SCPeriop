@@ -1,4 +1,5 @@
-﻿@using GamP_SCPeriop.Shared.Data.Template
+﻿@using GamP_SCPeriop.Shared.Enum
+@using GamP_SCPeriop.Shared.Entity.Model
 
 <div class="modal fade show" style="display:block; background-color: rgba(0,0,0,0.5);" tabindex="-1">
     <div class="modal-dialog modal-lg modal-dialog-centered">
@@ -21,7 +22,7 @@
                         <!-- A lista de badges entrará aqui -->
                     </div>
 
-                    <!-- Botão Fixo no Fundo (Agora com Flexbox) -->
+                    <!-- Botão Fixo no Fundo -->
                     <div class="w-100 bg-white border-top p-3 d-flex justify-content-end mt-auto">
                         <button class="btn btn-primary px-4" @onclick="OpenCreateMode">
                             <i class="bi bi-plus-lg me-2"></i> Adicionar Nova Badge
@@ -30,96 +31,111 @@
                 }
                 else
                 {
-                    <!-- ESTADO 2: CRIAÇÃO (Agora com o espaço perfeitamente calculado) -->
+                    <!-- ESTADO 2: CRIAÇÃO -->
                     <div class="row m-0 flex-grow-1" style="overflow: hidden;">
 
                         <!-- Coluna da Esquerda: Formulário -->
                         <div class="col-md-7 p-4 border-end" style="height: 100%; overflow-y: auto;">
-                            <h6 class="fw-bold text-primary mb-4"><i class="bi bi-pencil-square me-2"></i>Detalhes da Badge</h6>
 
-                            <div class="mb-3">
-                                <label class="form-label small fw-semibold text-muted">Título da Badge</label>
-                                <input class="form-control bg-light border-0 shadow-sm" placeholder="Ex: Mestre da Ventilação" @bind="newBadge.Title" @bind:event="oninput" />
-                            </div>
+                            <h6 class="fw-bold text-dark mb-4"><i class="bi bi-stars text-muted me-2"></i>Detalhes da Badge</h6>
 
-                            <div class="mb-3">
-                                <label class="form-label small fw-semibold text-muted">Mensagem de Parabéns (Descrição)</label>
-                                <textarea class="form-control bg-light border-0 shadow-sm" rows="3" placeholder="Ex: Parabéns por concluíres com sucesso..." @bind="newBadge.Description" @bind:event="oninput"></textarea>
-                            </div>
-
-                            <!-- Cor e Grelha de Ícones -->
-                            <div class="mb-3">
-                                <label class="form-label small fw-semibold text-muted">Cor Principal</label>
-                                <div class="d-flex align-items-center gap-3">
-                                    <input type="color" class="form-control form-control-color bg-light border-0 shadow-sm" style="width: 80px;" @bind="newBadge.ColorHex" @bind:event="oninput" />
-                                    <span class="text-secondary small">Clica para alterar a cor do cartão</span>
-                                </div>
-                            </div>
-
+                            <!-- 1. ÍCONE PRIMEIRO -->
                             <div class="mb-4">
-                                <label class="form-label small fw-semibold text-muted mb-2">Escolher Ícone</label>
+                                <label class="form-label small fw-semibold text-muted mb-2">1. Escolher Ícone</label>
                                 <div class="d-flex flex-wrap gap-2">
                                     @foreach (var icon in availableIcons)
                                     {
                                         <button type="button"
                                                 class="btn border-0 shadow-sm d-flex align-items-center justify-content-center transition-all"
                                                 style="width: 45px; height: 45px; border-radius: 12px;
-                                            background-color: @(newBadge.IconClass == icon ? newBadge.ColorHex + "20" : "#f8f9fa");
-                                            color: @(newBadge.IconClass == icon ? newBadge.ColorHex : "#6c757d");
-                                            transform: @(newBadge.IconClass == icon ? "scale(1.1)" : "scale(1)");"
-                                                @onclick="() => newBadge.IconClass = icon">
+                                                background-color: @(newBadge.Icon == icon ? GetTierColor(newBadge.Tier) + "20" : "#f8f9fa");
+                                                color: @(newBadge.Icon == icon ? GetTierColor(newBadge.Tier) : "#6c757d");
+                                                transform: @(newBadge.Icon == icon ? "scale(1.1)" : "scale(1)");"
+                                                @onclick="() => newBadge.Icon = icon">
                                             <i class="bi @icon fs-5"></i>
                                         </button>
                                     }
                                 </div>
                             </div>
 
+                            <!-- 2. TÍTULO E DESCRIÇÃO -->
+                            <div class="mb-3">
+                                <label class="form-label small fw-semibold text-muted">2. Título da Badge</label>
+                                <input class="form-control bg-light border-0 shadow-sm" placeholder="Ex: Mestre da Ventilação" @bind="newBadge.Name" @bind:event="oninput" />
+                            </div>
+
+                            <div class="mb-4">
+                                <label class="form-label small fw-semibold text-muted">3. Mensagem de Parabéns</label>
+                                <textarea class="form-control bg-light border-0 shadow-sm" rows="3" placeholder="Ex: Parabéns por concluíres com sucesso..." @bind="newBadge.Description" @bind:event="oninput"></textarea>
+                            </div>
+
                             <!-- REGRA DE DESBLOQUEIO DINÂMICA -->
-                            <div class="mb-5 pb-3 border-top pt-3">
-                                <h6 class="fw-bold text-primary mb-3"><i class="bi bi-unlock me-2"></i>Condição de Desbloqueio</h6>
+                            <div class="mb-5 pb-3 border-top pt-4">
+                                <h6 class="fw-bold text-dark mb-3"><i class="bi bi-unlock text-muted me-2"></i>Condição e Raridade</h6>
 
-                                <!-- 1. Escolha do Tipo de Regra -->
-                                <select class="form-select bg-light border-0 shadow-sm mb-3 fw-semibold text-dark" @bind="newBadge.RuleType">
-                                    <option value="ModuleCompletion">Ao concluir um Módulo inteiro</option>
-                                    <option value="StageCompletion">Ao concluir uma Fase Prática específica</option>
-                                    <option value="ExcellenceScore">Ao atingir nota de Excelência</option>
-                                    <option value="PathwayCompletion">Ao concluir todo o Pathway</option>
-                                </select>
+                                <!-- Selector de Regra e Display de Raridade Lado a Lado -->
+                                <div class="row mb-3 align-items-end">
+                                    <div class="col-md-8 mb-2 mb-md-0">
+                                        <label class="form-label small fw-semibold text-muted">Tipo de Desbloqueio</label>
+                                        <select class="form-select bg-light border-0 shadow-sm fw-semibold text-dark" value="@newBadge.TriggerType" @onchange="OnRuleChanged">
+                                            <option value="@BadgeTriggerType.ModuleCompletion">Ao concluir um Módulo específico</option>
+                                            <option value="@BadgeTriggerType.ExcellenceGrade">Ao atingir nota de Excelência</option>
+                                            <option value="@BadgeTriggerType.SpeedFocus">Foco e Velocidade (Dias)</option>
+                                            <option value="@BadgeTriggerType.PathwayMilestone">Ao concluir todo o Percurso</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <!-- Display Automático da Raridade (Apenas Leitura) -->
+                                        <label class="form-label small fw-semibold text-muted mb-2">Raridade Gerada</label>
+                                        <div>
+                                            <span class="badge w-100 py-2 fs-6 shadow-sm border"
+                                                  style="background-color: @(GetTierColor(newBadge.Tier) + "15"); color: @GetTierColor(newBadge.Tier); border-color: @(GetTierColor(newBadge.Tier) + "50") !important;">
+                                                <i class="bi bi-stars me-1"></i>@newBadge.Tier.ToString()
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
 
-                                <!-- 2. Escolha do Módulo (Esconde se for para o Percurso Todo) -->
-                                @if (newBadge.RuleType != "PathwayCompletion")
+                                <!-- Escolhas Dinâmicas: O 'TriggerValue' guarda o resultado de qualquer uma delas! -->
+                                @if (newBadge.TriggerType == BadgeTriggerType.ModuleCompletion)
                                 {
                                     <div class="mb-3">
                                         <label class="form-label small fw-semibold text-muted">Qual é o Módulo?</label>
-                                        <select class="form-select bg-light border-0 shadow-sm" @bind="newBadge.TargetModuleId">
+                                        <select class="form-select bg-light border-0 shadow-sm" @bind="newBadge.TriggerValue">
                                             <option value="">Selecione o Módulo...</option>
-                                            <option value="1">Módulo 1 - Fundamentos</option>
-                                            <option value="2">Módulo 2 - Avançado</option>
+                                            @if (AvailableModules != null)
+                                            {
+                                                Console.WriteLine($"AvailableModules is not null = {AvailableModules.Count}");
+                                                @foreach (var mod in AvailableModules)
+                                                {
+                                                    Console.WriteLine($"Module: {mod.Id}");
+                                                    <option value="@mod.Id">@mod.Title</option>
+                                                }
+                                            }
+                                            else
+                                                Console.WriteLine("Modules is null");
                                         </select>
                                     </div>
                                 }
 
-                                <!-- 3. Escolha da Fase (Aparece SÓ se a regra for "StageCompletion") -->
-                                @if (newBadge.RuleType == "StageCompletion")
+                                @if (newBadge.TriggerType == BadgeTriggerType.ExcellenceGrade)
                                 {
                                     <div class="mb-3">
-                                        <label class="form-label small fw-semibold text-muted">Qual é a Fase?</label>
-                                        <select class="form-select bg-light border-0 shadow-sm" @bind="newBadge.TargetStage">
-                                            <option value="">Selecione a Fase...</option>
-                                            <option value="PraticaAssistida">Prática Assistida</option>
-                                            <option value="PraticaSupervisionada">Prática Supervisionada</option>
-                                        </select>
-                                    </div>
-                                }
-
-                                <!-- 4. Escolha da Nota (Aparece SÓ se a regra for "ExcellenceScore") -->
-                                @if (newBadge.RuleType == "ExcellenceScore")
-                                {
-                                    <div class="mb-3">
-                                        <label class="form-label small fw-semibold text-muted">Nota Mínima (Percentagem)</label>
+                                        <label class="form-label small fw-semibold text-muted">Nota Mínima (%)</label>
                                         <div class="input-group shadow-sm" style="width: 140px;">
-                                            <input type="number" class="form-control bg-light border-0 text-center fw-bold" @bind="newBadge.TargetScore" min="50" max="100" />
+                                            <input type="number" class="form-control bg-light border-0 text-center fw-bold" @bind="newBadge.TriggerValue" min="50" max="100" />
                                             <span class="input-group-text bg-white border-0 fw-bold">%</span>
+                                        </div>
+                                    </div>
+                                }
+
+                                @if (newBadge.TriggerType == BadgeTriggerType.SpeedFocus)
+                                {
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-semibold text-muted">Concluir Percurso em menos de:</label>
+                                        <div class="input-group shadow-sm" style="width: 160px;">
+                                            <input type="number" class="form-control bg-light border-0 text-center fw-bold" @bind="newBadge.TriggerValue" min="1" />
+                                            <span class="input-group-text bg-white border-0 fw-bold">Dias</span>
                                         </div>
                                     </div>
                                 }
@@ -130,8 +146,13 @@
                         <div class="col-md-5 bg-light p-4 d-flex flex-column align-items-center justify-content-center" style="height: 100%; border-radius: 0 0 15px 0;">
                             <span class="text-muted small mb-4 text-uppercase fw-bold" style="letter-spacing: 1px;">Pré-visualização</span>
 
-                            <div class="card border-0 shadow text-center p-4" style="width: 260px; border-radius: 20px; transition: all 0.3s ease;">
-                                <div class="mx-auto mb-3 d-flex align-items-center justify-content-center shadow-sm" style="@PreviewCircleStyle">
+                            <!-- Cartão de Badge com Fundo Dinâmico baseado na Raridade -->
+                            <div class="card border-0 shadow text-center p-4 position-relative"
+                                 style="width: 260px; border-radius: 20px; transition: all 0.3s ease; background: @GetTierBackground(newBadge.Tier); border-top: 6px solid @GetTierColor(newBadge.Tier) !important;">
+
+                                <span class="badge position-absolute top-0 end-0 m-3 shadow-sm" style="background-color: @GetTierColor(newBadge.Tier);">@newBadge.Tier.ToString()</span>
+
+                                <div class="mx-auto mb-3 mt-2 d-flex align-items-center justify-content-center shadow-sm bg-white" style="@PreviewCircleStyle">
                                     <i class="bi @PreviewIconClass" style="@PreviewIconStyle"></i>
                                 </div>
 
@@ -141,7 +162,7 @@
                         </div>
                     </div>
 
-                    <!-- Botões de Ação do Form (Agora com Flexbox mt-auto) -->
+                    <!-- Botões de Ação do Form -->
                     <div class="w-100 bg-white border-top p-3 d-flex justify-content-between mt-auto">
                         <button class="btn btn-light" @onclick="CloseCreateMode">Cancelar</button>
                         <button class="btn btn-success px-4" @onclick="SaveBadge">Guardar Badge</button>
@@ -155,24 +176,66 @@
 
 @code {
     [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public List<BuilderModuleDto> AvailableModules { get; set; } = new();
 
     private bool isCreating = true;
-    private BadgeDraft newBadge = new();
+    private BadgeTemplateCreateDto newBadge = new();
 
     // =========================================================================
-    // HELPERS
+    // ENUMS E HELPERS DE CORES
     // =========================================================================
+    private string GetTierColor(BadgeTier tier) => tier switch
+    {
+        BadgeTier.Comum => "#7f8c8d",
+        BadgeTier.Incomum => "#2ecc71",
+        BadgeTier.Raro => "#3498db",
+        BadgeTier.Epico => "#9b59b6",
+        BadgeTier.Lendario => "#f1c40f",
+        _ => "#7f8c8d"
+    };
+
+    private string GetTierBackground(BadgeTier tier) => tier switch
+    {
+        BadgeTier.Comum => "linear-gradient(135deg, #ffffff 0%, #f1f2f6 100%)",
+        BadgeTier.Incomum => "linear-gradient(135deg, #ffffff 0%, #e8f8f5 100%)",
+        BadgeTier.Raro => "linear-gradient(135deg, #ffffff 0%, #ebf5fb 100%)",
+        BadgeTier.Epico => "linear-gradient(135deg, #ffffff 0%, #f4ecf8 100%)",
+        BadgeTier.Lendario => "linear-gradient(135deg, #ffffff 0%, #fef9e7 100%)",
+        _ => "#ffffff"
+    };
+
     private string ModalTitle => isCreating ? "Criar Nova Badge" : "Badges do Template";
 
-    private string PreviewCircleStyle => $"width: 90px; height: 90px; border-radius: 50%; background-color: {newBadge.ColorHex}20; border: 3px solid {newBadge.ColorHex};";
-
-    private string PreviewIconClass => string.IsNullOrWhiteSpace(newBadge.IconClass) ? "bi-award-fill" : newBadge.IconClass;
-
-    private string PreviewIconStyle => $"font-size: 2.5rem; color: {newBadge.ColorHex};";
-
-    private string PreviewTitle => string.IsNullOrWhiteSpace(newBadge.Title) ? "Título da Badge" : newBadge.Title;
-
+    // =========================================================================
+    // PREVIEW STYLES
+    // =========================================================================
+    private string PreviewCircleStyle => $"width: 90px; height: 90px; border-radius: 50%; border: 3px solid {GetTierColor(newBadge.Tier)};";
+    private string PreviewIconClass => string.IsNullOrWhiteSpace(newBadge.Icon) ? "bi-award-fill" : newBadge.Icon;
+    private string PreviewIconStyle => $"font-size: 2.5rem; color: {GetTierColor(newBadge.Tier)};";
+    private string PreviewTitle => string.IsNullOrWhiteSpace(newBadge.Name) ? "Título da Badge" : newBadge.Name;
     private string PreviewDescription => string.IsNullOrWhiteSpace(newBadge.Description) ? "A descrição que o aluno vai ler ao desbloquear aparecerá aqui." : newBadge.Description;
+
+    // =========================================================================
+    // EVENTOS
+    // =========================================================================
+    private void OnRuleChanged(ChangeEventArgs e)
+    {
+        if (Enum.TryParse<BadgeTriggerType>(e.Value?.ToString(), out var selectedTrigger))
+        {
+            newBadge.TriggerType = selectedTrigger;
+            newBadge.TriggerValue = ""; // Limpa o valor anterior para evitar lixo
+
+            // Auto-define a raridade baseada na dificuldade da regra
+            newBadge.Tier = newBadge.TriggerType switch
+            {
+                BadgeTriggerType.ModuleCompletion => BadgeTier.Incomum,
+                BadgeTriggerType.ExcellenceGrade => BadgeTier.Epico,
+                BadgeTriggerType.SpeedFocus => BadgeTier.Raro,
+                BadgeTriggerType.PathwayMilestone => BadgeTier.Lendario,
+                _ => BadgeTier.Comum
+            };
+        }
+    }
 
     private async Task CloseModal() => await OnClose.InvokeAsync();
     private void OpenCreateMode() => isCreating = true;
@@ -182,7 +245,7 @@
     {
         // Lógica de gravação virá aqui
     }
-    
+
     private List<string> availableIcons = new()
     {
         "bi-award-fill", "bi-star-fill", "bi-trophy-fill", "bi-medal-fill",
@@ -190,18 +253,4 @@
         "bi-lightning-fill", "bi-gem", "bi-book-fill", "bi-check-circle-fill",
         "bi-fire", "bi-magic", "bi-mortarboard-fill", "bi-person-arms-up"
     };
-
-    private class BadgeDraft
-    {
-        public string Title { get; set; } = "";
-        public string Description { get; set; } = "";
-        public string IconClass { get; set; } = "bi-star-fill";
-        public string ColorHex { get; set; } = "#f39c12";
-
-        // Properties for the rule configuration
-        public string RuleType { get; set; } = "ModuleCompletion"; // Default rule type
-        public int? TargetModuleId { get; set; }
-        public string TargetStage { get; set; } = "";
-        public int TargetScore { get; set; } = 90; // Ex: 90%
-    }
 }

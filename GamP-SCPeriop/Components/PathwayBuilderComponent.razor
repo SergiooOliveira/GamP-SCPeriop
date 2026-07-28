@@ -1,5 +1,4 @@
 @using GamP_SCPeriop.Shared.Entity.Model
-@using GamP_SCPeriop.Shared.Data
 @using GamP_SCPeriop.Shared.Enum
 @inject HttpClient Http
 
@@ -10,7 +9,7 @@
 
         <AuthorizeView Roles="Admin">
             <Authorized>
-                <button class="btn btn-warning shadow-sm fw-bold text-dark" @onclick="() => OnOpenBadges.InvokeAsync()">
+                <button class="btn btn-warning shadow-sm fw-bold text-dark" @onclick="() => OpenBadgeModal()">
                     <i class="bi bi-award me-1"></i> Gerir Badges
                 </button>
             </Authorized>
@@ -119,6 +118,15 @@
         </button>
     </div>
 </div>
+
+<!-- ============================================== -->
+<!-- O MODAL DAS BADGES (NOVO)                      -->
+<!-- ============================================== -->
+@if (isBadgeModalOpen)
+{
+    Console.WriteLine($"No Pai, a lista tem: {Modules.Count} módulos");
+    <BadgeManagerModalComponent OnClose="CloseBadgeModal" AvailableModules="Modules" />
+}
 
 <!-- ============================================== -->
 <!-- JANELA MODAL (FASES E TAREFAS)                 -->
@@ -472,6 +480,7 @@
     </div>
 }
 
+
 @code {
     #region [ Parâmetros e Eventos (Comunicação com o Pai) ]
 
@@ -497,6 +506,7 @@
 
     private int expandedModuleId = 0;
     private string newModuleTitle = string.Empty;
+    private bool isBadgeModalOpen = false;
 
     // Estado do Modal
     private BuilderModuleDto? activeModalModule;
@@ -854,4 +864,18 @@
 
     #endregion
 
+    #region [ Controlo de Badges ]
+
+    private void OpenBadgeModal()
+    {
+        isBadgeModalOpen = true;
+        StateHasChanged();
+    }
+
+    private void CloseBadgeModal()
+    {
+        isBadgeModalOpen = false;
+    }
+
+    #endregion
 }
