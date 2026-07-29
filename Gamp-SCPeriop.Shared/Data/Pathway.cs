@@ -16,6 +16,9 @@ namespace GamP_SCPeriop.Shared.Data
 
         public List<Module> Modules { get; set; } = new();
 
+        public DateTime? StartDate { get; set; }
+        public DateTime? EndDate { get; set; }
+
         [NotMapped]
         public int TotalProgress
         {

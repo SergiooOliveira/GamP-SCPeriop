@@ -30,6 +30,8 @@ namespace GamP_SCPeriop.Server.Controllers
                 MinimumPassScore = dto.MinimumPassScore,
                 MinimumApprovalScore = dto.MinimumApprovalScore,
                 ProfessorId = dto.ProfessorId,
+                StartDate = dto.StartDate,
+                EndDate = dto.EndDate,
                 Modules = new List<Module>()
             };
 

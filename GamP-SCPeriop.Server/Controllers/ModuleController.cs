@@ -90,18 +90,17 @@ namespace GamP_SCPeriop.Server.Controllers
         {
             if (id != updatedModule.Id) return BadRequest();
 
-            // Vai buscar o módulo existente e as suas datas (timelines)
+            // 1. Vai buscar o módulo e as datas atuais
             var existingModule = await _context.Modules
                 .Include(m => m.StageTimelines)
                 .FirstOrDefaultAsync(m => m.Id == id);
 
             if (existingModule == null) return NotFound();
 
-            // Atualiza os dados principais do módulo (como o Peso)
+            // 2. Atualiza os dados do Módulo
             existingModule.Title = updatedModule.Title;
             existingModule.Weight = updatedModule.Weight;
 
-            // Atualiza as datas das Fases (Timelines)
             if (updatedModule.StageTimelines != null)
             {
                 foreach (var updatedTimeline in updatedModule.StageTimelines)
@@ -110,13 +109,11 @@ namespace GamP_SCPeriop.Server.Controllers
 
                     if (existingTimeline != null)
                     {
-                        // Se a fase já existe, apenas atualiza as datas
                         existingTimeline.StartDate = updatedTimeline.StartDate;
                         existingTimeline.EndDate = updatedTimeline.EndDate;
                     }
                     else
                     {
-                        // Se a fase for nova, adiciona à base de dados
                         existingModule.StageTimelines ??= new List<ModuleStageTimeline>();
                         existingModule.StageTimelines.Add(new ModuleStageTimeline
                         {
@@ -129,7 +126,47 @@ namespace GamP_SCPeriop.Server.Controllers
                 }
             }
 
+            // Grava as alterações do Módulo primeiro
             await _context.SaveChangesAsync();
+
+            // --- 🕒 INÍCIO DA PROPAGAÇÃO (PATHWAY E ENROLLMENTS) ---
+
+            var allTimelinesInPathway = await _context.Modules
+                .Where(m => m.PathwayId == existingModule.PathwayId)
+                .SelectMany(m => m.StageTimelines)
+                .ToListAsync();
+
+            if (allTimelinesInPathway.Any())
+            {
+                var realStartDate = allTimelinesInPathway.Min(t => t.StartDate);
+                var realEndDate = allTimelinesInPathway.Max(t => t.EndDate);
+
+                var pathway = await _context.Pathways.FindAsync(existingModule.PathwayId);
+
+                // Verifica se houve realmente uma mudança nos limites
+                if (pathway != null && (pathway.StartDate != realStartDate || pathway.EndDate != realEndDate))
+                {
+                    // A. Atualiza a Pathway
+                    pathway.StartDate = realStartDate;
+                    pathway.EndDate = realEndDate;
+
+                    // B. Atualiza TODOS os alunos inscritos
+                    var enrollments = await _context.Enrollments
+                        .Where(e => e.PathwayId == existingModule.PathwayId)
+                        .ToListAsync();
+
+                    foreach (var enrollment in enrollments)
+                    {
+                        enrollment.StartDate = realStartDate;
+                        enrollment.EndDate = realEndDate;
+                    }
+
+                    // Grava o efeito cascata de uma só vez
+                    await _context.SaveChangesAsync();
+                }
+            }
+            // --- FIM DA PROPAGAÇÃO ---
+
             return NoContent();
         }
 

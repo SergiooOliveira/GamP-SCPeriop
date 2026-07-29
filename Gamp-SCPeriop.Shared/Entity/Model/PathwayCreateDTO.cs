@@ -11,5 +11,7 @@ namespace GamP_SCPeriop.Shared.Entity.Model
         public int MinimumApprovalScore { get; set; }
         public int ProfessorId { get; set; }
         public int? TemplateId { get; set; }
+        public DateTime? StartDate { get; set; }
+        public DateTime? EndDate { get; set; }
     }
 }

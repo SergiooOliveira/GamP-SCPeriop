@@ -123,6 +123,18 @@ namespace GamP_SCPeriop.Server.Controllers
         [HttpPost]
         public async Task<ActionResult<Enrollment>> CreateEnrollment(EnrollmentDto dto)
         {
+            var pathway = await _context.Pathways.FindAsync(dto.PathwayId);
+
+            if (pathway == null)
+            {
+                return NotFound("Percurso não encontrado.");
+            }
+
+            if (pathway.StartDate == null || pathway.EndDate == null)
+            {
+                return BadRequest("Não é possível inscrever alunos. O percurso precisa de ter datas de início e fim definidas.");
+            }
+
             var alreadyEnrolled = await _context.Enrollments
                 .AnyAsync(e => e.StudentId == dto.StudentId && e.PathwayId == dto.PathwayId);
 
