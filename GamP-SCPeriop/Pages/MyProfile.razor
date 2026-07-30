@@ -8,133 +8,142 @@
 
 <div class="container mt-4">
     <div class="row justify-content-center">
-        <div class="col-12 col-lg-10 mt-3 px-2">
-            
-            <div class="d-flex justify-content-between align-items-center mb-4">
+        <div class="col-12 col-xl-11 mt-3 px-2">
+
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
                 <h4 class="fw-bold mb-0" style="color: #2c3e50;">Os Meus Percursos</h4>
-    
-                @if (enrollments != null && enrollments.Any() && currentUser != null)
-                {
-                    <a href="api/Evaluation/student/@currentUser.Id/pdf" target="_blank" class="btn btn-sm text-white fw-bold shadow-sm" style="background-color: #6A96A6;">
-                        <i class="bi bi-filetype-pdf me-2 fs-6 align-middle"></i>Exportar Relatório Global
-                    </a>
-                }
+
+                <div class="d-flex flex-column flex-md-row gap-2 align-items-md-center">
+
+                    <div class="input-group input-group-sm shadow-sm" style="max-width: 250px;">
+                        <span class="input-group-text bg-white border-end-0 text-muted">
+                            <i class="bi bi-search"></i>
+                        </span>
+                        <input type="text" class="form-control border-start-0 ps-0"
+                               placeholder="Procurar por nome..."
+                               @bind="searchTerm"
+                               @bind:event="oninput" />
+                    </div>
+
+                    <div class="dropdown position-relative">
+                        <button class="btn btn-sm shadow-sm w-100 text-start d-flex justify-content-between align-items-center"
+                                type="button" @onclick="ToggleDropdown"
+                                style="min-width: 160px; background-color: white; border: 1px solid #dee2e6; color: #495057;">
+                            <span><i class="bi bi-funnel me-1"></i> @currentTab</span>
+                        </button>
+
+                        @if (isDropdownOpen)
+                        {
+                            <!-- Um fundo invisível para fechar o dropdown se clicares fora -->
+                            <div class="position-fixed top-0 start-0 w-100 h-100" style="z-index: 1040;" @onclick="ToggleDropdown"></div>
+
+                            <ul class="dropdown-menu dropdown-menu-end shadow border-0 show" style="font-size: 0.9rem; position: absolute; right: 0; top: 100%; z-index: 1050;">
+                                <li><button class="dropdown-item @(currentTab == "Todas" ? "active" : "")" @onclick='() => SelectTab("Todas")'>Todas</button></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><button class="dropdown-item @(currentTab == "A decorrer" ? "active" : "")" @onclick='() => SelectTab("A decorrer")'>A decorrer</button></li>
+                                <li><button class="dropdown-item @(currentTab == "Por iniciar" ? "active" : "")" @onclick='() => SelectTab("Por iniciar")'>Por iniciar</button></li>
+                                <li><button class="dropdown-item @(currentTab == "Histórico" ? "active" : "")" @onclick='() => SelectTab("Histórico")'>Histórico</button></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <button class="dropdown-item @(currentTab == "Com estrela" ? "active" : "")" @onclick='() => SelectTab("Com estrela")'>
+                                        <i class="bi bi-star-fill text-warning me-2"></i>Com estrela
+                                    </button>
+                                </li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <button class="dropdown-item text-danger @(currentTab == "Removidos" ? "active" : "")" @onclick='() => SelectTab("Removidos")'>
+                                        <i class="bi bi-eye-slash me-2"></i>Removidos
+                                    </button>
+                                </li>
+                            </ul>
+                        }
+                    </div>
+
+                    @if (enrollments != null && enrollments.Any() && currentUser != null)
+                    {
+                        <a href="api/Evaluation/student/@currentUser.Id/pdf" target="_blank" class="btn btn-sm text-white fw-bold shadow-sm" style="background-color: #6A96A6; white-space: nowrap;">
+                            <i class="bi bi-filetype-pdf me-2 fs-6 align-middle"></i>Exportar Relatório
+                        </a>
+                    }
+                </div>
             </div>
-            
+
             @if (enrollments == null)
             {
                 <div class="d-flex justify-content-center mt-5">
                     <div class="spinner-border text-primary" role="status"></div>
                 </div>
             }
-            else if (enrollments.Count == 0)
+            else if (!FilteredEnrollments.Any())
             {
                 <div class="text-center mt-5 p-5 bg-light rounded-4 border-dashed">
-                    <i class="bi bi-journal-x text-muted mb-3" style="font-size: 3rem;"></i>
-                    <h5 class="fw-bold text-secondary">Nenhum Percurso Atribuído</h5>
-                    <p class="text-muted small">Ainda não foste adicionado a nenhum percurso de avaliação.</p>
+                    <i class="bi bi-search text-muted mb-3" style="font-size: 3rem;"></i>
+                    <h5 class="fw-bold text-secondary">Nenhum percurso encontrado</h5>
+                    <p class="text-muted small">Não existem percursos que correspondam à pesquisa ou filtros selecionados.</p>
                 </div>
             }
             else
             {
-                @foreach (var enrollment in enrollments)
-                {
-                    var isOpen = openPathways.Contains(enrollment.PathwayId);
-                    
-                    <div class="card shadow-sm mb-4 border-0" style="border-radius: 20px; overflow: hidden; transition: all 0.2s;">
-                        
-                        <div class="p-4 d-flex justify-content-between align-items-center no-select bg-white hover-bg-light" 
-                             @onclick="() => TogglePathway(enrollment.PathwayId)" 
-                             style="cursor: pointer; border-left: 6px solid #6A96A6;">
-                            
-                            <div class="d-flex align-items-center">
-                                <div class="rounded-circle d-flex justify-content-center align-items-center me-3" style="width: 40px; height: 40px; background-color: #E2ECEF; color: #6A96A6;">
-                                    <i class="bi @(isOpen ? "bi-chevron-down" : "bi-chevron-right") fs-5"></i>
-                                </div>
-                                <div>
-                                    <h5 class="fw-bold mb-1 text-dark">@enrollment.Pathway?.Title</h5>
-                                    <small class="text-muted"><i class="bi bi-person-badge me-1"></i> Supervisor: @(enrollment.Professor?.DisplayShortName ?? "Atribuído")</small>
-                                </div>                                
-                            </div>
+                <div class="row g-4 mb-5">
+                    @foreach (var enrollment in FilteredEnrollments)
+                    {
+                        var globalProg = CalculateGlobalProgress(enrollment);
 
-                            <div class="text-end d-flex flex-column align-items-end">
-                                <small class="text-muted mb-2 fw-semibold" style="font-size: 0.75rem;">
-                                    <i class="bi bi-calendar-event me-1"></i> Limite: @enrollment.EndDate.ToString("dd MMM yyyy")
-                                </small>
-                                
-                                <div class="d-flex align-items-center gap-2">
-                                    @{
-                                        var globalProg = CalculateGlobalProgress(enrollment);
-                                    }
+                        <div class="col-12 col-md-6 col-lg-4">
+                            <!-- CARTÃO CLICÁVEL (Removemos o acordeão dos módulos) -->
+                            <div class="card shadow-sm border-0 h-100"
+                                 style="border-radius: 16px; transition: transform 0.2s, box-shadow 0.2s; cursor: pointer;"
+                                 onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 10px 20px rgba(0,0,0,0.1)';"
+                                 onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 0.125rem 0.25rem rgba(0,0,0,0.075)';"
+                                 @onclick='() => Nav.NavigateTo($"/pathway/{enrollment.PathwayId}")'>
 
-                                    <small class="fw-bold" style="color: @(globalProg == 100 ? "#198754" : "#6A96A6");">
-                                        @(globalProg == 100 ? "Concluído" : "Em Curso")
-                                    </small>
+                                <div class="card-body p-4 d-flex flex-column bg-white" style="border-radius: 16px;">
 
-                                    <div class="bg-light shadow-inner" style="width: 80px; height: 8px; border-radius: 10px; overflow: hidden;">
-                                        <div class="h-100" style="width: @(globalProg)%; background-color: @(globalProg == 100 ? "#198754" : "#6A96A6"); transition: width 0.5s ease-in-out;"></div>
-                                    </div>
-
-                                    <small class="text-muted fw-bold">@(globalProg)%</small>
-                                </div>
-                                
-                            </div>
-                        </div>
-
-                        @if (isOpen && enrollment.Pathway?.Modules != null)
-                        {
-                            <div class="bg-light p-3 border-top">                                
-
-                                @foreach (var module in enrollment.Pathway.Modules)
-                                {
-                                    <div class="card border-0 shadow-sm mb-2" style="border-radius: 12px; transition: transform 0.1s; cursor: pointer;"
-                                         @onclick='() => Nav.NavigateTo($"/module/{module.Id}")'>
-                                        <div class="card-body p-3 d-flex justify-content-between align-items-center">
-
-                                            <div class="d-flex align-items-center">
-                                                <i class="bi bi-journal-text me-3 fs-4" style="color: #6A96A6;"></i>
-                                                <div>
-                                                    <div class="fw-bold text-dark mb-0">@module.Title</div>
-                                                    <small class="text-muted" style="font-size: 0.75rem;">Clique para ver componentes</small>
-                                                </div>
-                                            </div>
-
-                                            <div class="d-flex align-items-center gap-3">
-                                                @{
-                                                    var modProgress = CalculateModuleProgress(module);
-                                                }
-
-                                                @if (modProgress >= (enrollment.Pathway?.MinimumApprovalScore ?? 100))
-                                                {
-                                                    <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 rounded-pill px-3 py-1">
-                                                        <i class="bi bi-check2-circle me-1"></i> Aprovado
-                                                    </span>
-                                                }
-                                                else if (module.Status == "Em curso" || modProgress > 0)
-                                                {
-                                                    <span class="badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25 rounded-pill px-3 py-1">
-                                                        Em Curso (@(modProgress)%)
-                                                    </span>
-                                                }
-                                                else
-                                                {
-                                                    <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 rounded-pill px-3 py-1">
-                                                        Pendente
-                                                    </span>
-                                                }
-
-                                                <div class="rounded-circle d-flex justify-content-center align-items-center" style="width: 35px; height: 35px; background-color: #f8f9fa;">
-                                                    <i class="bi bi-arrow-right text-primary"></i>
-                                                </div>
-                                            </div>
-
+                                    <div class="d-flex justify-content-between align-items-start mb-3">
+                                        <h5 class="fw-bold text-dark mb-0 pe-2" style="font-size: 1.1rem; border-left: 4px solid #6A96A6; padding-left: 8px;">
+                                            @enrollment.Pathway?.Title
+                                        </h5>
+                                        <div class="d-flex gap-2">
+                                            <button class="btn btn-sm btn-link p-0 border-0 text-warning" @onclick:stopPropagation="true" @onclick="() => ToggleStar(enrollment)">
+                                                <i class="bi @(enrollment.IsStarred ? "bi-star-fill" : "bi-star") fs-5"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-link p-0 border-0 text-secondary" @onclick:stopPropagation="true" @onclick="() => ToggleHidden(enrollment)" title="@(enrollment.IsHidden ? "Restaurar" : "Ocultar")">
+                                                <i class="bi @(enrollment.IsHidden ? "bi-eye" : "bi-eye-slash") fs-5"></i>
+                                            </button>
                                         </div>
                                     </div>
-                                }
+
+                                    <div class="mb-4">
+                                        <div class="text-muted small mb-1">
+                                            <i class="bi bi-person-badge me-2"></i>Supervisor: @(enrollment.Professor?.DisplayShortName ?? "Atribuído")
+                                        </div>
+                                        <div class="text-muted small">
+                                            <i class="bi bi-calendar-event me-2"></i>Limite: @enrollment.EndDate.ToString("dd MMM yyyy")
+                                        </div>
+                                    </div>
+
+                                    <div class="mt-auto">
+                                        <div class="d-flex justify-content-between align-items-center gap-2 mb-1">
+                                            <small class="fw-bold" style="color: @(globalProg == 100 ? "#198754" : "#6A96A6");">
+                                                @(globalProg == 100 ? "Concluído" : "Em Curso")
+                                            </small>
+                                            <small class="text-muted fw-bold">@(globalProg)%</small>
+                                        </div>
+
+                                        <div class="bg-light shadow-inner mb-3" style="height: 8px; border-radius: 10px; overflow: hidden;">
+                                            <div class="h-100" style="width: @(globalProg)%; background-color: @(globalProg == 100 ? "#198754" : "#6A96A6"); transition: width 0.5s ease-in-out;"></div>
+                                        </div>
+
+                                        <!-- Indicador visual de que o cartão abre uma nova página -->
+                                        <div class="text-end text-primary small fw-semibold">
+                                            Ver Percurso <i class="bi bi-arrow-right"></i>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                        }
-                    </div>
-                }
+                        </div>
+                    }
+                </div>
             }
         </div>
     </div>
@@ -143,16 +152,17 @@
 @code {
     [CascadingParameter]
     public User? currentUser { get; set; }
+
+    private bool isDropdownOpen = false;
     private List<Enrollment>? enrollments;
 
-    // We only need to track open pathways now
-    private HashSet<int> openPathways = new HashSet<int>();
+    private string currentTab = "A decorrer";
+    private string searchTerm = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
         try
         {
-            // Fetch the enrollments for the student
             enrollments = await Http.GetFromJsonAsync<List<Enrollment>>($"api/Enrollment/student/{currentUser!.Id}");
         }
         catch (Exception ex)
@@ -161,16 +171,55 @@
         }
     }
 
-    private void TogglePathway(int id)
+    private IEnumerable<Enrollment> FilteredEnrollments
     {
-        if (openPathways.Contains(id))
+        get
         {
-            openPathways.Remove(id);
+            if (enrollments == null) return Enumerable.Empty<Enrollment>();
+
+            var now = DateTime.UtcNow;
+            var query = enrollments.AsEnumerable();
+
+            if (!string.IsNullOrWhiteSpace(searchTerm))
+            {
+                query = query.Where(e => e.Pathway?.Title != null &&
+                                         e.Pathway.Title.Contains(searchTerm, StringComparison.OrdinalIgnoreCase));
+            }
+
+            return currentTab switch
+            {
+                "Todas" => query.Where(e => !e.IsHidden),
+                "Por iniciar" => query.Where(e => !e.IsHidden && e.Pathway?.StartDate > now),
+                "A decorrer" => query.Where(e => !e.IsHidden && e.Pathway?.StartDate <= now && e.Pathway?.EndDate >= now && CalculateGlobalProgress(e) < 100),
+                "Histórico" => query.Where(e => e.Pathway?.EndDate < now || CalculateGlobalProgress(e) == 100 || (e.Pathway != null && e.Pathway.IsArchived)),
+                "Com estrela" => query.Where(e => !e.IsHidden && e.IsStarred),
+                "Removidos" => query.Where(e => e.IsHidden),
+                _ => query.Where(e => !e.IsHidden)
+            };
         }
-        else
-        {
-            openPathways.Add(id);
-        }
+    }
+
+    private async Task ToggleStar(Enrollment e)
+    {
+        e.IsStarred = !e.IsStarred;
+        await Http.PutAsJsonAsync($"api/Enrollment/{e.Id}/star", e.IsStarred);
+    }
+
+    private async Task ToggleHidden(Enrollment e)
+    {
+        e.IsHidden = !e.IsHidden;
+        await Http.PutAsJsonAsync($"api/Enrollment/{e.Id}/hidden", e.IsHidden);
+    }
+
+    private void ToggleDropdown()
+    {
+        isDropdownOpen = !isDropdownOpen;
+    }
+
+    private void SelectTab(string tab)
+    {
+        currentTab = tab;
+        isDropdownOpen = false; // Fecha o dropdown ao selecionar
     }
 
     private int CalculateGlobalProgress(Enrollment enrollment)

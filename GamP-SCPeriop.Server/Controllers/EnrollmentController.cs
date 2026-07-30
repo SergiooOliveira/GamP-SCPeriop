@@ -159,5 +159,37 @@ namespace GamP_SCPeriop.Server.Controllers
             return Ok(enrollment);
         }
         #endregion
+
+        #region HttpPut
+        [HttpPut("{id}/star")]
+        public async Task<IActionResult> ToggleStar(int id, [FromBody] bool isStarred)
+        {
+            var enrollment = await _context.Enrollments.FindAsync(id);
+            if (enrollment == null)
+            {
+                return NotFound("Inscrição não encontrada.");
+            }
+
+            enrollment.IsStarred = isStarred;
+            await _context.SaveChangesAsync();
+
+            return NoContent(); // 204 Sucesso sem devolver conteúdo
+        }
+
+        [HttpPut("{id}/hidden")]
+        public async Task<IActionResult> ToggleHidden(int id, [FromBody] bool isHidden)
+        {
+            var enrollment = await _context.Enrollments.FindAsync(id);
+            if (enrollment == null)
+            {
+                return NotFound("Inscrição não encontrada.");
+            }
+
+            enrollment.IsHidden = isHidden;
+            await _context.SaveChangesAsync();
+
+            return NoContent(); // 204 Sucesso sem devolver conteúdo
+        }
+        #endregion
     }
 }
