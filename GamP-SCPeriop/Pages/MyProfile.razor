@@ -87,10 +87,18 @@
                 <div class="row g-4 mb-5">
                     @foreach (var enrollment in FilteredEnrollments)
                     {
-                        var globalProg = CalculateGlobalProgress(enrollment);
+                        // 1. A nota real (Taxa de aprovação baseada nas respostas positivas)
+                        var approvalScore = CalculateGlobalProgress(enrollment);
+
+                        // 2. Está concluído? (Sim, se tudo estiver avaliado OU a data tiver passado)
+                        var isFullyEvaluated = IsFullyEvaluated(enrollment);
+                        var isCompleted = isFullyEvaluated || enrollment.EndDate < DateTime.UtcNow;
+
+                        // 3. Foi aprovado? (Usa o score mínimo do percurso, ou 65 por defeito)
+                        var minScore = enrollment.Pathway?.MinimumApprovalScore > 0 ? enrollment.Pathway.MinimumApprovalScore : 65;
+                        var isApproved = approvalScore >= minScore;
 
                         <div class="col-12 col-md-6 col-lg-4">
-                            <!-- CARTÃO CLICÁVEL (Removemos o acordeão dos módulos) -->
                             <div class="card shadow-sm border-0 h-100"
                                  style="border-radius: 16px; transition: transform 0.2s, box-shadow 0.2s; cursor: pointer;"
                                  onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 10px 20px rgba(0,0,0,0.1)';"
@@ -99,6 +107,7 @@
 
                                 <div class="card-body p-4 d-flex flex-column bg-white" style="border-radius: 16px;">
 
+                                    <!-- Cabeçalho (Título e Botões) -->
                                     <div class="d-flex justify-content-between align-items-start mb-3">
                                         <h5 class="fw-bold text-dark mb-0 pe-2" style="font-size: 1.1rem; border-left: 4px solid #6A96A6; padding-left: 8px;">
                                             @enrollment.Pathway?.Title
@@ -113,6 +122,7 @@
                                         </div>
                                     </div>
 
+                                    <!-- Datas e Supervisor -->
                                     <div class="mb-4">
                                         <div class="text-muted small mb-1">
                                             <i class="bi bi-person-badge me-2"></i>Supervisor: @(enrollment.Professor?.DisplayShortName ?? "Atribuído")
@@ -122,21 +132,39 @@
                                         </div>
                                     </div>
 
+                                    <!-- Zona de Estatísticas e Progresso -->
                                     <div class="mt-auto">
                                         <div class="d-flex justify-content-between align-items-center gap-2 mb-1">
-                                            <small class="fw-bold" style="color: @(globalProg == 100 ? "#198754" : "#6A96A6");">
-                                                @(globalProg == 100 ? "Concluído" : "Em Curso")
-                                            </small>
-                                            <small class="text-muted fw-bold">@(globalProg)%</small>
+
+                                            @if (isCompleted)
+                                            {
+                                                <!-- Se terminou (por data ou preenchimento total), diz se Aprovou ou Reprovou -->
+                                                <small class="fw-bold" style="color: @(isApproved ? "#198754" : "#dc3545");">
+                                                    <i class="bi @(isApproved ? "bi-check-circle-fill" : "bi-x-circle-fill") me-1"></i>
+                                                    @(isApproved ? "Concluído (Aprovado)" : "Concluído (Reprovado)")
+                                                </small>
+                                            }
+                                            else
+                                            {
+                                                <!-- Se ainda falta preencher e está dentro do prazo -->
+                                                <small class="fw-bold" style="color: #6A96A6;">
+                                                    <i class="bi bi-clock-history me-1"></i>Em Curso
+                                                </small>
+                                            }
+
+                                            <small class="text-muted fw-bold">@(approvalScore)% Aprovação</small>
                                         </div>
 
+                                        <!-- A barra visual pintada conforme o estado -->
                                         <div class="bg-light shadow-inner mb-3" style="height: 8px; border-radius: 10px; overflow: hidden;">
-                                            <div class="h-100" style="width: @(globalProg)%; background-color: @(globalProg == 100 ? "#198754" : "#6A96A6"); transition: width 0.5s ease-in-out;"></div>
+                                            <div class="h-100" style="width: @(approvalScore)%;
+                                                background-color: @(isCompleted ? (isApproved ? "#198754" : "#dc3545") : "#6A96A6");
+                                                transition: width 0.5s ease-in-out;">
+                                            </div>
                                         </div>
 
-                                        <!-- Indicador visual de que o cartão abre uma nova página -->
                                         <div class="text-end text-primary small fw-semibold">
-                                            Ver Percurso <i class="bi bi-arrow-right"></i>
+                                            Ver Detalhes <i class="bi bi-arrow-right"></i>
                                         </div>
                                     </div>
                                 </div>
@@ -171,6 +199,36 @@
         }
     }
 
+    private bool IsFullyEvaluated(Enrollment enrollment)
+    {
+        if (enrollment?.Pathway?.Modules == null) return false;
+
+        bool hasAssessableComponents = false;
+
+        foreach (var module in enrollment.Pathway.Modules)
+        {
+            if (module.Components == null) continue;
+
+            var assessable = module.Components
+                .Where(c => c.Stage == ModuleStage.PraticaSupervisionada)
+                .Where(c => !module.Components.Any(child => child.ParentComponentId == c.Id))
+                .ToList();
+
+            if (assessable.Any())
+            {
+                hasAssessableComponents = true; // Fixe, encontrámos algo para avaliar!
+
+                // Se algum estiver pendente, chumba o teste de conclusão imediatamente
+                if (assessable.Any(c => c.Status == ComponentStatus.Pending))
+                {
+                    return false;
+                }
+            }
+        }
+
+        return hasAssessableComponents;
+    }
+
     private IEnumerable<Enrollment> FilteredEnrollments
     {
         get
@@ -186,12 +244,13 @@
                                          e.Pathway.Title.Contains(searchTerm, StringComparison.OrdinalIgnoreCase));
             }
 
+            // ATENÇÃO: Substituímos o CalculateGlobalProgress == 100 pelo IsFullyEvaluated
             return currentTab switch
             {
                 "Todas" => query.Where(e => !e.IsHidden),
                 "Por iniciar" => query.Where(e => !e.IsHidden && e.Pathway?.StartDate > now),
-                "A decorrer" => query.Where(e => !e.IsHidden && e.Pathway?.StartDate <= now && e.Pathway?.EndDate >= now && CalculateGlobalProgress(e) < 100),
-                "Histórico" => query.Where(e => e.Pathway?.EndDate < now || CalculateGlobalProgress(e) == 100 || (e.Pathway != null && e.Pathway.IsArchived)),
+                "A decorrer" => query.Where(e => !e.IsHidden && e.Pathway?.StartDate <= now && e.Pathway?.EndDate >= now && !IsFullyEvaluated(e)),
+                "Histórico" => query.Where(e => e.Pathway?.EndDate < now || IsFullyEvaluated(e) || (e.Pathway != null && e.Pathway.IsArchived)),
                 "Com estrela" => query.Where(e => !e.IsHidden && e.IsStarred),
                 "Removidos" => query.Where(e => e.IsHidden),
                 _ => query.Where(e => !e.IsHidden)
