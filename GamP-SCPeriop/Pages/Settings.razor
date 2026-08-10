@@ -1,0 +1,150 @@
+﻿@page "/settings"
+@layout TopNavBarLayout
+@using GamP_SCPeriop.Shared.Entity.Model
+@inject HttpClient Http
+@inject IJSRuntime JS
+
+<div class="container mt-4">
+    <div class="row">
+
+        <!-- Menu Lateral (Esquerda) -->
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-header fw-bold">
+                    Perfil
+                </div>
+                <div class="list-group list-group-flush">
+                    <!-- Botão Mudar Password -->
+                    <button class="list-group-item list-group-item-action @(activeTab == "password" ? "active" : "")"
+                            @onclick="@(() => activeTab = "password")">
+                        Mudar Palavra-passe
+                    </button>
+
+                    <!-- Espaço para futuras opções (ex: Notificações, etc.) -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Zona de Conteúdo (Direita) -->
+        <div class="col-md-9">
+            <div class="card">
+                <div class="card-body">
+
+                    @if (activeTab == "password")
+                    {
+                        <h4 class="card-title mb-4">Alterar Palavra-passe</h4>
+
+                        <!-- Mensagens de Feedback -->
+                        @if (!string.IsNullOrEmpty(errorMessage))
+                        {
+                            <div class="alert alert-danger">@errorMessage</div>
+                        }
+                        @if (!string.IsNullOrEmpty(successMessage))
+                        {
+                            <div class="alert alert-success">@successMessage</div>
+                        }
+
+                        <!-- Formulário -->
+                        <EditForm Model="@passwordModel" OnValidSubmit="HandlePasswordChange">
+                            <DataAnnotationsValidator />
+
+                            <div class="mb-3">
+                                <label class="form-label">Palavra-passe Atual</label>
+                                <InputText type="password" class="form-control" @bind-Value="passwordModel.CurrentPassword" />
+                                <ValidationMessage For="@(() => passwordModel.CurrentPassword)" class="text-danger small" />
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Nova Palavra-passe</label>
+                                <InputText type="password" class="form-control" @bind-Value="passwordModel.NewPassword" />
+                                <ValidationMessage For="@(() => passwordModel.NewPassword)" class="text-danger small" />
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Confirmar Nova Palavra-passe</label>
+                                <InputText type="password" class="form-control" @bind-Value="passwordModel.ConfirmNewPassword" />
+                                <ValidationMessage For="@(() => passwordModel.ConfirmNewPassword)" class="text-danger small" />
+                            </div>
+
+                            <button type="submit" class="btn btn-primary mt-2" disabled="@isSubmitting">
+                                @if (isSubmitting)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                }
+                                Guardar Alterações
+                            </button>
+                        </EditForm>
+                    }
+
+                    @if (activeTab == "outra_opcao_futura")
+                    {
+                        <h4>Outras Definições</h4>
+                    }
+
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+@code {
+    private string activeTab = "password";
+
+    // Variáveis para o formulário
+    private ChangePasswordDto passwordModel = new();
+    private string? errorMessage;
+    private string? successMessage;
+    private bool isSubmitting = false;
+
+    
+
+    private async Task HandlePasswordChange()
+    {
+        errorMessage = null;
+        successMessage = null;
+        isSubmitting = true;
+        StateHasChanged();
+
+        try
+        {
+            // 1. Coloca aqui o nome EXATO da chave que viste no F12
+            var token = await JS.InvokeAsync<string>("sessionStorage.getItem", "authToken");
+
+            // 2. Criar o pedido "blindado"
+            // (Confirma se no teu backend a rota é api/auth ou api/Auth)
+            var requestMessage = new HttpRequestMessage(HttpMethod.Post, "api/auth/change-password");
+            requestMessage.Content = JsonContent.Create(passwordModel);
+
+            if (!string.IsNullOrEmpty(token))
+            {
+                // O Blazor às vezes traz o token embrulhado em aspas. Isto limpa-as!
+                token = token.Replace("\"", "");
+                requestMessage.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+            }
+
+            // 3. Enviar o pacote
+            var response = await Http.SendAsync(requestMessage);
+
+            if (response.IsSuccessStatusCode)
+            {
+                successMessage = "A palavra-passe foi alterada com sucesso!";
+                passwordModel = new ChangePasswordDto();
+            }
+            else
+            {
+                errorMessage = await response.Content.ReadAsStringAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Ocorreu um erro ao tentar comunicar com o servidor.";
+            Console.WriteLine($"ERRO: {ex.Message}");
+        }
+        finally
+        {
+            isSubmitting = false;
+            StateHasChanged();
+        }
+    }
+}
