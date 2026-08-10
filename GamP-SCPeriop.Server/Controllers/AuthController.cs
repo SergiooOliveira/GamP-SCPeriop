@@ -1,12 +1,13 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using GamP_SCPeriop.Server.Data;
+﻿using GamP_SCPeriop.Server.Data;
 using GamP_SCPeriop.Shared.Data;
 using GamP_SCPeriop.Shared.Entity.Model;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
-using Microsoft.IdentityModel.Tokens;
 
 namespace GamP_SCPeriop.Server.Controllers
 {
@@ -94,6 +95,45 @@ namespace GamP_SCPeriop.Server.Controllers
                 Token = tokenString,
                 User = user
             });
+        }
+
+        [HttpPost("change-password")]
+        [Authorize]
+        public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordDto request)
+        {
+            // 1. Ler o ID do utilizador logado diretamente do Token (segurança máxima)
+            var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!int.TryParse(userIdString, out int userId))
+                return Unauthorized("Sessão inválida.");
+
+            var user = await _context.Users.FindAsync(userId);
+            if (user == null)
+                return NotFound("Utilizador não encontrado.");
+
+            // 2. Verificar se a password atual bate certo
+            if (!BCrypt.Net.BCrypt.Verify(request.CurrentPassword, user.Password))
+                return BadRequest("A password atual está incorreta.");
+
+            // 3. Encriptar a nova e guardar
+            user.Password = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
+            await _context.SaveChangesAsync();
+
+            return Ok("Password alterada com sucesso.");
+        }
+
+        [HttpPost("reset-password")]
+        [Authorize(Roles = "2")]
+        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto request)
+        {
+            var user = await _context.Users.FindAsync(request.UserId);
+            if (user == null)
+                return NotFound("Utilizador alvo não encontrado.");
+
+            // O Administrador não precisa de saber a antiga. Esmagamos diretamente.
+            user.Password = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
+            await _context.SaveChangesAsync();
+
+            return Ok("Password resetada com sucesso.");
         }
     }
 }

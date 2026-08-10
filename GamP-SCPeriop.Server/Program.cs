@@ -1,8 +1,10 @@
-using Microsoft.EntityFrameworkCore;
 using GamP_SCPeriop.Server.Data;
-using QuestPDF.Infrastructure;
+using GamP_SCPeriop.Shared.Data;
+using GamP_SCPeriop.Shared.Enum;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using QuestPDF.Infrastructure;
 using System.Text;
 
 // Configurar a licença gratuita do QuestPDF
@@ -99,5 +101,25 @@ app.MapRazorPages();
 app.MapControllers();
 
 app.MapFallbackToFile("index.html");
+
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+    // Verifica se já existe algum utilizador na base de dados
+    if (!db.Users.Any())
+    {
+        var adminUser = new User
+        {
+            Email = "admin@gamp.com",
+            FullName = "Administrador",
+            Password = BCrypt.Net.BCrypt.HashPassword("123"), // Ou o método de hash que já uses no projeto
+            Role = UserRole.Admin // Ajusta conforme o teu enum de roles
+        };
+
+        db.Users.Add(adminUser);
+        db.SaveChanges();
+    }
+}
 
 app.Run();
