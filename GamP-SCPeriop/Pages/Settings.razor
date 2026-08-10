@@ -97,8 +97,6 @@
     private string? successMessage;
     private bool isSubmitting = false;
 
-    
-
     private async Task HandlePasswordChange()
     {
         errorMessage = null;
@@ -108,17 +106,15 @@
 
         try
         {
-            // 1. Coloca aqui o nome EXATO da chave que viste no F12
+            // 1. Ir buscar o token
             var token = await JS.InvokeAsync<string>("sessionStorage.getItem", "authToken");
 
             // 2. Criar o pedido "blindado"
-            // (Confirma se no teu backend a rota é api/auth ou api/Auth)
             var requestMessage = new HttpRequestMessage(HttpMethod.Post, "api/auth/change-password");
             requestMessage.Content = JsonContent.Create(passwordModel);
 
             if (!string.IsNullOrEmpty(token))
             {
-                // O Blazor às vezes traz o token embrulhado em aspas. Isto limpa-as!
                 token = token.Replace("\"", "");
                 requestMessage.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
             }
@@ -133,7 +129,27 @@
             }
             else
             {
-                errorMessage = await response.Content.ReadAsStringAsync();
+                // --- INÍCIO DA LIMPEZA DO ERRO JSON ---
+                var errorContent = await response.Content.ReadAsStringAsync();
+                try
+                {
+                    using var json = System.Text.Json.JsonDocument.Parse(errorContent);
+
+                    if (json.RootElement.TryGetProperty("errors", out var errors))
+                    {
+                        errorMessage = errors.EnumerateObject().First().Value[0].GetString();
+                    }
+                    else if (json.RootElement.TryGetProperty("title", out var title))
+                    {
+                        errorMessage = title.GetString();
+                    }
+                }
+                catch
+                {
+                    // Se falhar a leitura do JSON, mostra o texto normal para não rebentar
+                    errorMessage = errorContent;
+                }
+                // --- FIM DA LIMPEZA ---
             }
         }
         catch (Exception ex)

@@ -1,6 +1,8 @@
 ﻿@using GamP_SCPeriop.Shared.Entity.Model
 @using GamP_SCPeriop.Shared.Enum
 @using GamP_SCPeriop.Shared.Data
+@inject IJSRuntime JS
+@inject HttpClient Http
 
 <!-- ========================================== -->
 <!-- VISAO DO SUPERVISOR                        -->
@@ -131,9 +133,9 @@
                         }
                         else
                         {
-                            @foreach (var user in FilteredAdminUsers)
+                            foreach (var user in FilteredAdminUsers)
                             {
-                                <tr class="bg-white">
+                                <tr class="bg-white" style="cursor: pointer;" @onclick="() => OpenUserProfile(user)">
                                     <td class="ps-4 py-3 fw-bold text-dark">@user.FullName</td>
                                     <td class="text-muted small">@user.Email</td>
                                     <td class="text-muted small">@user.University</td>
@@ -147,6 +149,73 @@
                 </table>
             </div>
         </div>
+
+        @if (isProfileModalOpen && selectedUser != null)
+        {
+            <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5); z-index: 1050;">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content border-0 shadow-sm" style="border-radius: 12px;">
+
+                        <div class="modal-header border-bottom-0">
+                            <h5 class="modal-title fw-bold">Perfil do Utilizador</h5>
+                            <button type="button" class="btn-close shadow-none" @onclick="CloseModal"></button>
+                        </div>
+
+                        <div class="modal-body px-4 pb-4">
+                            <div class="text-center mb-4">
+                                <h4 class="fw-bold mb-0">@selectedUser.FullName</h4>
+                                <p class="text-muted mb-2">@selectedUser.Email</p>
+                                <span class="badge rounded-pill @GetRoleBadgeClass(selectedUser.Role) px-3 py-2">@selectedUser.Role</span>
+                            </div>
+
+                            <hr class="text-muted opacity-25" />
+
+                            @if (!showPasswordForm)
+                            {
+                                <div class="text-center mt-3">
+                                    <button class="btn btn-outline-danger" @onclick="() => showPasswordForm = true">
+                                        <i class="bi bi-key me-2"></i> Alterar Palavra-passe do Utilizador
+                                    </button>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="bg-light p-3 rounded-3 mt-3 border">
+                                    <h6 class="fw-bold text-danger mb-3">Definir Nova Palavra-passe</h6>
+
+                                    @if (!string.IsNullOrEmpty(adminErrorMessage))
+                                    {
+                                        <div class="alert alert-danger py-2 small">@adminErrorMessage</div>
+                                    }
+                                    @if (!string.IsNullOrEmpty(adminSuccessMessage))
+                                    {
+                                        <div class="alert alert-success py-2 small">@adminSuccessMessage</div>
+                                    }
+
+                                    <div class="mb-2">
+                                        <input type="password" class="form-control shadow-none" placeholder="Nova palavra-passe" @bind="resetModel.NewPassword" />
+                                    </div>
+                                    <div class="mb-3">
+                                        <input type="password" class="form-control shadow-none" placeholder="Confirmar nova palavra-passe" @bind="confirmResetPassword" />
+                                    </div>
+
+                                    <div class="d-flex gap-2">
+                                        <button class="btn btn-secondary w-50" @onclick="() => showPasswordForm = false">Cancelar</button>
+                                        <button class="btn btn-danger w-50" @onclick="HandleAdminPasswordReset" disabled="@isResetting">
+                                            @if (isResetting)
+                                            {
+                                                <span class="spinner-border spinner-border-sm me-2"></span>
+                                            }
+                                            Guardar
+                                        </button>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
     </Authorized>
 </AuthorizeView>
 
@@ -187,5 +256,112 @@
             UserRole.Supervisionado => "bg-info text-dark",
             _ => "bg-secondary text-dark"
         };
+    }
+
+    // ==========================================
+    // LÓGICA DO MODAL DO ADMIN
+    // ==========================================
+    private User? selectedUser = null;
+    private bool isProfileModalOpen = false;
+    private bool showPasswordForm = false;
+
+    private ResetPasswordDto resetModel = new();
+    private string confirmResetPassword = string.Empty;
+    private string? adminErrorMessage;
+    private string? adminSuccessMessage;
+    private bool isResetting = false;
+
+    private void OpenUserProfile(User user)
+    {
+        selectedUser = user;
+        isProfileModalOpen = true;
+        showPasswordForm = false;
+        adminErrorMessage = null;
+        adminSuccessMessage = null;
+    }
+
+    private void CloseModal()
+    {
+        isProfileModalOpen = false;
+        selectedUser = null;
+    }
+
+    private async Task HandleAdminPasswordReset()
+    {
+        if (string.IsNullOrWhiteSpace(resetModel.NewPassword) || resetModel.NewPassword != confirmResetPassword)
+        {
+            adminErrorMessage = "As palavras-passe não coincidem ou estão vazias.";
+            return;
+        }
+
+        adminErrorMessage = null;
+        adminSuccessMessage = null;
+        isResetting = true;
+        StateHasChanged();
+
+        try
+        {
+            resetModel.UserId = selectedUser!.Id;
+
+            // SUBSTITUI PELA TUA CHAVE (a mesma que usaste no Settings.razor)
+            var token = await JS.InvokeAsync<string>("sessionStorage.getItem", "authToken");
+
+            var requestMessage = new HttpRequestMessage(HttpMethod.Post, "api/auth/reset-password");
+            requestMessage.Content = JsonContent.Create(resetModel);
+
+            if (!string.IsNullOrEmpty(token))
+            {
+                token = token.Replace("\"", "");
+                requestMessage.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+            }
+
+            var response = await Http.SendAsync(requestMessage);
+
+            if (response.IsSuccessStatusCode)
+            {
+                adminSuccessMessage = "Palavra-passe alterada com sucesso!";
+                resetModel = new ResetPasswordDto();
+                confirmResetPassword = string.Empty;
+
+                // Fecha o sub-formulário após 2 segundos (mantendo o modal principal aberto)
+                await Task.Delay(2000);
+                showPasswordForm = false;
+            }
+            else
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                try
+                {
+                    // Tenta converter a resposta para JSON
+                    using var json = System.Text.Json.JsonDocument.Parse(errorContent);
+
+                    // Verifica se existe a secção de "errors" padrão do .NET
+                    if (json.RootElement.TryGetProperty("errors", out var errors))
+                    {
+                        // Vai buscar a primeira mensagem limpa do primeiro erro que a API devolveu
+                        adminErrorMessage = errors.EnumerateObject().First().Value[0].GetString();
+                    }
+                    else if (json.RootElement.TryGetProperty("title", out var title))
+                    {
+                        // Caso seja um erro mais genérico
+                        adminErrorMessage = title.GetString();
+                    }
+                }
+                catch
+                {
+                    // Se a resposta não for um JSON (por exemplo, texto simples), mostra como antes
+                    adminErrorMessage = errorContent;
+                }
+            }
+        }
+        catch (Exception)
+        {
+            adminErrorMessage = "Erro ao comunicar com o servidor.";
+        }
+        finally
+        {
+            isResetting = false;
+            StateHasChanged();
+        }
     }
 }

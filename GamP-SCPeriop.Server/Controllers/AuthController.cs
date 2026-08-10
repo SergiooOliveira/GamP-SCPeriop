@@ -122,7 +122,7 @@ namespace GamP_SCPeriop.Server.Controllers
         }
 
         [HttpPost("reset-password")]
-        [Authorize(Roles = "2")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto request)
         {
             var user = await _context.Users.FindAsync(request.UserId);
