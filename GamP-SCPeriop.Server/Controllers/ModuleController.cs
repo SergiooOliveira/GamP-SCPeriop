@@ -151,8 +151,8 @@ namespace GamP_SCPeriop.Server.Controllers
                     pathway.EndDate = realEndDate;
 
                     // B. Atualiza TODOS os alunos inscritos
-                    var enrollments = await _context.Enrollments
-                        .Where(e => e.PathwayId == existingModule.PathwayId)
+                    var enrollments = await _context.EnrollmentModules
+                        .Where(e => e.Enrollment.PathwayId == existingModule.PathwayId)
                         .ToListAsync();
 
                     foreach (var enrollment in enrollments)

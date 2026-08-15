@@ -2,6 +2,7 @@
 using GamP_SCPeriop.Shared.Data;
 using GamP_SCPeriop.Shared.Enum;
 using GamP_SCPeriop.Server.Services;
+using GamP_SCPeriop.Shared.Entity.Model;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -20,18 +21,18 @@ namespace GamP_SCPeriop.Server.Controllers
 
         // 1. CARREGAR A PÁGINA: Devolve o aluno, o percurso e as notas
         [HttpGet("enrollment/{id}")]
-        public async Task<ActionResult<Enrollment>> GetEnrollmentForEvaluation(int id)
+        public async Task<ActionResult<EnrollmentModule>> GetEnrollmentForEvaluation(int id)
         {
             // Vai buscar a inscrição com o Aluno e todo o "Molde" do Pathway
-            var enrollment = await _context.Enrollments
-                .Include(e => e.Student)
-                .Include(e => e.Pathway)
+            var enrollment = await _context.EnrollmentModules
+                .Include(e => e.Enrollment.Student)
+                .Include(e => e.Enrollment.Pathway)
                     .ThenInclude(p => p.Modules)
                         .ThenInclude(m => m.Components)
-                .Include(e => e.Pathway)
+                .Include(e => e.Enrollment.Pathway)
                     .ThenInclude(p => p.Modules)
                         .ThenInclude(m => m.StageTimelines)
-                .FirstOrDefaultAsync(e => e.Id == id);
+                .FirstOrDefaultAsync(e => e.EnrollmentId == id);
 
             if (enrollment == null) return NotFound();
 
@@ -41,9 +42,9 @@ namespace GamP_SCPeriop.Server.Controllers
                 .ToListAsync();
 
             // Injeta as notas gravadas na propriedade [NotMapped] para o Front-end ler as cores certas!
-            if (enrollment.Pathway?.Modules != null)
+            if (enrollment.Enrollment?.Pathway?.Modules != null)
             {
-                foreach (var module in enrollment.Pathway.Modules)
+                foreach (var module in enrollment.Enrollment.Pathway.Modules)
                 {
                     if (module.Components != null)
                     {
@@ -148,7 +149,7 @@ namespace GamP_SCPeriop.Server.Controllers
                                 var badgeNotification = new Notification
                                 {
                                     ReceiverId = enrollment.StudentId,
-                                    SenderId = enrollment.ProfessorId,
+                                    SenderId = enrollment.Pathway.ProfessorId,
                                     Title = "Nova Conquista! 🏆",
                                     Message = $"Parabéns! Desbloqueaste a badge '{pathwayBadge.Name}' ao concluíres o percurso {enrollment.Pathway.Title}.",
                                     TargetUrl = "/badges",
@@ -230,13 +231,5 @@ namespace GamP_SCPeriop.Server.Controllers
 
             return File(pdfBytes, "application/pdf", fileName);
         }
-    }
-
-    // DTO auxiliar para receber os dados do clique no botão
-    public class EvaluationRequestDto
-    {
-        public int EnrollmentId { get; set; }
-        public int ModuleComponentId { get; set; }
-        public ComponentStatus Status { get; set; }
     }
 }

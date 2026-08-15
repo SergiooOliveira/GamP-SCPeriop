@@ -315,10 +315,7 @@
         var payload = new EnrollmentDto
         {
             StudentId = selectedStudentId,
-            ProfessorId = currentUser.Id,
-            PathwayId = selectedPathwayId,
-            ProgressPercentage = 0,
-            EndDate = DateTime.Now.AddMonths(6)
+            PathwayId = selectedPathwayId
         };
 
         var response = await Http.PostAsJsonAsync("api/Enrollment", payload);

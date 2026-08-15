@@ -1,7 +1,8 @@
 ﻿@page "/my-profile"
 @attribute [Authorize(Roles = "Supervisionado")]
-@using GamP_SCPeriop.Shared.Enum
 @using GamP_SCPeriop.Shared.Data
+@using GamP_SCPeriop.Shared.Entity.Model
+@using GamP_SCPeriop.Shared.Enum
 @layout TopNavBarLayout
 @inject HttpClient Http
 @inject NavigationManager Nav
@@ -87,15 +88,13 @@
                 <div class="row g-4 mb-5">
                     @foreach (var enrollment in FilteredEnrollments)
                     {
-                        // 1. A nota real (Taxa de aprovação baseada nas respostas positivas)
-                        var approvalScore = CalculateGlobalProgress(enrollment);
+                        var approvalScore = enrollment.ProgressPercentage;
 
                         // 2. Está concluído? (Sim, se tudo estiver avaliado OU a data tiver passado)
-                        var isFullyEvaluated = IsFullyEvaluated(enrollment);
-                        var isCompleted = isFullyEvaluated || enrollment.EndDate < DateTime.UtcNow;
+                        var isCompleted = enrollment.IsFullyEvaluated || enrollment.LimitDate < DateTime.UtcNow;
 
                         // 3. Foi aprovado? (Usa o score mínimo do percurso, ou 65 por defeito)
-                        var minScore = enrollment.Pathway?.MinimumApprovalScore > 0 ? enrollment.Pathway.MinimumApprovalScore : 65;
+                        var minScore = enrollment.MinimumApprovalScore > 0 ? enrollment.MinimumApprovalScore : 65;
                         var isApproved = approvalScore >= minScore;
 
                         <div class="col-12 col-md-6 col-lg-4">
@@ -110,7 +109,7 @@
                                     <!-- Cabeçalho (Título e Botões) -->
                                     <div class="d-flex justify-content-between align-items-start mb-3">
                                         <h5 class="fw-bold text-dark mb-0 pe-2" style="font-size: 1.1rem; border-left: 4px solid #6A96A6; padding-left: 8px;">
-                                            @enrollment.Pathway?.Title
+                                            @enrollment.PathwayTitle
                                         </h5>
                                         <div class="d-flex gap-2">
                                             <button class="btn btn-sm btn-link p-0 border-0 text-warning" @onclick:stopPropagation="true" @onclick="() => ToggleStar(enrollment)">
@@ -125,10 +124,10 @@
                                     <!-- Datas e Supervisor -->
                                     <div class="mb-4">
                                         <div class="text-muted small mb-1">
-                                            <i class="bi bi-person-badge me-2"></i>Supervisor: @(enrollment.Professor?.DisplayShortName ?? "Atribuído")
+                                            <i class="bi bi-person-badge me-2"></i>Supervisor: @(enrollment.ProfessorName ?? "Atribuído")
                                         </div>
                                         <div class="text-muted small">
-                                            <i class="bi bi-calendar-event me-2"></i>Limite: @enrollment.EndDate.ToString("dd MMM yyyy")
+                                            <i class="bi bi-calendar-event me-2"></i>Limite: @(enrollment.LimitDate?.ToString("dd MMM yyyy") ?? "A definir")
                                         </div>
                                     </div>
 
@@ -144,11 +143,23 @@
                                                     @(isApproved ? "Concluído (Aprovado)" : "Concluído (Reprovado)")
                                                 </small>
                                             }
-                                            else
+                                            else if (!enrollment.StartDate.HasValue)
                                             {
                                                 <!-- Se ainda falta preencher e está dentro do prazo -->
+                                                <small class="fw-bold text-warning">
+                                                    <i class="bi bi-clock-history me-1"></i>Pendente
+                                                </small>
+                                            }
+                                            else if (enrollment.StartDate > DateTime.UtcNow)
+                                            {
+                                                <small class="fw-bold text-secondary">
+                                                    <i class="bi bi-clock me-1"></i>Por iniciar
+                                                </small>
+                                            }
+                                            else
+                                            {
                                                 <small class="fw-bold" style="color: #6A96A6;">
-                                                    <i class="bi bi-clock-history me-1"></i>Em Curso
+                                                    <i class="bi bi-clock-history me-1"></i>Em curso
                                                 </small>
                                             }
 
@@ -182,7 +193,7 @@
     public User? currentUser { get; set; }
 
     private bool isDropdownOpen = false;
-    private List<Enrollment>? enrollments;
+    private List<StudentDashboardCardDTO>? enrollments;
 
     private string currentTab = "A decorrer";
     private string searchTerm = string.Empty;
@@ -191,7 +202,7 @@
     {
         try
         {
-            enrollments = await Http.GetFromJsonAsync<List<Enrollment>>($"api/Enrollment/student/{currentUser!.Id}");
+            enrollments = await Http.GetFromJsonAsync<List<StudentDashboardCardDTO>>($"api/Enrollment/student/{currentUser!.Id}");
         }
         catch (Exception ex)
         {
@@ -199,58 +210,28 @@
         }
     }
 
-    private bool IsFullyEvaluated(Enrollment enrollment)
-    {
-        if (enrollment?.Pathway?.Modules == null) return false;
-
-        bool hasAssessableComponents = false;
-
-        foreach (var module in enrollment.Pathway.Modules)
-        {
-            if (module.Components == null) continue;
-
-            var assessable = module.Components
-                .Where(c => c.Stage == ModuleStage.PraticaSupervisionada)
-                .Where(c => !module.Components.Any(child => child.ParentComponentId == c.Id))
-                .ToList();
-
-            if (assessable.Any())
-            {
-                hasAssessableComponents = true; // Fixe, encontrámos algo para avaliar!
-
-                // Se algum estiver pendente, chumba o teste de conclusão imediatamente
-                if (assessable.Any(c => c.Status == ComponentStatus.Pending))
-                {
-                    return false;
-                }
-            }
-        }
-
-        return hasAssessableComponents;
-    }
-
-    private IEnumerable<Enrollment> FilteredEnrollments
+    private IEnumerable<StudentDashboardCardDTO> FilteredEnrollments
     {
         get
         {
-            if (enrollments == null) return Enumerable.Empty<Enrollment>();
+            if (enrollments == null) return Enumerable.Empty<StudentDashboardCardDTO>();
 
             var now = DateTime.UtcNow;
             var query = enrollments.AsEnumerable();
 
             if (!string.IsNullOrWhiteSpace(searchTerm))
             {
-                query = query.Where(e => e.Pathway?.Title != null &&
-                                         e.Pathway.Title.Contains(searchTerm, StringComparison.OrdinalIgnoreCase));
+                query = query.Where(e => !string.IsNullOrEmpty(e.PathwayTitle) &&
+                                    e.PathwayTitle.Contains(searchTerm, StringComparison.OrdinalIgnoreCase));
             }
 
             // ATENÇÃO: Substituímos o CalculateGlobalProgress == 100 pelo IsFullyEvaluated
             return currentTab switch
             {
                 "Todas" => query.Where(e => !e.IsHidden),
-                "Por iniciar" => query.Where(e => !e.IsHidden && e.Pathway?.StartDate > now),
-                "A decorrer" => query.Where(e => !e.IsHidden && e.Pathway?.StartDate <= now && e.Pathway?.EndDate >= now && !IsFullyEvaluated(e)),
-                "Histórico" => query.Where(e => e.Pathway?.EndDate < now || IsFullyEvaluated(e) || (e.Pathway != null && e.Pathway.IsArchived)),
+                "Por iniciar" => query.Where(e =>  !e.IsHidden && e.StartDate > now),
+                "A decorrer" => query.Where(e => !e.IsHidden && e.StartDate <= now && e.LimitDate >= now && !e.IsFullyEvaluated),
+                "Histórico" => query.Where(e => e.LimitDate < now || e.IsFullyEvaluated || e.IsArchived),
                 "Com estrela" => query.Where(e => !e.IsHidden && e.IsStarred),
                 "Removidos" => query.Where(e => e.IsHidden),
                 _ => query.Where(e => !e.IsHidden)
@@ -258,16 +239,16 @@
         }
     }
 
-    private async Task ToggleStar(Enrollment e)
+    private async Task ToggleStar(StudentDashboardCardDTO e)
     {
         e.IsStarred = !e.IsStarred;
-        await Http.PutAsJsonAsync($"api/Enrollment/{e.Id}/star", e.IsStarred);
+        await Http.PutAsJsonAsync($"api/Enrollment/{e.EnrollmentId}/star", e.IsStarred);
     }
 
-    private async Task ToggleHidden(Enrollment e)
+    private async Task ToggleHidden(StudentDashboardCardDTO e)
     {
         e.IsHidden = !e.IsHidden;
-        await Http.PutAsJsonAsync($"api/Enrollment/{e.Id}/hidden", e.IsHidden);
+        await Http.PutAsJsonAsync($"api/Enrollment/{e.EnrollmentId}/hidden", e.IsHidden);
     }
 
     private void ToggleDropdown()
@@ -279,31 +260,6 @@
     {
         currentTab = tab;
         isDropdownOpen = false; // Fecha o dropdown ao selecionar
-    }
-
-    private int CalculateGlobalProgress(Enrollment enrollment)
-    {
-        if (enrollment?.Pathway?.Modules == null) return 0;
-
-        int totalComponents = 0;
-        int completedComponents = 0;
-
-        foreach (var module in enrollment.Pathway.Modules)
-        {
-            if (module.Components == null) continue;
-
-            var assessable = module.Components
-                .Where(c => c.Stage == ModuleStage.PraticaSupervisionada)
-                .Where(c => !module.Components.Any(child => child.ParentComponentId == c.Id))
-                .ToList();
-
-            totalComponents += assessable.Count;
-            completedComponents += assessable.Count(c =>
-                c.Status == ComponentStatus.AcimaDaMedia ||
-                c.Status == ComponentStatus.Consistente);
-        }
-
-        return totalComponents > 0 ? (int)((double)completedComponents / totalComponents * 100) : 0;
     }
 
     private int CalculateModuleProgress(Module mod)

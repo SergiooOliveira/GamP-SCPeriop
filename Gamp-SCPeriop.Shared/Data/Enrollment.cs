@@ -7,15 +7,10 @@
         public int StudentId { get; set; }
         public User? Student { get; set; }
 
-        public int ProfessorId { get; set; }
-        public User? Professor { get; set; }
-
         public int PathwayId { get; set; }
         public Pathway? Pathway { get; set; }
 
         public int ProgressPercentage { get; set; } = 0;
-        public DateTime StartDate { get; set; } = DateTime.UtcNow;
-        public DateTime EndDate { get; set; }
 
         // Preferências do Aluno para a sua Dashboard
         public bool IsStarred { get; set; } = false;

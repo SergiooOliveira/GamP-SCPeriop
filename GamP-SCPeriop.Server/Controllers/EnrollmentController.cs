@@ -25,65 +25,67 @@ namespace GamP_SCPeriop.Server.Controllers
             var enrollments = await _context.Enrollments
                 .Include(e => e.Student)
                 .Include(e => e.Pathway)
-                .Where(e => e.ProfessorId == supervisorId)
+                .Where(e => e.Pathway.ProfessorId == supervisorId)
                 .ToListAsync();
 
             return Ok(enrollments);
         }
 
         [HttpGet("student/{studentId}")]
-        public async Task<ActionResult<List<Enrollment>>> GetStudentEnrollments(int studentId)
+        public async Task<ActionResult<List<StudentDashboardCardDTO>>> GetStudentEnrollments(int studentId)
         {
-            var enrollments = await _context.Enrollments
-                .Include(e => e.Professor)
-                .Include(e => e.Pathway)
-                    .ThenInclude(p => p.Modules)
-                        .ThenInclude(m => m.Components)
-                .Where(e => e.StudentId == studentId)
+            var enrollmentsModules = await _context.EnrollmentModules
+                .Include(en => en.Enrollment)
+                    .ThenInclude(e => e.Pathway)
+                        .ThenInclude(p => p.Professor)                            
+                .Where(en => en.Enrollment != null && en.Enrollment.StudentId == studentId)
                 .ToListAsync();
 
-            foreach (var enrollment in enrollments)
-            {
-                var evaluations = await _context.ComponentEvaluations
-                    .Where(ce => ce.EnrollmentId == enrollment.Id)
-                    .ToListAsync();
+            if (!enrollmentsModules.Any()) return Ok(new List<StudentDashboardCardDTO>());
 
-                if (enrollment.Pathway?.Modules != null)
+            var dashboardCards = enrollmentsModules
+                .GroupBy(em => em.EnrollmentId)
+                .Select(group =>
                 {
-                    int totalPraticasPathway = 0;
-                    int concluidasPathway = 0;
-
-                    foreach (var module in enrollment.Pathway.Modules)
+                    var line = group.First();
+                    return new StudentDashboardCardDTO
                     {
-                        if (module.Components != null)
-                        {
-                            foreach (var comp in module.Components)
-                            {
-                                // 1. FORÇAR RESET: Se não houver nota, passa a Pendente explicitamente
-                                var eval = evaluations.FirstOrDefault(e => e.ModuleComponentId == comp.Id);
-                                comp.Status = eval?.Status ?? ComponentStatus.Pending;
+                        EnrollmentId = line.EnrollmentId,
+                        PathwayId = line.Enrollment?.PathwayId ?? 0,
+                        PathwayTitle = line.Enrollment?.Pathway?.Title ?? "Sem título",
+                        ProfessorName = line.Enrollment?.Pathway?.Professor?.DisplayShortName ?? "Sem supervisor",
+                        StartDate = group.Min(em => em.StartDate),
+                        LimitDate = group.Max(em => em.EndDate),
+                        ProgressPercentage = line.Enrollment?.ProgressPercentage ?? 0,
+                        MinimumApprovalScore = line.Enrollment?.Pathway?.MinimumApprovalScore ?? 65,
+                        IsStarred = line.Enrollment?.IsStarred ?? false,
+                        IsHidden = line.Enrollment?.IsHidden ?? false,
+                        IsArchived = line.Enrollment?.Pathway?.IsArchived ?? false,
+                        IsFullyEvaluated = (line.Enrollment?.ProgressPercentage ?? 0) == 100
+                    };                    
+                })
+                .ToList();
 
-                                // 2. Contabilização global (Todos os módulos, todos os componentes práticos)
-                                if (comp.Stage != ModuleStage.Teorica)
-                                {
-                                    totalPraticasPathway++;
-                                    if (comp.Status == ComponentStatus.AcimaDaMedia || comp.Status == ComponentStatus.Consistente)
-                                    {
-                                        concluidasPathway++;
-                                    }
-                                }
-                            }
-                        }
-                    }
+            return Ok(dashboardCards);
+        }
 
-                    // 3. Sobrescreve o valor antigo com a matemática real antes de enviar para o ecrã
-                    enrollment.ProgressPercentage = totalPraticasPathway > 0
-                        ? (int)((double)concluidasPathway / totalPraticasPathway * 100)
-                        : 0;
-                }
-            }
+        [HttpGet("student/{studentId}/pathway/{pathwayId}")]
+        public async Task<ActionResult<IEnumerable<EnrollmentModule>>> GetEnrollmentDetails(int studentId, int pathwayId)
+        {
+            var enrollmentDetails = await _context.EnrollmentModules
+                .Include(em => em.Enrollment)
+                    .ThenInclude(e => e.Pathway)
+                        .ThenInclude(p => p.Professor)
+                .Include(em => em.Module)
+                    .ThenInclude(m => m.Components)
+                .Where (em => em.Enrollment != null
+                        && em.Enrollment.StudentId == studentId
+                        && em.Enrollment.PathwayId == pathwayId)
+                .ToListAsync();
 
-            return Ok(enrollments);
+            if (!enrollmentDetails.Any()) return NotFound();
+
+            return Ok(enrollmentDetails);
         }
 
         [HttpGet("management")]
@@ -147,13 +149,29 @@ namespace GamP_SCPeriop.Server.Controllers
             var enrollment = new Enrollment
             {
                 StudentId = dto.StudentId,
-                ProfessorId = dto.ProfessorId,
                 PathwayId = dto.PathwayId,
-                ProgressPercentage = dto.ProgressPercentage,
-                EndDate = dto.EndDate
+                ProgressPercentage = 0,
             };
 
             _context.Enrollments.Add(enrollment);
+            await _context.SaveChangesAsync();
+
+            var pathwayModules = await _context.Modules
+                .Where(m => m.PathwayId == dto.PathwayId)
+                .ToListAsync();
+
+            foreach (var module in pathwayModules)
+            {
+                var enrollmentModule = new EnrollmentModule
+                {
+                    EnrollmentId = enrollment.Id,
+                    ModuleId = module.Id,
+                    StartDate = null,
+                    EndDate = null,
+                };
+                _context.EnrollmentModules.Add(enrollmentModule);
+            }
+
             await _context.SaveChangesAsync();
 
             return Ok(enrollment);

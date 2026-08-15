@@ -35,6 +35,7 @@ namespace GamP_SCPeriop.Server.Data
         public DbSet<Enrollment> Enrollments { get; set; }
         public DbSet<Module> Modules { get; set; }
         public DbSet<ModuleComponent> ModuleComponents { get; set; }
+        public DbSet<EnrollmentModule> EnrollmentModules { get; set; }
         public DbSet<Notification> Notifications { get; set; }
         public DbSet<ComponentEvaluation> ComponentEvaluations { get; set; }
         public DbSet<ModuleStageTimeline> ModuleStageTimelines { get; set; }
@@ -63,12 +64,6 @@ namespace GamP_SCPeriop.Server.Data
                 .HasForeignKey(e => e.StudentId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            modelBuilder.Entity<Enrollment>()
-                .HasOne(e => e.Professor)
-                .WithMany()
-                .HasForeignKey(e => e.ProfessorId)
-                .OnDelete(DeleteBehavior.Restrict);
-
             modelBuilder.Entity<Notification>()
                 .HasOne<User>().WithMany()
                 .HasForeignKey(n => n.ReceiverId)
@@ -83,6 +78,12 @@ namespace GamP_SCPeriop.Server.Data
                 .HasOne(ce => ce.ModuleComponent)
                 .WithMany()
                 .HasForeignKey(ce => ce.ModuleComponentId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<EnrollmentModule>()
+                .HasOne(em => em.Module)
+                .WithMany()
+                .HasForeignKey(em => em.ModuleId)
                 .OnDelete(DeleteBehavior.Restrict);
 
             // ==========================================
