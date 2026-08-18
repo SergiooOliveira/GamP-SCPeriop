@@ -12,6 +12,7 @@ namespace GamP_SCPeriop.Shared.Data
         public string? PdfFilePath { get; set; }
         public ModuleStage Stage { get; set; }
         public int Weight { get; set; } = 1;
+        public bool IsFromTemplate { get; set; }
 
         public int? ParentComponentId { get; set; }
         public ModuleComponent? ParentComponent { get; set; }

@@ -23,12 +23,25 @@ namespace GamP_SCPeriop.Server.Controllers
             var module = new Module
             {
                 Title = dto.Title,
-                PathwayId = dto.PathwayId
-                // Components list starts empty
+                PathwayId = dto.EnrollmentId.HasValue ? null : dto.PathwayId,
+                // Se vier de um Enrollment, NÃO é do template
+                IsFromTemplate = !dto.EnrollmentId.HasValue
             };
 
             _context.Modules.Add(module);
             await _context.SaveChangesAsync();
+
+            if (dto.EnrollmentId.HasValue)
+            {
+                var enrollmentModule = new EnrollmentModule
+                {
+                    EnrollmentId = dto.EnrollmentId.Value,
+                    ModuleId = module.Id
+                };
+
+                _context.EnrollmentModules.Add(enrollmentModule);
+                await _context.SaveChangesAsync();
+            }
 
             return Ok(module);
         }
@@ -173,20 +186,22 @@ namespace GamP_SCPeriop.Server.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteModule(int id)
         {
-            // Vai buscar o módulo e inclui os componentes associados
-            var module = await _context.Modules
-                .Include(m => m.Components)
-                .FirstOrDefaultAsync(m => m.Id == id);
-
+            var module = await _context.Modules.FindAsync(id);
             if (module == null) return NotFound();
 
-            // Remove primeiro os componentes (limpa os filhos)
-            if (module.Components != null && module.Components.Any())
-            {
-                _context.ModuleComponents.RemoveRange(module.Components);
-            }
+            // 1. Limpar Componentes do Módulo
+            var components = await _context.ModuleComponents.Where(c => c.ModuleId == id).ToListAsync();
+            if (components.Any()) _context.ModuleComponents.RemoveRange(components);
 
-            // Agora sim, pode apagar o módulo em segurança (apaga o pai)
+            // 2. Limpar Datas (Timelines)
+            var timelines = await _context.ModuleStageTimelines.Where(t => t.ModuleId == id).ToListAsync();
+            if (timelines.Any()) _context.ModuleStageTimelines.RemoveRange(timelines);
+
+            // 3. LIMPAR A LIGAÇÃO AO ALUNO (O que estava a causar o Erro 500)
+            var enrollments = await _context.EnrollmentModules.Where(e => e.ModuleId == id).ToListAsync();
+            if (enrollments.Any()) _context.EnrollmentModules.RemoveRange(enrollments);
+
+            // 4. Agora sim, podemos apagar o Módulo com segurança
             _context.Modules.Remove(module);
             await _context.SaveChangesAsync();
 

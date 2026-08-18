@@ -20,25 +20,23 @@ namespace GamP_SCPeriop.Server.Controllers
 
         // --- 1. CREATE (POST) ---
         [HttpPost]
-        public async Task<ActionResult<ModuleComponent>> CreateComponent([FromBody] ModuleComponentCreateDTO dto)
+        public async Task<ActionResult<ModuleComponent>> CreateModuleComponent(ModuleComponentCreateDTO dto)
         {
             var component = new ModuleComponent
             {
-                Title = dto.Title,
                 ModuleId = dto.ModuleId,
-                Stage = dto.Stage,
+                Title = dto.Title,
                 Description = dto.Description,
-                PdfFilePath = dto.PdfFilePath ?? string.Empty,
-                Status = ComponentStatus.Pending,
+                Stage = dto.Stage,
                 ParentComponentId = dto.ParentComponentId,
-                Weight = dto.Weight
+                Weight = dto.Weight,
+                IsFromTemplate = dto.IsFromTemplate
             };
 
             _context.ModuleComponents.Add(component);
             await _context.SaveChangesAsync();
 
-            // Devolve o objeto com o novo ID da BD para o Frontend poder editar/apagar imediatamente
-            return CreatedAtAction(nameof(GetComponent), new { id = component.Id }, component);
+            return Ok(component);
         }
 
         // --- 2. EDIT (PUT) ---

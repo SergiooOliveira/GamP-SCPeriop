@@ -9,9 +9,10 @@ namespace GamP_SCPeriop.Shared.Data
         public int Id { get; set; }
         public string Title { get; set; } = string.Empty;
         public List<ModuleComponent> Components { get; set; } = new();
-        public int PathwayId { get; set; }
+        public int? PathwayId { get; set; }
         public List<ModuleStageTimeline>? StageTimelines { get; set; }
         public int Weight { get; set; } = 1;
+        public bool IsFromTemplate { get; set; }
 
         [NotMapped]
         public int ProgressPercentage

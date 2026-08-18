@@ -4,6 +4,7 @@ using GamP_SCPeriop.Server.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GamP_SCPeriop.Server.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260817150315_AllowNullPathwayId")]
+    partial class AllowNullPathwayId
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -158,9 +161,6 @@ namespace GamP_SCPeriop.Server.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<bool>("IsFromTemplate")
-                        .HasColumnType("bit");
-
                     b.Property<int?>("PathwayId")
                         .HasColumnType("int");
 
@@ -188,9 +188,6 @@ namespace GamP_SCPeriop.Server.Migrations
 
                     b.Property<string>("Description")
                         .HasColumnType("nvarchar(max)");
-
-                    b.Property<bool>("IsFromTemplate")
-                        .HasColumnType("bit");
 
                     b.Property<int>("ModuleId")
                         .HasColumnType("int");

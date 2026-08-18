@@ -15,6 +15,9 @@ using System.ComponentModel;
 
     # Remove the last migration (if not yet applied)
     dotnet ef migrations remove
+
+    # Remove the last applied migration
+    dotnet ef migrations remove --force
  */
 
 
