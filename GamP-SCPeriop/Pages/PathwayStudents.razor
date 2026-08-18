@@ -75,7 +75,14 @@
                                             <small class="text-muted">Progresso no Percurso: <strong>@enrollment.ProgressPercentage%</strong></small>
                                         </div>
                                     </div>
-                                    <div>
+                                    <div class="d-flex gap-2">
+                                        <!-- Novo Botão para Editar o Percurso do Aluno (Caminho 2) -->
+                                        <button class="btn btn-outline-secondary rounded-pill px-3 btn-sm fw-semibold"
+                                                @onclick='() => Nav.NavigateTo($"/supervisor/pathway-builder/student/{enrollment.Id}")'>
+                                            <i class="bi bi-sliders me-1"></i> Gerir
+                                        </button>
+
+                                        <!-- Botão de Avaliar -->
                                         <button class="btn btn-outline-primary rounded-pill px-4 btn-sm fw-semibold"
                                                 @onclick='() => Nav.NavigateTo($"/evaluate/{enrollment.Id}")'>
                                             Avaliar <i class="bi bi-chevron-right ms-1"></i>

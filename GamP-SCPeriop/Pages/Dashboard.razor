@@ -20,7 +20,7 @@
         else if (pathwaySummaries.Any())
         {
             @foreach (var summary in pathwaySummaries)
-            {
+            {                
                 <div class="card border-0 shadow-sm flex-shrink-0 position-relative" style="width: 240px; border-radius: 20px; background-color: #E2ECEF;">
 
                     <!-- Botão de Apagar -->
@@ -210,6 +210,7 @@
     </div>
 }
 
+
 @code {
     [CascadingParameter]
     public User? currentUser { get; set; }
@@ -279,8 +280,8 @@
         pathwaySummaries = availablePathways.Select(p => new PathwaySummary(
             p.PathwayId,
             p.Title,
-            supervisedEnrollments.Count(e => e.PathwayId == p.PathwayId)
-        )).ToList();
+            supervisedEnrollments.Count(e => e.PathwayId == p.PathwayId))
+            ).ToList();
 
         // 4. Fetch data for the Student Table
         students = await Http.GetFromJsonAsync<List<StudentManagementDto>>("api/Enrollment/management");
@@ -380,12 +381,14 @@
 
     private async Task DeletePathway(int pathwayId)
     {
+        Console.WriteLine("Chamou Método DeletePathway");
         bool confirmed = await JsRuntime.InvokeAsync<bool>("confirm", "Tem a certeza que deseja apagar este percurso? Esta ação não pode ser revertida.");
         if (!confirmed) return;
 
         var response = await Http.DeleteAsync($"api/Pathway/{pathwayId}");
         if (response.IsSuccessStatusCode)
         {
+            Console.WriteLine("Percurso apagado com sucesso.");
             // Remove da lista em memória e atualiza o ecrã instantaneamente
             pathwaySummaries.RemoveAll(p => p.Id == pathwayId);
             StateHasChanged();

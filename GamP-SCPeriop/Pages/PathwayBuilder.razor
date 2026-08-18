@@ -1,5 +1,6 @@
 ﻿@page "/supervisor/pathway-builder"
 @page "/supervisor/pathway-builder/{PathwayIdToLoad:int}"
+@page "/supervisor/pathway-builder/student/{EnrollmentIdToLoad:int}"
 @layout TopNavBarLayout
 @inject HttpClient Http
 @inject NavigationManager Nav
@@ -21,52 +22,8 @@
     }
     else if (activePathway == null)
     {
-        <!-- SELEÇÃO INICIAL (Carregar ou Criar Novo) -->
-        <div class="row g-4">
-            <div class="col-md-6">
-                <div class="card shadow-sm p-4 border-0 h-100" style="border-radius: 15px; background-color: #f8f9fa;">
-                    <h5 class="mb-3 fw-bold text-secondary"><i class="bi bi-folder2-open me-2"></i>Carregar Existente</h5>
-                    <p class="text-muted small mb-3">Selecione um percurso já criado para continuar a editá-lo.</p>
-
-                    <div class="input-group">
-                        <select class="form-select" @bind="selectedExistingPathwayId">
-                            <option value="0" selected disabled>Selecione um percurso...</option>
-                            @foreach (var p in existingPathways)
-                            {
-                                <option value="@p.PathwayId">@p.Title</option>
-                            }
-                        </select>
-                        <button class="btn btn-secondary px-3" @onclick="LoadExistingPathway" disabled="@(selectedExistingPathwayId == 0)">
-                            <i class="bi bi-cloud-download me-2"></i>Carregar
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-md-6">
-                <div class="card shadow-sm p-4 border-0 h-100" style="border-radius: 15px; background-color: #f8f9fa;">
-                    <h5 class="mb-3 fw-bold text-primary"><i class="bi bi-plus-circle me-2"></i>Criar Novo Percurso</h5>
-
-                    <div class="mb-3">
-                        <input @bind="pathwayDto.Title" class="form-control" placeholder="Título (Ex: Enfermagem Cirúrgica)" />
-                    </div>
-
-                    <div class="row mb-3 g-2">
-                        <div class="col-6">
-                            <label class="form-label small text-muted mb-1">Mín. Passar (%)</label>
-                            <input type="number" @bind="pathwayDto.MinimumPassScore" class="form-control form-control-sm" />
-                        </div>
-                        <div class="col-6">
-                            <label class="form-label small text-muted mb-1">Mín. Aprovação (%)</label>
-                            <input type="number" @bind="pathwayDto.MinimumApprovalScore" class="form-control form-control-sm" />
-                        </div>
-                    </div>
-
-                    <button @onclick="CreatePathway" class="btn text-white fw-bold w-100" style="border-radius: 10px; background-color: #6A96A6; border: none;">
-                        Criar e Iniciar
-                    </button>
-                </div>
-            </div>
+        <div class="alert alert-danger shadow-sm border-0 mt-4" style="border-radius: 10px;">
+            Percurso não encontrado.
         </div>
     }
     else
@@ -77,8 +34,7 @@
                 <span class="text-muted small">Percurso Ativo:</span><br />
                 <strong class="fs-5">@activePathway.Title</strong>
             </div>
-            <div>
-                <span class="badge bg-success fs-6 me-2">ID: @activePathway.Id</span>
+            <div>                
                 <button class="btn btn-sm btn-outline-success" @onclick="CloseActivePathway"><i class="bi bi-x-lg"></i></button>
             </div>
         </div>
@@ -86,7 +42,7 @@
         <div class="mt-4 card shadow-sm p-4 border-0" style="border-radius: 15px;">
             <PathwayBuilderComponent 
                 PathwayTemplateId="@activePathway.Id"
-                IsTemplateMode="@false"
+                CurrentMode="@((IsStudentMode) ? BuilderMode.Individual : BuilderMode.Geral)"
                 ParentTitle="@activePathway.Title"
                 Modules="@BuilderModules"
                 OnCreateModule="CreateModuleFromBuilder"
@@ -109,6 +65,10 @@
     public User? currentUser { get; set; }
 
     [Parameter] public int? PathwayIdToLoad { get; set; }
+
+    [Parameter] public int? EnrollmentIdToLoad { get; set; }
+    private bool IsStudentMode => EnrollmentIdToLoad.HasValue && EnrollmentIdToLoad.Value > 0;
+
     [SupplyParameterFromQuery(Name = "from")] public string? FromSource { get; set; }
 
     private bool isLoading = true;
@@ -127,6 +87,7 @@
         Title = m.Title,
         Weight = m.Weight,
         StageTimelines = m.StageTimelines,
+        IsFromTemplate = m.IsFromTemplate,
         Components = m.Components?.Select(c => new BuilderComponentDto
         {
             Id = c.Id,
@@ -135,7 +96,8 @@
             Stage = c.Stage,
             Weight = c.Weight,
             ParentComponentId = c.ParentComponentId,
-            PdfFilePath = c.PdfFilePath
+            PdfFilePath = c.PdfFilePath,
+            IsFromTemplate = c.IsFromTemplate
         }).ToList() ?? new List<BuilderComponentDto>()
     }).ToList();
 
@@ -148,12 +110,18 @@
         try
         {
             isLoading = true;
-            existingPathways = await Http.GetFromJsonAsync<List<PathwayTagDto>>($"api/Pathway/supervisor/{currentUser?.Id}") ?? new();
 
-            if (PathwayIdToLoad.HasValue && PathwayIdToLoad.Value > 0)
+            if (IsStudentMode)
+                await LoadStudentPathway();
+            else
             {
-                selectedExistingPathwayId = PathwayIdToLoad.Value;
-                await LoadExistingPathway();
+                existingPathways = await Http.GetFromJsonAsync<List<PathwayTagDto>>($"api/Pathway/supervisor/{currentUser?.Id}") ?? new();
+
+                if (PathwayIdToLoad.HasValue && PathwayIdToLoad.Value > 0)
+                {
+                    selectedExistingPathwayId = PathwayIdToLoad.Value;
+                    await LoadExistingPathway();
+                }
             }
         }
         finally { isLoading = false; }
@@ -176,15 +144,40 @@
         finally { isLoading = false; }
     }
 
+    private async Task LoadStudentPathway()
+    {
+        // O endpoint que vamos criar a seguir na API
+        var response = await Http.GetAsync($"api/Pathway/builder/{EnrollmentIdToLoad}");
+
+        if (response.IsSuccessStatusCode)
+        {
+            var studentEnrollmentModules = await response.Content.ReadFromJsonAsync<List<EnrollmentModule>>() ?? new();
+
+            if (studentEnrollmentModules.Any())
+            {
+                // Aproveitamos o Pathway original apenas para não quebrar o título no HTML
+                activePathway = studentEnrollmentModules.First().Enrollment?.Pathway;
+
+                // Magia: extraímos apenas os módulos clonados deste aluno específico!
+                savedModules = studentEnrollmentModules
+                    .Where(em => em.Module != null)
+                    .Select(em => em.Module!)
+                    .ToList();
+            }
+        }
+    }
+
     private void CloseActivePathway()
     {
-        if (FromSource == "dashboard") Nav.NavigateTo("/dashboard");
+        if (IsStudentMode && activePathway != null)
+        {
+            // Se viemos do botão "Gerir" do aluno, voltamos para a lista de alunos
+            Nav.NavigateTo($"/pathway/{activePathway.Id}/students");
+        }
         else
         {
-            activePathway = null;
-            savedModules.Clear();
-            selectedExistingPathwayId = 0;
-            Nav.NavigateTo("/supervisor/pathway-builder");
+            // Se viemos do botão "Editar Estrutura" (Molde), voltamos ao Dashboard
+            Nav.NavigateTo("/dashboard");
         }
     }
 
@@ -207,7 +200,14 @@
     {
         if (string.IsNullOrWhiteSpace(title) || activePathway == null) return;
 
-        var dto = new ModuleCreateDTO { Title = title, PathwayId = activePathway.Id };
+        // A MÁGICA ESTÁ AQUI: Passamos o EnrollmentId se estivermos no Modo Aluno
+        var dto = new ModuleCreateDTO
+        {
+            Title = title,
+            PathwayId = activePathway.Id,
+            EnrollmentId = IsStudentMode ? EnrollmentIdToLoad : null
+        };
+
         var response = await Http.PostAsJsonAsync("api/Module", dto);
 
         if (response.IsSuccessStatusCode)
@@ -219,6 +219,7 @@
                 savedMod.StageTimelines = new List<ModuleStageTimeline>();
 
                 foreach (var stage in GetTimelineStages()) GetOrCreateTimeline(savedMod, stage);
+
                 await Http.PutAsJsonAsync($"api/Module/{savedMod.Id}", savedMod);
 
                 savedModules.Add(savedMod);
@@ -344,7 +345,13 @@
     {
         foreach (var parent in data.Drafts.Where(p => !string.IsNullOrWhiteSpace(p.Text)))
         {
-            var dtoParent = new ModuleComponentCreateDTO { ModuleId = data.ModuleId, Title = parent.Text, Stage = data.Stage };
+            var dtoParent = new ModuleComponentCreateDTO
+            {
+                ModuleId = data.ModuleId,
+                Title = parent.Text,
+                Stage = data.Stage,
+                IsFromTemplate = !IsStudentMode
+            };
             var responseParent = await Http.PostAsJsonAsync("api/ModuleComponent", dtoParent);
             if (responseParent.IsSuccessStatusCode)
             {
@@ -353,7 +360,14 @@
                 {
                     foreach (var child in parent.Children.Where(f => !string.IsNullOrWhiteSpace(f.Text)))
                     {
-                        var dtoChild = new ModuleComponentCreateDTO { ModuleId = data.ModuleId, Title = child.Text, Stage = data.Stage, ParentComponentId = savedParent.Id };
+                        var dtoChild = new ModuleComponentCreateDTO
+                        {
+                            ModuleId = data.ModuleId,
+                            Title = child.Text,
+                            Stage = data.Stage,
+                            ParentComponentId = savedParent.Id,
+                            IsFromTemplate = !IsStudentMode
+                        };
                         await Http.PostAsJsonAsync("api/ModuleComponent", dtoChild);
                     }
                 }
@@ -367,7 +381,14 @@
     {
         if (data.Component.Id == 0)
         {
-            var dto = new ModuleComponentCreateDTO { ModuleId = data.ModuleId, Title = data.Component.Title, Description = data.Component.Description, Stage = data.Component.Stage };
+            var dto = new ModuleComponentCreateDTO
+            {
+                ModuleId = data.ModuleId,
+                Title = data.Component.Title,
+                Description = data.Component.Description,
+                Stage = data.Component.Stage,
+                IsFromTemplate = !IsStudentMode
+            };
             await Http.PostAsJsonAsync("api/ModuleComponent", dto);
         }
         else await Http.PutAsJsonAsync($"api/ModuleComponent/{data.Component.Id}", data.Component);
@@ -399,7 +420,8 @@
                     Title = task.Title,
                     Stage = data.Stage,
                     ParentComponentId = kvp.Key,
-                    Weight = task.Weight
+                    Weight = task.Weight,
+                    IsFromTemplate = !IsStudentMode
                 };
                 await Http.PostAsJsonAsync("api/ModuleComponent", dtoChild);
             }

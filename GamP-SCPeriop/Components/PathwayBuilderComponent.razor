@@ -32,7 +32,7 @@
                         </button>
 
                         <!-- PESO (Escondido se for Template) -->
-                        @if (!IsTemplateMode)
+                        @if (CurrentMode != BuilderMode.Template)
                         {
                             <div class="d-flex align-items-center gap-2 border-end pe-3 me-3" @onclick:stopPropagation="true">
                                 <small class="text-muted fw-bold">Peso:</small>
@@ -45,10 +45,13 @@
                         }
 
                         <div class="d-flex align-items-center gap-3">
-                            <button class="btn btn-sm text-danger border-0 p-1 shadow-none" title="Eliminar Módulo"
-                                    @onclick="() => OnDeleteModule.InvokeAsync(mod.Id)" @onclick:stopPropagation="true">
-                                <i class="bi bi-trash3 fs-5"></i>
-                            </button>
+                            @if (CurrentMode == BuilderMode.Geral || !mod.IsFromTemplate)
+                            {
+                                <button class="btn btn-sm text-danger border-0 p-1 shadow-none" title="Eliminar Módulo"
+                                        @onclick="() => OnDeleteModule.InvokeAsync(mod.Id)" @onclick:stopPropagation="true">
+                                    <i class="bi bi-trash3 fs-5"></i>
+                                </button>
+                            }
                             <i class="bi @(isExpanded ? "bi-chevron-up" : "bi-chevron-down") text-muted" style="cursor: pointer;" @onclick="() => ToggleModule(mod.Id)"></i>
                         </div>
                     </div>
@@ -74,7 +77,7 @@
 
                                             <div class="d-flex align-items-center gap-3">
                                                 <!-- DATAS / TIMELINE (Escondido se for Template ou Teórica) -->
-                                                @if (!IsTemplateMode && stageInfo.Stage != ModuleStage.Teorica)
+                                                @if (CurrentMode != BuilderMode.Template && stageInfo.Stage != ModuleStage.Teorica)
                                                 {
                                                     var timeline = GetTimeline(mod, stageInfo.Stage);
                                                     <div class="d-flex align-items-center gap-2 me-3" @onclick:stopPropagation="true">
@@ -222,33 +225,34 @@
                                         <!-- MODO EDIÇÃO: Pai -->
                                         <div class="d-flex align-items-start mb-2">
                                             <div class="flex-grow-1">
-                                                <input type="text" class="form-control border-success fw-bold mb-1" @bind="comp.Title" disabled="@(!IsTemplateMode)" />
+                                                <!-- Removido o disabled -->
+                                                <input type="text" class="form-control border-success fw-bold mb-1" @bind="comp.Title" />
+                                                <span class="badge bg-dark">Template: @comp.IsFromTemplate</span>
 
-                                                <!-- Apenas na Teórica: Edição de Descrição e Ficheiro -->
                                                 @if (activeModalStage.Value.Stage == ModuleStage.Teorica)
                                                 {
-                                                    <textarea class="form-control form-control-sm text-muted mb-1" rows="2" placeholder="Descrição ou instruções para o aluno..." @bind="comp.Description" disabled="@(!IsTemplateMode)"></textarea>
-                                                    <input class="form-control form-control-sm text-muted" placeholder="Link do Documento (PDF/Link)..." @bind="comp.PdfFilePath" disabled="@(!IsTemplateMode)" />
+                                                    <!-- Removido o disabled -->
+                                                    <textarea class="form-control form-control-sm text-muted mb-1" rows="2" placeholder="Descrição ou instruções..." @bind="comp.Description"></textarea>
+                                                    <input class="form-control form-control-sm text-muted" placeholder="Link do Documento..." @bind="comp.PdfFilePath" />
                                                 }
                                             </div>
 
-                                            <!-- Apenas nas Fases Práticas: Pesos -->
                                             @if (activeModalStage.Value.Stage != ModuleStage.Teorica)
                                             {
                                                 <div class="input-group input-group-sm mx-2 flex-shrink-0" style="width: 80px;">
-                                                    <input type="text" inputmode="numeric" class="form-control text-center px-1" style="width: 30px;" @bind="comp.Weight" disabled="@(!IsTemplateMode)" />
+                                                    <input type="text" inputmode="numeric" class="form-control text-center px-1" style="width: 30px;" @bind="comp.Weight" />
                                                     <span class="input-group-text px-1">%</span>
                                                 </div>
                                             }
 
-                                            <!-- Só o Admin pode apagar (esconde temporariamente) -->
-                                            @if (IsTemplateMode)
+                                            <!-- SÓ APAGA SE FOR O TEMPLATE OU SE FOR UM PARÂMETRO NOVO DO ALUNO -->
+                                            @if (CurrentMode == BuilderMode.Template || !comp.IsFromTemplate)
                                             {
                                                 <button class="btn btn-link text-danger p-0 ms-1 flex-shrink-0" @onclick="() => editModeDeletedIds.Add(comp.Id)"><i class="bi bi-x-lg fs-5"></i></button>
                                             }
                                         </div>
 
-                                        <!-- MODO EDIÇÃO: Filhos Existentes (Geralmente não usados na Teórica) -->
+                                        <!-- MODO EDIÇÃO: Filhos Existentes -->
                                         @foreach (var child in children)
                                         {
                                             @if (editModeDeletedIds.Contains(child.Id)) continue;
@@ -264,7 +268,12 @@
                                                         <span class="input-group-text px-1">%</span>
                                                     </div>
                                                 }
-                                                <button class="btn btn-link text-danger p-0 ms-1 flex-shrink-0" @onclick="() => editModeDeletedIds.Add(child.Id)"><i class="bi bi-x-lg fs-5"></i></button>
+
+                                                <!-- CORREÇÃO AQUI -->
+                                                @if (CurrentMode == BuilderMode.Template || !child.IsFromTemplate)
+                                                {
+                                                    <button class="btn btn-link text-danger p-0 ms-1 flex-shrink-0" @onclick="() => editModeDeletedIds.Add(child.Id)"><i class="bi bi-x-lg fs-5"></i></button>
+                                                }
                                             </div>
                                         }
 
@@ -345,7 +354,7 @@
                                                 <span class="fw-semibold text-dark text-wrap" style="font-size: 0.95rem;">@child.Title</span>
                                             </div>
 
-                                            @if (activeModalStage.Value.Stage != ModuleStage.Teorica && !IsTemplateMode)
+                                            @if (CurrentMode != BuilderMode.Template && activeModalStage.Value.Stage != ModuleStage.Teorica)
                                             {
                                                 <div class="d-flex align-items-center gap-1 me-2 pe-2">
                                                     <span class="badge bg-secondary bg-opacity-10 text-secondary" style="font-size: 0.7rem;">@child.Weight%</span>
@@ -416,64 +425,22 @@
                                 </div>
                             </div>
                         }
-                        else if (IsTemplateMode)
+                        else
                         {
-                            <AuthorizeView Roles="Admin">
-                                <Authorized Context="AdminAuthContext">
-                                    <div class="p-4 rounded bg-white shadow-sm mt-4" style="border: 1px dashed #ced4da;">
-                                        <!-- Todo o código de adicionar parâmetros práticos que já tens cá dentro -->
-                                        <h6 class="fw-bold mb-3 text-primary"><i class="bi bi-list-task me-2"></i>Adicionar Parâmetros</h6>
-                                        <div class="d-flex flex-column gap-2 mb-3">
-                                            @foreach (var parent in drafts)
-                                            {
-                                                <div @onfocusin="() => activeDraftParent = parent">
-                                                    <input type="text"
-                                                           class="form-control mb-1 @(string.IsNullOrWhiteSpace(parent.Text) ? "text-muted" : "border-success fw-bold")"
-                                                           placeholder="Grupo ou Tarefa principal..."
-                                                           style="@(string.IsNullOrWhiteSpace(parent.Text) ? "border: 2px dashed #adb5bd !important; background-color: #f8f9fa;" : "border: 2px solid #198754;")"
-                                                           @bind="parent.Text"
-                                                           @bind:event="oninput"
-                                                           @onkeyup="() => CheckListState(parent)" />
-
-                                                    @if (!string.IsNullOrWhiteSpace(parent.Text) || parent.Children.Any(f => !string.IsNullOrWhiteSpace(f.Text)))
-                                                    {
-                                                        <div class="ms-4 mb-2 d-flex flex-column gap-1">
-                                                            @foreach (var child in parent.Children)
-                                                            {
-                                                                if (!string.IsNullOrWhiteSpace(child.Text) || activeDraftParent == parent)
-                                                                {
-                                                                    <div class="d-flex align-items-center">
-                                                                        <i class="bi bi-arrow-return-right text-muted me-2"></i>
-                                                                        <input type="text"
-                                                                               class="form-control form-control-sm @(string.IsNullOrWhiteSpace(child.Text) ? "text-muted" : "border-dark")"
-                                                                               placeholder="Sub-parâmetro..."
-                                                                               style="@(string.IsNullOrWhiteSpace(child.Text) ? "border: 2px dashed #adb5bd !important; background-color: #f8f9fa;" : "border: 2px solid #343a40;")"
-                                                                               @bind="child.Text"
-                                                                               @bind:event="oninput"
-                                                                               @onkeyup="() => CheckListState(parent)" />
-                                                                    </div>
-                                                                }
-                                                            }
-                                                        </div>
-                                                    }
-                                                </div>
-                                            }
-                                        </div>
-                                        @if (drafts.Any(p => !string.IsNullOrWhiteSpace(p.Text)))
-                                        {
-                                            <div class="text-end mt-2">
-                                                <button class="btn btn-success px-4 fw-bold shadow-sm" @onclick="SaveRapidStructure" disabled="@isSavingModal">
-                                                    @if (isSavingModal)
-                                                    {
-                                                        <span class="spinner-border spinner-border-sm me-2"></span>
-                                                    }
-                                                    Guardar Estrutura
-                                                </button>
-                                            </div>
-                                        }
-                                    </div>
-                                </Authorized>
-                            </AuthorizeView>
+                            @if (CurrentMode != BuilderMode.Template)
+                            {
+                                <!-- MODO ALUNO: Qualquer supervisor pode adicionar parâmetros ao clone -->
+                                @RapidStructureForm
+                            }
+                            else
+                            {
+                                <!-- MODO MOLDE: Apenas o Admin pode alterar a base -->
+                                <AuthorizeView Roles="Admin">
+                                    <Authorized Context="AdminAuthContext">
+                                        @RapidStructureForm
+                                    </Authorized>
+                                </AuthorizeView>
+                            }
                         }
                     }
                 </div>
@@ -484,13 +451,62 @@
 
 
 @code {
+    private RenderFragment RapidStructureForm => __builder =>
+    {
+        <div class="p-4 rounded bg-white shadow-sm mt-4" style="border: 1px dashed #ced4da;">
+            <h6 class="fw-bold mb-3 text-primary"><i class="bi bi-list-task me-2"></i>Adicionar Parâmetros</h6>
+            <div class="d-flex flex-column gap-2 mb-3">
+                @foreach (var parent in drafts)
+                {
+                    <div @onfocusin="() => activeDraftParent = parent">
+                        <input type="text" class="form-control mb-1 @(string.IsNullOrWhiteSpace(parent.Text) ? "text-muted" : "border-success fw-bold")"
+                               placeholder="Grupo ou Tarefa principal..."
+                               style="@(string.IsNullOrWhiteSpace(parent.Text) ? "border: 2px dashed #adb5bd !important; background-color: #f8f9fa;" : "border: 2px solid #198754;")"
+                               @bind="parent.Text" @bind:event="oninput" @onkeyup="() => CheckListState(parent)" />
+
+                        @if (!string.IsNullOrWhiteSpace(parent.Text) || parent.Children.Any(f => !string.IsNullOrWhiteSpace(f.Text)))
+                        {
+                            <div class="ms-4 mb-2 d-flex flex-column gap-1">
+                                @foreach (var child in parent.Children)
+                                {
+                                    if (!string.IsNullOrWhiteSpace(child.Text) || activeDraftParent == parent)
+                                    {
+                                        <div class="d-flex align-items-center">
+                                            <i class="bi bi-arrow-return-right text-muted me-2"></i>
+                                            <input type="text" class="form-control form-control-sm @(string.IsNullOrWhiteSpace(child.Text) ? "text-muted" : "border-dark")"
+                                                   placeholder="Sub-parâmetro..."
+                                                   style="@(string.IsNullOrWhiteSpace(child.Text) ? "border: 2px dashed #adb5bd !important; background-color: #f8f9fa;" : "border: 2px solid #343a40;")"
+                                                   @bind="child.Text" @bind:event="oninput" @onkeyup="() => CheckListState(parent)" />
+                                        </div>
+                                    }
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+            @if (drafts.Any(p => !string.IsNullOrWhiteSpace(p.Text)))
+            {
+                <div class="text-end mt-2">
+                    <button class="btn btn-success px-4 fw-bold shadow-sm" @onclick="SaveRapidStructure" disabled="@isSavingModal">
+                        @if (isSavingModal)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2"></span>
+                        }
+                        Guardar Estrutura
+                    </button>
+                </div>
+            }
+        </div>
+    };
+
     #region [ Parâmetros e Eventos (Comunicação com o Pai) ]
 
-    [Parameter] public int PathwayTemplateId { get; set; }
-    [Parameter] public bool IsTemplateMode { get; set; } = false;
+    [Parameter] public int PathwayTemplateId { get; set; }    
     [Parameter] public string ParentTitle { get; set; } = string.Empty;
     [Parameter] public List<BuilderModuleDto> Modules { get; set; } = new();
     [Parameter] public EventCallback OnOpenBadges { get; set; }
+    [Parameter] public BuilderMode CurrentMode { get; set; } = BuilderMode.Geral;
 
     [Parameter] public EventCallback<string> OnCreateModule { get; set; }
     [Parameter] public EventCallback<int> OnDeleteModule { get; set; }

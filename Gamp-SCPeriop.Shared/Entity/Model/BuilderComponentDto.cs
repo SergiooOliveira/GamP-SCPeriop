@@ -14,5 +14,6 @@ namespace GamP_SCPeriop.Shared.Entity.Model
         public int Weight { get; set; } = 1;
         public int? ParentComponentId { get; set; }
         public string? PdfFilePath { get; set; }
+        public bool IsFromTemplate { get; set; }
     }
 }

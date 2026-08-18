@@ -14,5 +14,6 @@ namespace GamP_SCPeriop.Shared.Entity.Model
         public ModuleStage Stage { get; set; }
         public int? ParentComponentId { get; set; }
         public int Weight { get; set; }
+        public bool IsFromTemplate { get; set; }
     }
 }
