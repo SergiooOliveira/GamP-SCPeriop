@@ -3,7 +3,6 @@ using GamP_SCPeriop.Shared.Data;
 using GamP_SCPeriop.Shared.Entity.Model;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.ComponentModel;
 
 namespace GamP_SCPeriop.Server.Controllers
 {
@@ -52,7 +51,8 @@ namespace GamP_SCPeriop.Server.Controllers
                         {
                             Title = modTpl.Title,
                             Weight = 1,
-                            Components = new List<ModuleComponent>()
+                            Components = new List<ModuleComponent>(),
+                            IsFromTemplate = true
                         };
 
                         // Dicionário para mapear quem é pai de quem
@@ -68,7 +68,8 @@ namespace GamP_SCPeriop.Server.Controllers
                                 Description = parentTpl.Description,
                                 Stage = parentTpl.Stage,
                                 Weight = parentTpl.Weight,
-                                PdfFilePath = parentTpl.PdfFilePath
+                                PdfFilePath = parentTpl.PdfFilePath,
+                                IsFromTemplate = true
                             };
 
                             newModule.Components.Add(newParent);
@@ -85,7 +86,8 @@ namespace GamP_SCPeriop.Server.Controllers
                                 Description = childTpl.Description,
                                 Stage = childTpl.Stage,
                                 Weight = childTpl.Weight,
-                                PdfFilePath = childTpl.PdfFilePath
+                                PdfFilePath = childTpl.PdfFilePath,
+                                IsFromTemplate = true
                             };
 
                             // Liga o filho ao PAI NOVO
@@ -185,34 +187,41 @@ namespace GamP_SCPeriop.Server.Controllers
             return Ok(enrollments);
         }
 
+        [HttpGet("builder/{id}")]
+        public async Task<ActionResult<IEnumerable<EnrollmentModule>>> GetStudentPathwayBuilder(int id)
+        {
+            var studentModules = await _context.EnrollmentModules
+                .Include(em => em.Enrollment)
+                    .ThenInclude(e => e.Student)
+                .Include(em => em.Enrollment)
+                    .ThenInclude(e => e.Pathway)
+                .Include(em => em.Module)
+                    .ThenInclude(m => m.Components)
+                .Include(em => em.Module)
+                    .ThenInclude(m => m.StageTimelines)
+                .Where(em => em.EnrollmentId == id)
+                .ToListAsync();
+
+            if (!studentModules.Any())
+            {
+                return NotFound();
+            }
+
+            return Ok(studentModules);
+        }
+
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeletePathway(int id)
         {
-            var pathway = await _context.Pathways.FirstOrDefaultAsync(p => p.Id == id);
+            var pathway = await _context.Pathways.FindAsync(id);
             if (pathway == null) return NotFound();
 
-            // 1. Verificamos se há alunos inscritos
-            bool hasStudents = await _context.Enrollments.AnyAsync(e => e.PathwayId == id);
+            // Em vez de apagar, arquivamos! 
+            // Assim o aluno continua com os dados intactos, mas podes filtrar isto nas listas do professor.
+            pathway.IsArchived = true;
 
-            if (hasStudents)
-            {
-                // ARQUIVO (SOFT DELETE): Tem alunos, não podemos destruir o histórico!
-                pathway.IsArchived = true;
-            }
-            else
-            {
-                // APAGAR REAL (HARD DELETE): Foi só um engano, ninguém está a usar isto.
-                // O Entity Framework apaga os Módulos e Componentes em cascata automaticamente
-                var badges = await _context.Badges.Where(b => b.PathwayId == id).ToListAsync();
-                if (badges.Any()) _context.Badges.RemoveRange(badges);
-
-                _context.Pathways.Remove(pathway);
-            }
-
-            // Grava as alterações (seja a mudança do boolean ou a eliminação real)
             await _context.SaveChangesAsync();
-
-            return NoContent();
+            return Ok();
         }
     }
 }

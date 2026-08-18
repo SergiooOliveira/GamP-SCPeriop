@@ -128,22 +128,13 @@ namespace GamP_SCPeriop.Server.Controllers
             var pathway = await _context.Pathways.FindAsync(dto.PathwayId);
 
             if (pathway == null)
-            {
                 return NotFound("Percurso não encontrado.");
-            }
-
-            if (pathway.StartDate == null || pathway.EndDate == null)
-            {
-                return BadRequest("Não é possível inscrever alunos. O percurso precisa de ter datas de início e fim definidas.");
-            }
 
             var alreadyEnrolled = await _context.Enrollments
                 .AnyAsync(e => e.StudentId == dto.StudentId && e.PathwayId == dto.PathwayId);
 
             if (alreadyEnrolled)
-            {
                 return BadRequest("O aluno já se encontra inscrito neste percurso."); // 400 Bad Request
-            }
 
             // Map the DTO to your real Entity
             var enrollment = new Enrollment
@@ -157,15 +148,93 @@ namespace GamP_SCPeriop.Server.Controllers
             await _context.SaveChangesAsync();
 
             var pathwayModules = await _context.Modules
+                .Include(m => m.StageTimelines)
+                .Include(m => m.Components)
                 .Where(m => m.PathwayId == dto.PathwayId)
                 .ToListAsync();
 
-            foreach (var module in pathwayModules)
+            foreach (var baseModule in pathwayModules)
             {
+                var clonedModule = new Module
+                {
+                    Title = baseModule.Title,
+                    Weight = baseModule.Weight,
+                    PathwayId = null,
+                    IsFromTemplate = true
+                };
+
+                _context.Modules.Add(clonedModule);
+                await _context.SaveChangesAsync();
+
+                if (baseModule.StageTimelines != null)
+                {
+                    foreach (var timeline in baseModule.StageTimelines)
+                    {
+                        _context.ModuleStageTimelines.Add(new ModuleStageTimeline
+                        {
+                            ModuleId = clonedModule.Id, // Aponta para o Clone!
+                            Stage = timeline.Stage,
+                            StartDate = timeline.StartDate,
+                            EndDate = timeline.EndDate
+                        });
+                    }
+                }
+
+                // 5. CLONAR COMPONENTES (Com respeito pela Hierarquia Pai -> Filho)
+                if (baseModule.Components != null)
+                {
+                    // Dicionário para guardar a correspondência entre o ID Antigo do Pai e o ID Novo do Clone
+                    var parentIdMap = new Dictionary<int, int>();
+
+                    // 5.1. Clonar apenas as tarefas Principais (Pais)
+                    var parents = baseModule.Components.Where(c => c.ParentComponentId == null).ToList();
+                    foreach (var parent in parents)
+                    {
+                        var clonedParent = new ModuleComponent
+                        {
+                            ModuleId = clonedModule.Id,
+                            Stage = parent.Stage,
+                            Title = parent.Title,
+                            Description = parent.Description,
+                            Weight = parent.Weight,
+                            PdfFilePath = parent.PdfFilePath,
+                            ParentComponentId = null,
+                            IsFromTemplate = true
+                        };
+
+                        _context.ModuleComponents.Add(clonedParent);
+                        await _context.SaveChangesAsync(); // Gerar o novo ID deste Pai
+                        parentIdMap[parent.Id] = clonedParent.Id; // Guardar no mapa para os filhos saberem a quem pertencer
+                    }
+
+                    // 5.2. Clonar as Sub-tarefas (Filhos)
+                    var children = baseModule.Components.Where(c => c.ParentComponentId != null).ToList();
+                    foreach (var child in children)
+                    {
+                        // Verifica quem era o pai antigo e vai buscar o ID do pai clonado
+                        if (child.ParentComponentId.HasValue && parentIdMap.TryGetValue(child.ParentComponentId.Value, out int newParentId))
+                        {
+                            var clonedChild = new ModuleComponent
+                            {
+                                ModuleId = clonedModule.Id,
+                                Stage = child.Stage,
+                                Title = child.Title,
+                                Description = child.Description,
+                                Weight = child.Weight,
+                                PdfFilePath = child.PdfFilePath,
+                                ParentComponentId = newParentId,
+                                IsFromTemplate = true
+                            };
+                            _context.ModuleComponents.Add(clonedChild);
+                        }
+                    }
+                }
+
+                // 6. LIGAR O NOVO CLONE À INSCRIÇÃO
                 var enrollmentModule = new EnrollmentModule
                 {
                     EnrollmentId = enrollment.Id,
-                    ModuleId = module.Id,
+                    ModuleId = clonedModule.Id, // Agora sim, atrelamos o clone independente!
                     StartDate = null,
                     EndDate = null,
                 };
