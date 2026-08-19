@@ -10,7 +10,8 @@
 @using GamP_SCPeriop.Shared.Data
 
 <div class="container mt-4">
-    <h2 class="fw-bold mb-4">Construtor de Percurso (Pathway)</h2>
+    <!-- TÍTULO PRINCIPAL -->
+    <h2 class="fw-bold mb-4">@(activePathway?.Title ?? "Construtor de Percurso")</h2>
 
     @if (isLoading)
     {
@@ -28,16 +29,33 @@
     }
     else
     {
-        <!-- CONSTRUTOR ATIVO (Ligação ao Componente Partilhado) -->
-        <div class="alert alert-success d-flex justify-content-between align-items-center shadow-sm" style="border-radius: 10px; border-left: 5px solid #198754;">
-            <div>
-                <span class="text-muted small">Percurso Ativo:</span><br />
-                <strong class="fs-5">@activePathway.Title</strong>
+        <!-- BANNER DE CONTEXTO: Aluno ou Base -->
+        @if (IsStudentMode && currentStudentName != null)
+        {
+            <div class="alert alert-success d-flex justify-content-between align-items-center shadow-sm mb-4"
+                 style="border-radius: 10px; border-left: 5px solid #198754; background-color: #d1e7dd;">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-person-badge fs-4 text-success"></i>
+                    <div>
+                        <span class="text-muted small">Aluno em Edição:</span><br />
+                        <strong class="fs-5 text-dark">@currentStudentName</strong>
+                    </div>
+                </div>
+                <button class="btn btn-sm btn-outline-success" @onclick="CloseActivePathway" title="Fechar">
+                    <i class="bi bi-x-lg"></i>
+                </button>
             </div>
-            <div>                
-                <button class="btn btn-sm btn-outline-success" @onclick="CloseActivePathway"><i class="bi bi-x-lg"></i></button>
+        }
+        else
+        {
+            <div class="alert alert-secondary d-flex justify-content-between align-items-center shadow-sm mb-4" style="border-radius: 10px; border-left: 5px solid #6c757d;">
+                <div>
+                    <span class="text-muted small">A editar molde base:</span><br />
+                    <strong class="fs-5">@activePathway.Title</strong>
+                </div>
+                <button class="btn btn-sm btn-outline-secondary" @onclick="CloseActivePathway"><i class="bi bi-x-lg"></i></button>
             </div>
-        </div>
+        }
 
         <div class="mt-4 card shadow-sm p-4 border-0" style="border-radius: 15px;">
             <PathwayBuilderComponent 
@@ -45,7 +63,7 @@
                 CurrentMode="@((IsStudentMode) ? BuilderMode.Individual : BuilderMode.Geral)"
                 ParentTitle="@activePathway.Title"
                 Modules="@BuilderModules"
-                OnCreateModule="CreateModuleFromBuilder"
+                OnCreateAdvancedModule="CreateAdvancedModuleFromBuilder"
                 OnDeleteModule="DeleteActiveModule"
                 OnUpdateModuleWeight="SaveModuleWeightFromBuilder"
                 OnUpdateTimeline="HandleTimelineUpdateFromBuilder"
@@ -77,6 +95,8 @@
     private List<Module> savedModules = new();
     private List<PathwayTagDto> existingPathways = new();
     private int selectedExistingPathwayId = 0;
+
+    private string? currentStudentName;
 
     /// <summary>
     /// Traduz os modelos base de dados para o DTO que o Componente visual espera
@@ -146,7 +166,6 @@
 
     private async Task LoadStudentPathway()
     {
-        // O endpoint que vamos criar a seguir na API
         var response = await Http.GetAsync($"api/Pathway/builder/{EnrollmentIdToLoad}");
 
         if (response.IsSuccessStatusCode)
@@ -155,10 +174,14 @@
 
             if (studentEnrollmentModules.Any())
             {
-                // Aproveitamos o Pathway original apenas para não quebrar o título no HTML
-                activePathway = studentEnrollmentModules.First().Enrollment?.Pathway;
+                var firstEnrollment = studentEnrollmentModules.First().Enrollment;
+                activePathway = firstEnrollment?.Pathway;
 
-                // Magia: extraímos apenas os módulos clonados deste aluno específico!
+                // Define o nome do Aluno
+                currentStudentName = firstEnrollment?.Student != null
+                    ? $"{firstEnrollment.Student.DisplayShortName}"
+                    : $"Inscrição #{EnrollmentIdToLoad}";
+
                 savedModules = studentEnrollmentModules
                     .Where(em => em.Module != null)
                     .Select(em => em.Module!)
@@ -169,7 +192,7 @@
 
     private void CloseActivePathway()
     {
-        if (IsStudentMode && activePathway != null)
+        if (activePathway != null)
         {
             // Se viemos do botão "Gerir" do aluno, voltamos para a lista de alunos
             Nav.NavigateTo($"/pathway/{activePathway.Id}/students");
@@ -196,33 +219,74 @@
 
     #region [ Módulos, Pesos e Timeline (Comunicação com a API) ]
 
-    private async Task CreateModuleFromBuilder(string title)
+    private async Task CreateAdvancedModuleFromBuilder((string Title, float Weight, List<PathwayBuilderComponent.DraftParent> Drafts) data)
     {
-        if (string.IsNullOrWhiteSpace(title) || activePathway == null) return;
+        if (string.IsNullOrWhiteSpace(data.Title) || activePathway == null) return;
 
-        // A MÁGICA ESTÁ AQUI: Passamos o EnrollmentId se estivermos no Modo Aluno
-        var dto = new ModuleCreateDTO
+        // 1. Cria o Módulo Base
+        var moduleDto = new ModuleCreateDTO
         {
-            Title = title,
+            Title = data.Title,
+            Weight = data.Weight,
             PathwayId = activePathway.Id,
             EnrollmentId = IsStudentMode ? EnrollmentIdToLoad : null
         };
 
-        var response = await Http.PostAsJsonAsync("api/Module", dto);
+        var moduleResponse = await Http.PostAsJsonAsync("api/Module", moduleDto);
 
-        if (response.IsSuccessStatusCode)
+        if (moduleResponse.IsSuccessStatusCode)
         {
-            var savedMod = await response.Content.ReadFromJsonAsync<Module>();
+            var savedMod = await moduleResponse.Content.ReadFromJsonAsync<Module>();
             if (savedMod != null)
             {
-                savedMod.Components = new List<ModuleComponent>();
                 savedMod.StageTimelines = new List<ModuleStageTimeline>();
-
                 foreach (var stage in GetTimelineStages()) GetOrCreateTimeline(savedMod, stage);
-
                 await Http.PutAsJsonAsync($"api/Module/{savedMod.Id}", savedMod);
 
-                savedModules.Add(savedMod);
+                // 2. A Mágica: Multiplica a estrutura definida no Modal pelas 4 fases práticas!
+                var practicalStages = GetTimelineStages();
+
+                foreach (var stage in practicalStages)
+                {
+                    foreach (var parentDraft in data.Drafts.Where(p => !string.IsNullOrWhiteSpace(p.Text)))
+                    {
+                        var dtoParent = new ModuleComponentCreateDTO
+                        {
+                            ModuleId = savedMod.Id,
+                            Title = parentDraft.Text,
+                            Stage = stage,
+                            Weight = parentDraft.Weight,
+                            IsFromTemplate = !IsStudentMode
+                        };
+
+                        var responseParent = await Http.PostAsJsonAsync("api/ModuleComponent", dtoParent);
+
+                        if (responseParent.IsSuccessStatusCode)
+                        {
+                            var savedParent = await responseParent.Content.ReadFromJsonAsync<ModuleComponent>();
+                            if (savedParent != null)
+                            {
+                                foreach (var childDraft in parentDraft.Children.Where(f => !string.IsNullOrWhiteSpace(f.Text)))
+                                {
+                                    var dtoChild = new ModuleComponentCreateDTO
+                                    {
+                                        ModuleId = savedMod.Id,
+                                        Title = childDraft.Text,
+                                        Stage = stage,
+                                        ParentComponentId = savedParent.Id,
+                                        Weight = childDraft.Weight,
+                                        IsFromTemplate = !IsStudentMode
+                                    };
+                                    await Http.PostAsJsonAsync("api/ModuleComponent", dtoChild);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (IsStudentMode) await LoadStudentPathway();
+                else await LoadExistingPathway();
+
                 StateHasChanged();
             }
         }
@@ -405,7 +469,7 @@
         StateHasChanged();
     }
 
-    private async Task SaveBulkEditFromBuilder((int ModuleId, ModuleStage Stage, List<BuilderComponentDto> UpdatedComponents, Dictionary<int, List<(string Title, int Weight)>> NewSubTasks) data)
+    private async Task SaveBulkEditFromBuilder((int ModuleId, ModuleStage Stage, List<BuilderComponentDto> UpdatedComponents, Dictionary<int, List<(string Title, float Weight)>> NewSubTasks) data)
     {
         foreach (var comp in data.UpdatedComponents)
         {

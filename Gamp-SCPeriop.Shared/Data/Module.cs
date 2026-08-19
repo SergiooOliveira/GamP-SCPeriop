@@ -11,7 +11,7 @@ namespace GamP_SCPeriop.Shared.Data
         public List<ModuleComponent> Components { get; set; } = new();
         public int? PathwayId { get; set; }
         public List<ModuleStageTimeline>? StageTimelines { get; set; }
-        public int Weight { get; set; } = 1;
+        public float Weight { get; set; } = 1;
         public bool IsFromTemplate { get; set; }
 
         [NotMapped]

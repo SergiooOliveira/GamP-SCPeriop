@@ -34,17 +34,21 @@
                         <!-- PESO (Escondido se for Template) -->
                         @if (CurrentMode != BuilderMode.Template)
                         {
-                            <div class="d-flex align-items-center gap-2 border-end pe-3 me-3" @onclick:stopPropagation="true">
+                            <!-- Adicionar flex-shrink-0 aqui -->
+                            <div class="d-flex align-items-center gap-2 border-end pe-3 me-3 flex-shrink-0" @onclick:stopPropagation="true">
                                 <small class="text-muted fw-bold">Peso:</small>
-                                <input type="number" class="form-control form-control-sm text-center" style="width: 60px;" min="1" max="10"
-                                       @bind="mod.Weight" @bind:after="() => HandleWeightChange(mod)" />
-                                <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25" style="width: 48px;">
+                                <div class="input-group input-group-sm" style="width: 85px;">
+                                    <input type="text" class="form-control text-center px-1" min="1" max="100"
+                                           @bind="mod.Weight" @bind:after="() => HandleWeightChange(mod)" />
+                                    <span class="input-group-text px-1">%</span>
+                                </div>
+                                @* <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25" style="width: 48px;">
                                     @GetModulePercentage(mod)%
-                                </span>
+                                </span> *@
                             </div>
                         }
 
-                        <div class="d-flex align-items-center gap-3">
+                        <div class="d-flex align-items-center gap-3 flex-shrink-0">
                             @if (CurrentMode == BuilderMode.Template || !mod.IsFromTemplate)
                             {
                                 <button class="btn btn-sm text-danger border-0 p-1 shadow-none" title="Eliminar Módulo"
@@ -75,31 +79,40 @@
                                                 <span class="fw-semibold text-dark">@stageInfo.Title</span>
                                             </button>
 
-                                            <div class="d-flex align-items-center gap-3">
+                                            <div class="d-flex align-items-center gap-2 flex-shrink-0">
                                                 <!-- DATAS / TIMELINE (Escondido se for Template ou Teórica) -->
                                                 @if (CurrentMode != BuilderMode.Template && stageInfo.Stage != ModuleStage.Teorica)
                                                 {
                                                     var timeline = GetTimeline(mod, stageInfo.Stage);
-                                                    <div class="d-flex align-items-center gap-2 me-3" @onclick:stopPropagation="true">
-                                                        <small class="text-muted fw-bold" style="font-size: 0.7rem;">Início:</small>
-                                                        <input type="date" class="form-control form-control-sm text-center" style="width: 120px; font-size: 0.8rem;"
-                                                               value="@timeline?.StartDate.ToString("yyyy-MM-dd")"
-                                                               @onchange="(e) => HandleDateChange(mod.Id, stageInfo.Stage, e.Value?.ToString(), true)" />
 
-                                                        <small class="text-muted fw-bold ms-1" style="font-size: 0.7rem;">Fim:</small>
-                                                        <input type="date" class="form-control form-control-sm text-center" style="width: 120px; font-size: 0.8rem;"
+                                                    <!-- Cápsula compacta para as datas -->
+                                                    <div class="d-flex align-items-center bg-white border shadow-sm flex-nowrap me-2"
+                                                         style="border-radius: 8px; padding: 2px 6px;"
+                                                         @onclick:stopPropagation="true">
+
+                                                        <input type="date" class="form-control form-control-sm border-0 text-center text-muted fw-semibold p-0 shadow-none"
+                                                               style="width: 100px; font-size: 0.75rem; background: transparent;"
+                                                               value="@timeline?.StartDate.ToString("yyyy-MM-dd")"
+                                                               @onchange="(e) => HandleDateChange(mod.Id, stageInfo.Stage, e.Value?.ToString(), true)"
+                                                               title="Data de Início" />
+
+                                                        <i class="bi bi-arrow-right-short text-muted mx-1"></i>
+
+                                                        <input type="date" class="form-control form-control-sm border-0 text-center text-muted fw-semibold p-0 shadow-none"
+                                                               style="width: 100px; font-size: 0.75rem; background: transparent;"
                                                                value="@timeline?.EndDate.ToString("yyyy-MM-dd")"
-                                                               @onchange="(e) => HandleDateChange(mod.Id, stageInfo.Stage, e.Value?.ToString(), false)" />
+                                                               @onchange="(e) => HandleDateChange(mod.Id, stageInfo.Stage, e.Value?.ToString(), false)"
+                                                               title="Data de Fim" />
                                                     </div>
                                                 }
 
                                                 @if (count > 0)
                                                 {
-                                                    <span class="badge bg-success bg-opacity-10 text-success rounded-pill px-3 py-1 border border-success border-opacity-25">@count itens</span>
+                                                    <span class="badge bg-success bg-opacity-10 text-success rounded-pill px-3 py-1 border border-success border-opacity-25 flex-shrink-0">@count itens</span>
                                                 }
                                                 else
                                                 {
-                                                    <span class="badge bg-light text-muted border rounded-pill px-3 py-1">Vazio</span>
+                                                    <span class="badge bg-light text-muted border rounded-pill px-3 py-1 flex-shrink-0">Vazio</span>
                                                 }
                                             </div>
                                         </div>
@@ -114,10 +127,9 @@
     }
 
     <!-- ADICIONAR MÓDULO -->
-    <div class="input-group shadow-sm" style="border-radius: 8px; overflow: hidden;">
-        <input @bind="newModuleTitle" class="form-control border-0 p-3 bg-light" placeholder="Ex: Módulo 1 - Fundamentos" />
-        <button @onclick="CreateModule" class="btn text-white fw-bold px-4" style="background-color: #6A96A6; border: none;">
-            Adicionar Módulo
+    <div class="mt-4 text-end">
+        <button @onclick="OpenAddModuleModal" class="btn text-white fw-bold px-4 shadow-sm" style="background-color: #6A96A6; border-radius: 8px;">
+            <i class="bi bi-plus-circle me-2"></i> Adicionar Novo Módulo
         </button>
     </div>
 </div>
@@ -450,6 +462,106 @@
 }
 
 
+<!-- ============================================== -->
+<!-- MODAL DE CRIAÇÃO AVANÇADA DE MÓDULO            -->
+<!-- ============================================== -->
+@if (isAddModuleModalOpen)
+{
+    <div class="modal-backdrop fade show" style="background-color: rgba(0,0,0,0.6); position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1040;"></div>
+    <div class="modal fade show d-block" tabindex="-1" style="z-index: 1055;">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content border-0 shadow" style="border-radius: 15px; background-color: #f4f7f6;">
+
+                <div class="modal-header border-bottom-0 pb-2 pt-4 px-4 bg-white" style="border-radius: 15px 15px 0 0;">
+                    <h4 class="modal-title fw-bold text-primary"><i class="bi bi-folder-plus me-2"></i>Criar Novo Módulo</h4>
+                    <button type="button" class="btn-close" @onclick="CloseAddModuleModal"></button>
+                </div>
+
+                <div class="modal-body px-4 py-4">
+                    <div class="row g-3 mb-4 align-items-end">
+                        <div class="col-md-8">
+                            <label class="form-label fw-bold small text-muted mb-1">Título do Módulo</label>
+                            <input type="text" class="form-control fw-bold" placeholder="Ex: UT1 - Introdução..." @bind="advancedModuleTitle" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold small text-muted text-nowrap mb-1">Peso do Módulo</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control text-center" @bind="advancedModuleWeight" />
+                                <span class="input-group-text">%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="p-4 rounded bg-white shadow-sm" style="border: 1px dashed #ced4da;">
+                        <h6 class="fw-bold mb-3 text-primary"><i class="bi bi-list-task me-2"></i>Parâmetros Iniciais (Aplicados às 4 Fases)</h6>
+
+                        <div class="d-flex flex-column gap-2 mb-3">
+                            @foreach (var parent in drafts)
+                            {
+                                <div @onfocusin="() => activeDraftParent = parent">
+                                    <div class="d-flex align-items-center mb-1">
+                                        <input type="text" class="form-control @(string.IsNullOrWhiteSpace(parent.Text) ? "text-muted" : "border-success fw-bold")"
+                                               placeholder="Grupo ou Tarefa principal..."
+                                               style="@(string.IsNullOrWhiteSpace(parent.Text) ? "border: 2px dashed #adb5bd !important; background-color: #f8f9fa;" : "border: 2px solid #198754;")"
+                                               @bind="parent.Text" @bind:event="oninput" @onkeyup="() => CheckListState(parent)" />
+
+                                        @if (!string.IsNullOrWhiteSpace(parent.Text))
+                                        {
+                                            <div class="input-group input-group-sm ms-2 flex-shrink-0" style="width: 85px;">
+                                                <input type="text" class="form-control text-center px-1" placeholder="Peso" @bind="parent.Weight" />
+                                                <span class="input-group-text px-1">%</span>
+                                            </div>
+                                        }
+                                    </div>
+
+                                    @if (!string.IsNullOrWhiteSpace(parent.Text) || parent.Children.Any(f => !string.IsNullOrWhiteSpace(f.Text)))
+                                    {
+                                        <div class="ms-4 mb-2 d-flex flex-column gap-1">
+                                            @foreach (var child in parent.Children)
+                                            {
+                                                if (!string.IsNullOrWhiteSpace(child.Text) || activeDraftParent == parent)
+                                                {
+                                                    <div class="d-flex align-items-center">
+                                                        <i class="bi bi-arrow-return-right text-muted me-2"></i>
+                                                        <input type="text" class="form-control form-control-sm @(string.IsNullOrWhiteSpace(child.Text) ? "text-muted" : "border-dark")"
+                                                               placeholder="Sub-parâmetro..."
+                                                               style="@(string.IsNullOrWhiteSpace(child.Text) ? "border: 2px dashed #adb5bd !important; background-color: #f8f9fa;" : "border: 2px solid #343a40;")"
+                                                               @bind="child.Text" @bind:event="oninput" @onkeyup="() => CheckListState(parent)" />
+
+                                                        @if (!string.IsNullOrWhiteSpace(child.Text))
+                                                        {
+                                                            <div class="input-group input-group-sm ms-2 flex-shrink-0" style="width: 85px;">
+
+                                                                <input type="text" class="form-control text-center px-1" placeholder="Peso" @bind="child.Weight" />
+                                                                <span class="input-group-text px-1">%</span>
+                                                            </div>
+                                                        }
+                                                    </div>
+                                                }
+                                            }
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    </div>
+
+                </div>
+                <div class="modal-footer border-top-0 bg-light" style="border-radius: 0 0 15px 15px;">
+                    <button type="button" class="btn btn-outline-secondary px-4 fw-bold" @onclick="CloseAddModuleModal">Cancelar</button>
+                    <button type="button" class="btn btn-success px-4 fw-bold shadow-sm" @onclick="SaveAdvancedModule" disabled="@isSavingModal">
+                        @if (isSavingModal)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2"></span>
+                        }
+                        Guardar Módulo
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
     private RenderFragment RapidStructureForm => __builder =>
     {
@@ -508,7 +620,7 @@
     [Parameter] public EventCallback OnOpenBadges { get; set; }
     [Parameter] public BuilderMode CurrentMode { get; set; } = BuilderMode.Geral;
 
-    [Parameter] public EventCallback<string> OnCreateModule { get; set; }
+    [Parameter] public EventCallback<(string Title, float Weight, List<DraftParent> Drafts)> OnCreateAdvancedModule { get; set; }
     [Parameter] public EventCallback<int> OnDeleteModule { get; set; }
     [Parameter] public EventCallback<BuilderModuleDto> OnUpdateModuleWeight { get; set; }
     [Parameter] public EventCallback<(int ModuleId, ModuleStage Stage, DateTime Date, bool IsStart)> OnUpdateTimeline { get; set; }
@@ -517,7 +629,7 @@
     [Parameter] public EventCallback<(int ModuleId, ModuleStage Stage, List<DraftParent> Drafts)> OnSaveRapidStructureEvent { get; set; }
     [Parameter] public EventCallback<(int ModuleId, BuilderComponentDto Component)> OnSaveTheoreticalEvent { get; set; }
     [Parameter] public EventCallback<(int ModuleId, ModuleStage CurrentStage, ModuleStage SourceStage)> OnCopyComponentsEvent { get; set; }
-    [Parameter] public EventCallback<(int ModuleId, ModuleStage Stage, List<BuilderComponentDto> UpdatedComponents, Dictionary<int, List<(string Title, int Weight)>> NewSubTasks)> OnSaveBulkEditEvent { get; set; }
+    [Parameter] public EventCallback<(int ModuleId, ModuleStage Stage, List<BuilderComponentDto> UpdatedComponents, Dictionary<int, List<(string Title, float Weight)>> NewSubTasks)> OnSaveBulkEditEvent { get; set; }
 
     #endregion
 
@@ -542,13 +654,27 @@
     private string? validationError;
     private Dictionary<int, List<DraftChild>> editModeNewChildren = new();
     private HashSet<int> editModeDeletedIds = new();
-    private Dictionary<int, (string Title, string Description, string PdfFilePath, int Weight)> originalComponentStates = new();
+    private Dictionary<int, (string Title, string Description, string PdfFilePath, float Weight)> originalComponentStates = new();
     private bool isUploading = false; // Para quando está a fazer upload de ficheiros PDF
 
     // Estado do Rascunho (Adicionar Nova Estrutura)
-    public class DraftParent { public string Text { get; set; } = ""; public List<DraftChild> Children { get; set; } = new() { new DraftChild() }; }
-    public class DraftChild { public string Text { get; set; } = ""; public int Weight { get; set; } = 0; }
-    private List<DraftParent> drafts = new() { new DraftParent() };
+    public class DraftParent {
+        public string Text { get; set; } = "";
+        public float Weight { get; set; } = 0;
+        public List<DraftChild> Children { get; set; } = new() { 
+            new DraftChild() 
+        }; 
+    }
+
+    public class DraftChild { 
+        public string Text { get; set; } = "";
+        public float Weight { get; set; } = 0; 
+    }
+
+    private List<DraftParent> drafts = new() { 
+        new DraftParent()
+    };
+    
     private DraftParent? activeDraftParent = null;
 
     // Definição estática das fases
@@ -560,6 +686,10 @@
         (ModuleStage.PraticaAssistida, "Prática Assistida", "bi-person-gear", ModuleStage.ObservacaoParticipada),
         (ModuleStage.PraticaSupervisionada, "Prática Supervisionada", "bi-person-check", ModuleStage.PraticaAssistida)
     };
+
+    private bool isAddModuleModalOpen = false;
+    private string advancedModuleTitle = string.Empty;
+    private float advancedModuleWeight = 100f;
 
     #endregion
 
@@ -578,13 +708,6 @@
     #region [ Controlo de Módulos e Visuais Base ]
 
     private void ToggleModule(int moduleId) => expandedModuleId = (expandedModuleId == moduleId) ? 0 : moduleId;
-
-    private async Task CreateModule()
-    {
-        if (string.IsNullOrWhiteSpace(newModuleTitle)) return;
-        await OnCreateModule.InvokeAsync(newModuleTitle);
-        newModuleTitle = string.Empty;
-    }
 
     private async Task HandleWeightChange(BuilderModuleDto mod)
     {
@@ -739,6 +862,33 @@
 
     #endregion
 
+    #region [ Module Modal ]
+
+    private void OpenAddModuleModal()
+    {
+        advancedModuleTitle = string.Empty;
+        advancedModuleWeight = 100f;
+        drafts = new List<DraftParent> { new DraftParent() };
+        isAddModuleModalOpen = true;
+        StateHasChanged();
+    }
+
+    private void CloseAddModuleModal()
+    {
+        isAddModuleModalOpen = false;
+    }
+
+    private async Task SaveAdvancedModule()
+    {
+        if (string.IsNullOrWhiteSpace(advancedModuleTitle)) return;
+        isSavingModal = true;
+        await OnCreateAdvancedModule.InvokeAsync((advancedModuleTitle, advancedModuleWeight, drafts));
+        isSavingModal = false;
+        isAddModuleModalOpen = false;
+    }
+
+    #endregion
+
     #region [ Processamento de Gravações ]
 
     private async Task SaveRapidStructure()
@@ -865,7 +1015,7 @@
         }
         editModeDeletedIds.Clear();
 
-        var newSubTasksDict = new Dictionary<int, List<(string Title, int Weight)>>();
+        var newSubTasksDict = new Dictionary<int, List<(string Title, float Weight)>>();
         foreach (var kvp in editModeNewChildren)
         {
             // Se o pai foi apagado, não criamos os filhos dele

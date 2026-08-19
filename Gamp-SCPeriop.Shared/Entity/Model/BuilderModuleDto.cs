@@ -8,7 +8,7 @@ namespace GamP_SCPeriop.Shared.Entity.Model
     {
         public int Id { get; set; }
         public string Title { get; set; } = string.Empty;
-        public int Weight { get; set; } = 1;
+        public float Weight { get; set; } = 1;
         public bool IsFromTemplate { get; set; }
 
         // A lista universal de componentes

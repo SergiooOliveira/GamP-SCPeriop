@@ -329,7 +329,7 @@
         await LoadActiveTemplate(activeTemplate!.Id);
     }
 
-    private async Task SaveBulkEditFromBuilder((int ModuleId, ModuleStage Stage, List<BuilderComponentDto> UpdatedComponents, Dictionary<int, List<(string Title, int Weight)>> NewSubTasks) data)
+    private async Task SaveBulkEditFromBuilder((int ModuleId, ModuleStage Stage, List<BuilderComponentDto> UpdatedComponents, Dictionary<int, List<(string Title, float Weight)>> NewSubTasks) data)
     {
         // 1. Atualizar Títulos e PESOS
         foreach (var comp in data.UpdatedComponents)
