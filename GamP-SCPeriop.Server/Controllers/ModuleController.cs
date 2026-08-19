@@ -1,6 +1,7 @@
 ﻿using GamP_SCPeriop.Server.Data;
 using GamP_SCPeriop.Shared.Data;
 using GamP_SCPeriop.Shared.Entity.Model;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -24,6 +25,7 @@ namespace GamP_SCPeriop.Server.Controllers
             {
                 Title = dto.Title,
                 PathwayId = dto.EnrollmentId.HasValue ? null : dto.PathwayId,
+                Weight = dto.Weight,
                 // Se vier de um Enrollment, NÃO é do template
                 IsFromTemplate = false
             };

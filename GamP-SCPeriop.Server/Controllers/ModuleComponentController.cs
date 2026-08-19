@@ -2,6 +2,7 @@
 using GamP_SCPeriop.Shared.Data;
 using GamP_SCPeriop.Shared.Entity.Model;
 using GamP_SCPeriop.Shared.Enum;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -40,7 +41,7 @@ namespace GamP_SCPeriop.Server.Controllers
         }
 
         // --- 2. EDIT (PUT) ---
-        [HttpPut("{id}")]
+        [HttpPut("{id}")]      
         public async Task<IActionResult> UpdateComponent(int id, [FromBody] ModuleComponent updatedComponent)
         {
             if (id != updatedComponent.Id) return BadRequest("ID mismatch.");
