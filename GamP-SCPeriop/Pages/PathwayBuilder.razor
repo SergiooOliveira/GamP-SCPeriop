@@ -65,7 +65,7 @@
                 Modules="@BuilderModules"
                 OnCreateAdvancedModule="CreateAdvancedModuleFromBuilder"
                 OnDeleteModule="DeleteActiveModule"
-                OnUpdateModuleWeight="SaveModuleWeightFromBuilder"
+                OnUpdateBulkModuleWeights="SaveBulkModuleWeightsFromBuilder"
                 OnUpdateTimeline="HandleTimelineUpdateFromBuilder"
                 OnSaveRapidStructureEvent="SaveRapidStructureFromBuilder"
                 OnSaveTheoreticalEvent="SaveTheoreticalFromBuilder"
@@ -75,6 +75,30 @@
         </div>
     }
 </div>
+
+<!-- MODAL DE AVISO: PESOS INVÁLIDOS -->
+@if (isCloseWarningModalOpen)
+{
+    <div class="modal-backdrop fade show" style="background-color: rgba(0,0,0,0.6); position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1040;"></div>
+    <div class="modal fade show d-block" tabindex="-1" style="z-index: 1055;">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow" style="border-radius: 15px;">
+                <div class="modal-header bg-danger bg-opacity-10 border-bottom-0 pb-3 pt-4 px-4" style="border-radius: 15px 15px 0 0;">
+                    <h5 class="modal-title fw-bold text-danger"><i class="bi bi-exclamation-octagon-fill me-2"></i>Atenção: Pesos Incompletos</h5>
+                </div>
+                <div class="modal-body px-4 py-4 text-center">
+                    <p class="mb-2 fs-5">A soma atual dos módulos é <strong>@savedModules.Sum(m => m.Weight)%</strong>.</p>
+                    <p class="text-muted mb-0">O percurso tem de totalizar exatamente <strong>100%</strong>. Por favor, ajuste os pesos dos módulos antes de sair.</p>
+                </div>
+                <div class="modal-footer border-top-0 bg-light justify-content-center" style="border-radius: 0 0 15px 15px;">
+                    <button type="button" class="btn btn-danger px-4 fw-bold shadow-sm" @onclick="() => isCloseWarningModalOpen = false">
+                        Voltar e Corrigir
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
 
 @code {
     #region [ Variáveis Iniciais e Injectáveis ]
@@ -95,6 +119,7 @@
     private List<Module> savedModules = new();
     private List<PathwayTagDto> existingPathways = new();
     private int selectedExistingPathwayId = 0;
+    private bool isCloseWarningModalOpen = false;
 
     private string? currentStudentName;
 
@@ -192,16 +217,28 @@
 
     private void CloseActivePathway()
     {
+        // Verifica se há módulos e se a soma bate nos 100%
+        if (savedModules.Any())
+        {
+            var totalWeight = savedModules.Sum(m => m.Weight);
+            if (totalWeight != 100f)
+            {
+                // Tranca a porta e abre o aviso!
+                isCloseWarningModalOpen = true;
+                return;
+            }
+        }
+
+        // Se estiver tudo a 100% (ou se não houver módulos), deixa sair
+        ExecuteClose();
+    }
+
+    private void ExecuteClose()
+    {
         if (activePathway != null)
-        {
-            // Se viemos do botão "Gerir" do aluno, voltamos para a lista de alunos
             Nav.NavigateTo($"/pathway/{activePathway.Id}/students");
-        }
         else
-        {
-            // Se viemos do botão "Editar Estrutura" (Molde), voltamos ao Dashboard
             Nav.NavigateTo("/dashboard");
-        }
     }
 
     private async Task CreatePathway()
@@ -303,13 +340,45 @@
         }
     }
 
-    private async Task SaveModuleWeightFromBuilder(BuilderModuleDto mod)
+    private async Task SaveBulkModuleWeightsFromBuilder(List<BuilderModuleDto> updatedModules)
     {
-        var dbMod = savedModules.FirstOrDefault(m => m.Id == mod.Id);
-        if (dbMod != null)
+        bool hasChanges = false;
+
+        foreach (var mod in updatedModules)
         {
-            dbMod.Weight = mod.Weight;
-            await Http.PutAsJsonAsync($"api/Module/{mod.Id}", dbMod);
+            var dbMod = savedModules.FirstOrDefault(m => m.Id == mod.Id);
+            if (dbMod != null && dbMod.Weight != mod.Weight)
+            {
+                hasChanges = true;
+
+                // Criamos um objeto "Limpo" para evitar erros de Referência Circular no JSON
+                var cleanModule = new Module
+                {
+                    Id = dbMod.Id,
+                    Title = dbMod.Title,
+                    Weight = mod.Weight,
+                    PathwayId = dbMod.PathwayId,
+                    IsFromTemplate = dbMod.IsFromTemplate
+                };
+
+                var response = await Http.PutAsJsonAsync($"api/Module/{mod.Id}", cleanModule);
+
+                // Apenas para debug na consola do browser (F12) se algo falhar
+                if (!response.IsSuccessStatusCode)
+                {
+                    Console.WriteLine($"[ERRO] Falha ao gravar módulo {mod.Id}. Código: {response.StatusCode}");
+                }
+            }
+        }
+
+        // Só recarrega a página se tiver havido efetivamente chamadas à API
+        if (hasChanges)
+        {
+            if (IsStudentMode)
+                await LoadStudentPathway();
+            else
+                await LoadExistingPathway();
+
             StateHasChanged();
         }
     }

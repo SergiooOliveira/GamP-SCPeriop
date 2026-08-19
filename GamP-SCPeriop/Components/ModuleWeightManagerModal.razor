@@ -1,0 +1,82 @@
+﻿@using GamP_SCPeriop.Shared.Entity.Model
+
+<div class="modal-backdrop fade show" style="background-color: rgba(0,0,0,0.6); position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1040;"></div>
+<div class="modal fade show d-block" tabindex="-1" style="z-index: 1055;">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow" style="border-radius: 15px;">
+
+            <div class="modal-header border-bottom-0 pb-2 pt-4 px-4 bg-white" style="border-radius: 15px 15px 0 0;">
+                <h5 class="modal-title fw-bold text-primary"><i class="bi bi-sliders me-2"></i>Ajustar Pesos dos Módulos</h5>
+                <button type="button" class="btn-close" @onclick="CloseModal"></button>
+            </div>
+
+            <div class="modal-body px-4 py-3">
+                <p class="text-muted small mb-4">Ajuste os valores diretos para que a soma totalize 100%.</p>
+
+                <div class="list-group mb-3">
+                    @foreach (var mod in editableModules)
+                    {
+                        <div class="list-group-item d-flex justify-content-between align-items-center border-0 border-bottom py-3">
+                            <span class="fw-semibold text-dark text-truncate me-3" title="@mod.Title">@mod.Title</span>
+
+                            <div class="input-group input-group-sm flex-shrink-0" style="width: 100px;">
+                                <input type="text" class="form-control text-center fw-bold" @bind="mod.Weight" @bind:event="oninput" />
+                                <span class="input-group-text">%</span>
+                            </div>
+                        </div>
+                    }
+                </div>
+
+                <!-- Resumo / Total -->
+                <div class="d-flex justify-content-between align-items-center p-3 rounded @(TotalWeight == 100 ? "bg-success bg-opacity-10 border border-success" : "bg-danger bg-opacity-10 border border-danger")">
+                    <strong class="@(TotalWeight == 100 ? "text-success" : "text-danger")">Soma Total:</strong>
+                    <h4 class="mb-0 fw-bold @(TotalWeight == 100 ? "text-success" : "text-danger")">@TotalWeight%</h4>
+                </div>
+
+                @if (TotalWeight != 100)
+                {
+                    <div class="text-danger small mt-2 text-end fw-semibold">
+                        <i class="bi bi-exclamation-triangle me-1"></i> A soma deve ser exatamente 100%.
+                    </div>
+                }
+            </div>
+
+            <div class="modal-footer border-top-0 bg-light" style="border-radius: 0 0 15px 15px;">
+                <button type="button" class="btn btn-outline-secondary px-4 fw-bold" @onclick="CloseModal">Cancelar</button>
+                <button type="button" class="btn btn-primary px-4 fw-bold shadow-sm" @onclick="SaveChanges">
+                    Guardar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public List<BuilderModuleDto> Modules { get; set; } = new();
+    [Parameter] public EventCallback<List<BuilderModuleDto>> OnSave { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+
+    // Usamos uma cópia para não alterar a UI principal antes de gravar
+    private List<BuilderModuleDto> editableModules = new();
+
+    private float TotalWeight => editableModules.Sum(m => m.Weight);
+
+    protected override void OnInitialized()
+    {
+        // Cria uma cópia independente dos módulos apenas para edição no modal
+        editableModules = Modules.Select(m => new BuilderModuleDto
+        {
+            Id = m.Id,
+            Title = m.Title,
+            Weight = m.Weight
+        }).ToList();
+    }
+
+    private void CloseModal() => OnCancel.InvokeAsync();
+
+    private void SaveChanges()
+    {
+        // Envia a lista alterada de volta para o componente pai
+        OnSave.InvokeAsync(editableModules);
+    }
+}

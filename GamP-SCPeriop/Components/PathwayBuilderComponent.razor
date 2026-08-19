@@ -4,16 +4,37 @@
 
 <div class="mt-4 card shadow-sm p-4 border-0" style="border-radius: 15px;">
 
+    <!-- Aviso de Validação Global (> ou < que 100%) -->
+    @if (Modules.Any() && Modules.Sum(m => m.Weight) != 100)
+    {
+        <div class="alert alert-warning border-warning shadow-sm d-flex align-items-center p-3 mb-4 rounded">
+            <i class="bi bi-exclamation-triangle-fill fs-4 text-warning me-3"></i>
+            <div>
+                <strong>Atenção:</strong> A soma dos pesos dos módulos está em <strong>@Modules.Sum(m => m.Weight)%</strong>. Deverá ser exatamente 100% antes de finalizar o percurso.
+            </div>
+        </div>
+    }
+
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h5 class="fw-bold text-primary mb-0">Gestão de Módulos</h5>
 
-        <AuthorizeView Roles="Admin">
-            <Authorized>
-                <button class="btn btn-warning shadow-sm fw-bold text-dark" @onclick="() => OpenBadgeModal()">
-                    <i class="bi bi-award me-1"></i> Gerir Badges
+        <div class="d-flex gap-2">
+            <!-- Novo Botão de Pesos (Visível se não for Template) -->
+            @if (CurrentMode != BuilderMode.Template)
+            {
+                <button class="btn btn-outline-primary shadow-sm fw-bold d-flex align-items-center" @onclick="OpenWeightModal">
+                    <i class="bi bi-sliders me-2"></i> Editar Pesos
                 </button>
-            </Authorized>
-        </AuthorizeView>
+            }
+
+            <AuthorizeView Roles="Admin">
+                <Authorized>
+                    <button class="btn btn-warning shadow-sm fw-bold text-dark" @onclick="() => OpenBadgeModal()">
+                        <i class="bi bi-award me-1"></i> Gerir Badges
+                    </button>
+                </Authorized>
+            </AuthorizeView>
+        </div>
     </div>
 
     @if (Modules.Any())
@@ -34,17 +55,10 @@
                         <!-- PESO (Escondido se for Template) -->
                         @if (CurrentMode != BuilderMode.Template)
                         {
-                            <!-- Adicionar flex-shrink-0 aqui -->
-                            <div class="d-flex align-items-center gap-2 border-end pe-3 me-3 flex-shrink-0" @onclick:stopPropagation="true">
-                                <small class="text-muted fw-bold">Peso:</small>
-                                <div class="input-group input-group-sm" style="width: 85px;">
-                                    <input type="text" class="form-control text-center px-1" min="1" max="100"
-                                           @bind="mod.Weight" @bind:after="() => HandleWeightChange(mod)" />
-                                    <span class="input-group-text px-1">%</span>
-                                </div>
-                                @* <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25" style="width: 48px;">
-                                    @GetModulePercentage(mod)%
-                                </span> *@
+                            <div class="d-flex align-items-center border-end pe-3 me-3 flex-shrink-0" @onclick:stopPropagation="true">
+                                <span class="badge bg-secondary bg-opacity-10 text-secondary border px-3 py-2" style="font-size: 0.85rem;">
+                                    Peso: <strong class="ms-1 text-dark">@mod.Weight%</strong>
+                                </span>
                             </div>
                         }
 
@@ -156,50 +170,65 @@
             <div class="modal-content border-0 shadow" style="border-radius: 15px; background-color: #f4f7f6;">
 
                 <!-- Cabeçalho Modal -->
-                <div class="modal-header border-bottom-0 pb-2 pt-4 px-4 bg-white" style="border-radius: 15px 15px 0 0;">
-                    <div>
-                        <span class="badge bg-secondary bg-opacity-10 text-secondary border mb-2">@activeModalModule.Title</span>
-                        <h4 class="modal-title fw-bold text-primary"><i class="bi @activeModalStage.Value.Icon me-2"></i>@activeModalStage.Value.Title</h4>
+                <div class="modal-header border-bottom shadow-sm pb-3 pt-4 px-4 bg-white" style="border-radius: 15px 15px 0 0;">
+                    <div class="d-flex flex-column">
+                        <div class="d-flex align-items-center mb-2">
+                            <span class="badge bg-light text-secondary border shadow-sm px-3 py-1 rounded-pill d-flex align-items-center" style="font-size: 0.75rem;">
+                                <i class="bi bi-signpost-split text-primary me-2"></i>
+                                @ParentTitle
+                                <i class="bi bi-chevron-right mx-2 text-muted" style="font-size: 0.65rem;"></i>
+                                <i class="bi bi-folder2-open me-1"></i>@activeModalModule.Title
+                            </span>
+                        </div>
+                        <h4 class="modal-title fw-bolder text-dark mb-0" style="letter-spacing: -0.5px;">
+                            <i class="bi @activeModalStage.Value.Icon text-primary me-2"></i>@activeModalStage.Value.Title
+                        </h4>
                     </div>
-                    <button type="button" class="btn-close" @onclick="CloseStageModal"></button>
+                    <button type="button" class="btn-close shadow-none" @onclick="CloseStageModal" aria-label="Close"></button>
                 </div>
 
                 <div class="modal-body px-4 py-4">
-                    <!-- Controlos de Topo Modal -->
-                    <div class="d-flex justify-content-between align-items-center mb-3 mt-4">
-                        <h6 class="text-uppercase fw-bold text-secondary mb-0">Componentes Atuais</h6>
+                    <!-- BARRA DE FERRAMENTAS (Substitui os "Controlos de Topo") -->
+                    <div class="d-flex justify-content-between align-items-center mb-4 p-3 rounded shadow-sm border bg-white">
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-ui-checks-grid fs-5 text-secondary me-2"></i>
+                            <h6 class="text-uppercase fw-bold text-secondary mb-0" style="letter-spacing: 0.5px;">Parâmetros da Fase</h6>
+                        </div>
 
                         <div class="d-flex gap-2">
                             @if (!isEditMode)
                             {
-                                @if (activeModalStage.Value.CopyFromStage.HasValue)
-                                {
-                                    <button class="btn btn-sm btn-light border-0 shadow-sm text-secondary fw-semibold d-flex align-items-center px-3"
-                                            @onclick="CopyComponents" disabled="@isCopying">
-                                        @if (isCopying)
+                                <AuthorizeView Roles="Admin">
+                                    <Authorized>
+                                        @if (activeModalStage.Value.CopyFromStage.HasValue)
                                         {
-                                            <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                            <button class="btn btn-sm btn-outline-secondary fw-semibold d-flex align-items-center px-3"
+                                                    @onclick="CopyComponents" disabled="@isCopying">
+                                                @if (isCopying)
+                                                {
+                                                    <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                                }
+                                                else
+                                                {
+                                                    <i class="bi bi-copy me-2"></i>
+                                                }
+                                                Copiar Anterior
+                                            </button>
                                         }
-                                        else
-                                        {
-
-                                            <i class="bi bi-copy me-2"></i>
-                                        }
-                                        Copiar da Fase Anterior
-                                    </button>
-                                }
+                                        </Authorized>
+                                </AuthorizeView>
 
                                 <button class="btn btn-sm btn-primary shadow-sm border-0 text-white fw-semibold d-flex align-items-center px-3"
                                         @onclick="ToggleEditMode">
                                     <i class="bi bi-pencil-square me-2"></i> Editar Fase
-                                </button>
+                                </button>                                    
                             }
                             else
                             {
-                                <button class="btn btn-sm btn-outline-secondary fw-semibold px-3" @onclick="CancelEditMode">
+                                <button class="btn btn-sm btn-light border text-muted fw-semibold px-3 shadow-none" @onclick="CancelEditMode">
                                     Cancelar
                                 </button>
-                                <button class="btn btn-sm btn-success shadow-sm border-0 text-white fw-semibold px-3" @onclick="SaveChangesBulk">
+                                <button class="btn btn-sm text-white fw-bold px-3 shadow-sm" style="background-color: #198754;" @onclick="SaveChangesBulk">
                                     <i class="bi bi-check-circle me-2"></i> Guardar Alterações
                                 </button>
                             }
@@ -239,7 +268,7 @@
                                             <div class="flex-grow-1">
                                                 <!-- Removido o disabled -->
                                                 <input type="text" class="form-control border-success fw-bold mb-1" @bind="comp.Title" />
-                                                <span class="badge bg-dark">Template: @comp.IsFromTemplate</span>
+                                                @* <span class="badge bg-dark">Template: @comp.IsFromTemplate</span> *@
 
                                                 @if (activeModalStage.Value.Stage == ModuleStage.Teorica)
                                                 {
@@ -439,20 +468,20 @@
                         }
                         else
                         {
-                            @if (CurrentMode != BuilderMode.Template)
+@*                             @if (CurrentMode != BuilderMode.Template)
                             {
                                 <!-- MODO ALUNO: Qualquer supervisor pode adicionar parâmetros ao clone -->
                                 @RapidStructureForm
                             }
                             else
-                            {
+                            { *@
                                 <!-- MODO MOLDE: Apenas o Admin pode alterar a base -->
                                 <AuthorizeView Roles="Admin">
                                     <Authorized Context="AdminAuthContext">
                                         @RapidStructureForm
                                     </Authorized>
                                 </AuthorizeView>
-                            }
+                            @* } *@
                         }
                     }
                 </div>
@@ -560,6 +589,15 @@
             </div>
         </div>
     </div>
+}
+
+
+@if (isWeightModalOpen)
+{
+    <ModuleWeightManagerModal
+        Modules="Modules"
+        OnSave="SaveBulkWeights"
+        OnCancel="() => isWeightModalOpen = false" />
 }
 
 @code {
@@ -708,13 +746,6 @@
     #region [ Controlo de Módulos e Visuais Base ]
 
     private void ToggleModule(int moduleId) => expandedModuleId = (expandedModuleId == moduleId) ? 0 : moduleId;
-
-    private async Task HandleWeightChange(BuilderModuleDto mod)
-    {
-        if (mod.Weight < 1) mod.Weight = 1;
-        if (mod.Weight > 10) mod.Weight = 10;
-        await OnUpdateModuleWeight.InvokeAsync(mod);
-    }
 
     private async Task HandleDateChange(int moduleId, ModuleStage stage, string? dateStr, bool isStart)
     {
@@ -1044,6 +1075,22 @@
     private void CloseBadgeModal()
     {
         isBadgeModalOpen = false;
+    }
+
+    #endregion
+
+    #region [ Weight Modal ]
+
+    // Variável e novo Evento
+    private bool isWeightModalOpen = false;
+    [Parameter] public EventCallback<List<BuilderModuleDto>> OnUpdateBulkModuleWeights { get; set; }
+
+    private void OpenWeightModal() => isWeightModalOpen = true;
+
+    private async Task SaveBulkWeights(List<BuilderModuleDto> updatedModules)
+    {
+        isWeightModalOpen = false;
+        await OnUpdateBulkModuleWeights.InvokeAsync(updatedModules);
     }
 
     #endregion
