@@ -30,7 +30,7 @@ namespace GamP_SCPeriop.Server.Controllers
                 Stage = dto.Stage,
                 ParentComponentId = dto.ParentComponentId,
                 Weight = dto.Weight,
-                IsFromTemplate = dto.IsFromTemplate
+                IsFromTemplate = false
             };
 
             _context.ModuleComponents.Add(component);

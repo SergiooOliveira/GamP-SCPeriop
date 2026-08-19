@@ -25,7 +25,7 @@ namespace GamP_SCPeriop.Server.Controllers
                 Title = dto.Title,
                 PathwayId = dto.EnrollmentId.HasValue ? null : dto.PathwayId,
                 // Se vier de um Enrollment, NÃO é do template
-                IsFromTemplate = !dto.EnrollmentId.HasValue
+                IsFromTemplate = false
             };
 
             _context.Modules.Add(module);

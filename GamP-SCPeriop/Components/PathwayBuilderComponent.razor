@@ -45,7 +45,7 @@
                         }
 
                         <div class="d-flex align-items-center gap-3">
-                            @if (CurrentMode == BuilderMode.Geral || !mod.IsFromTemplate)
+                            @if (CurrentMode == BuilderMode.Template || !mod.IsFromTemplate)
                             {
                                 <button class="btn btn-sm text-danger border-0 p-1 shadow-none" title="Eliminar Módulo"
                                         @onclick="() => OnDeleteModule.InvokeAsync(mod.Id)" @onclick:stopPropagation="true">

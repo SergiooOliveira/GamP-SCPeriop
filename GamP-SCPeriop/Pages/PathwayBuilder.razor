@@ -373,7 +373,11 @@
                 }
             }
         }
-        await LoadExistingPathway();
+        if (IsStudentMode)
+            await LoadStudentPathway();
+        else
+            await LoadExistingPathway();
+
         StateHasChanged();
     }
 
@@ -392,8 +396,12 @@
             await Http.PostAsJsonAsync("api/ModuleComponent", dto);
         }
         else await Http.PutAsJsonAsync($"api/ModuleComponent/{data.Component.Id}", data.Component);
-        
-        await LoadExistingPathway();
+
+        if (IsStudentMode)
+            await LoadStudentPathway();
+        else
+            await LoadExistingPathway();
+
         StateHasChanged();
     }
 
@@ -427,7 +435,11 @@
             }
         }
 
-        await LoadExistingPathway();
+        if (IsStudentMode)
+            await LoadStudentPathway();
+        else
+            await LoadExistingPathway();
+
         StateHasChanged();
     }
 
@@ -483,7 +495,13 @@
     private async Task DeleteComponentFromBuilder(int componentId)
     {
         await Http.DeleteAsync($"api/ModuleComponent/{componentId}");
-        await LoadExistingPathway();
+        
+        if (IsStudentMode)
+            await LoadStudentPathway();
+        else
+            await LoadExistingPathway();
+
+
         StateHasChanged();
     }
 
