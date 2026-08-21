@@ -78,12 +78,33 @@ namespace GamP_SCPeriop.Server.Controllers
                         .ThenInclude(p => p.Professor)
                 .Include(em => em.Module)
                     .ThenInclude(m => m.Components)
-                .Where (em => em.Enrollment != null
+                .Where(em => em.Enrollment != null
                         && em.Enrollment.StudentId == studentId
                         && em.Enrollment.PathwayId == pathwayId)
                 .ToListAsync();
 
             if (!enrollmentDetails.Any()) return NotFound();
+
+            // 1. Descobrir o ID da Inscrição (EnrollmentId)
+            var enrollmentId = enrollmentDetails.First().EnrollmentId;
+
+            // 2. Ir buscar as avaliações deste aluno na tabela ComponentEvaluations
+            var evaluations = await _context.ComponentEvaluations
+                .Where(ce => ce.EnrollmentId == enrollmentId)
+                .ToListAsync();
+
+            // 3. Injetar as notas nas componentes antes de enviar o JSON para o Front-end
+            foreach (var em in enrollmentDetails)
+            {
+                if (em.Module?.Components != null)
+                {
+                    foreach (var comp in em.Module.Components)
+                    {
+                        var eval = evaluations.FirstOrDefault(e => e.ModuleComponentId == comp.Id);
+                        comp.Status = eval != null ? eval.Status : ComponentStatus.Pending;
+                    }
+                }
+            }
 
             return Ok(enrollmentDetails);
         }

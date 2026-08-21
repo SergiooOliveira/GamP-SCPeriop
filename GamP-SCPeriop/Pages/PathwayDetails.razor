@@ -130,8 +130,9 @@
     {
         if (mod.Components == null) return 0;
 
+        // AQUI: Aplicamos a tua regra das duas fases
         var assessable = mod.Components
-                    .Where(c => c.Stage == ModuleStage.PraticaSupervisionada)
+                    .Where(c => c.Stage == ModuleStage.PraticaSupervisionada || c.Stage == ModuleStage.PraticaAssistida)
                     .Where(c => !mod.Components.Any(child => child.ParentComponentId == c.Id))
                     .ToList();
 

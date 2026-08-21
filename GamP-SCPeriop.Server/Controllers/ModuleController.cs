@@ -1,6 +1,7 @@
 ﻿using GamP_SCPeriop.Server.Data;
 using GamP_SCPeriop.Shared.Data;
 using GamP_SCPeriop.Shared.Entity.Model;
+using GamP_SCPeriop.Shared.Enum;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -68,32 +69,33 @@ namespace GamP_SCPeriop.Server.Controllers
         [HttpGet("{moduleId}/student/{studentId}")]
         public async Task<ActionResult<Module>> GetModuleForStudent(int moduleId, int studentId)
         {
-            // 1. Vamos buscar o Módulo e os seus Componentes (o Molde)
-            var module = await _context.Modules
-                .Include(m => m.Components)
-                .FirstOrDefaultAsync(m => m.Id == moduleId);
+            // 1. Procurar na tabela ponte (EnrollmentModule) para encontrar o clone exato e a inscrição
+            var enrollmentModule = await _context.EnrollmentModules
+                .Include(em => em.Enrollment)
+                    .ThenInclude(e => e.Pathway)
+                .Include(em => em.Module)
+                    .ThenInclude(m => m.Components)
+                .FirstOrDefaultAsync(em => em.ModuleId == moduleId && em.Enrollment.StudentId == studentId);
 
-            if (module == null) return NotFound();
+            if (enrollmentModule == null || enrollmentModule.Module == null) return NotFound();
 
-            // 2. Vamos buscar a Inscrição deste aluno neste Pathway
-            var enrollment = await _context.Enrollments
-                .FirstOrDefaultAsync(e => e.StudentId == studentId && e.PathwayId == module.PathwayId);
+            var module = enrollmentModule.Module;
 
-            if (enrollment != null)
+            // [TRUQUE MAGICO]: Preenchemos o PathwayId em memória para o Frontend não quebrar!
+            module.PathwayId = enrollmentModule.Enrollment.PathwayId;
+
+            // 2. Vamos buscar as notas específicas deste aluno
+            var evaluations = await _context.ComponentEvaluations
+                .Where(ce => ce.EnrollmentId == enrollmentModule.EnrollmentId)
+                .ToListAsync();
+
+            // 3. Injetamos as notas nos componentes antes de enviar para o Frontend
+            if (module.Components != null)
             {
-                // 3. Vamos buscar as notas específicas deste aluno
-                var evaluations = await _context.ComponentEvaluations
-                    .Where(ce => ce.EnrollmentId == enrollment.Id)
-                    .ToListAsync();
-
-                // 4. Injetamos as notas nos componentes antes de enviar para o Frontend!
                 foreach (var component in module.Components)
                 {
                     var eval = evaluations.FirstOrDefault(e => e.ModuleComponentId == component.Id);
-                    if (eval != null)
-                    {
-                        component.Status = eval.Status; // Usa a propriedade [NotMapped]
-                    }
+                    component.Status = eval != null ? eval.Status : ComponentStatus.Pending;
                 }
             }
 

@@ -104,13 +104,14 @@ namespace GamP_SCPeriop.Server.Controllers
                     .ToListAsync();
 
                 // Conta os componentes usando a lista de módulos clonados
-                int totalComponents = enrollmentModules.Sum(em => em.Module?.Components?.Count(c => c.Stage != ModuleStage.Teorica) ?? 0);
+                int totalComponents = enrollmentModules.Sum(em => em.Module?.Components?.Count(c =>
+                    c.Stage == ModuleStage.PraticaSupervisionada || c.Stage == ModuleStage.PraticaAssistida) ?? 0);
 
                 if (totalComponents > 0)
                 {
                     var praticasIds = enrollmentModules
                         .SelectMany(em => em.Module?.Components ?? new List<ModuleComponent>())
-                        .Where(c => c.Stage != ModuleStage.Teorica)
+                        .Where(c => c.Stage == ModuleStage.PraticaSupervisionada || c.Stage == ModuleStage.PraticaAssistida)
                         .Select(c => c.Id)
                         .ToList();
 
@@ -120,23 +121,20 @@ namespace GamP_SCPeriop.Server.Controllers
                          ce.Status == ComponentStatus.Consistente));
 
                     enrollment.ProgressPercentage = (int)((double)completedComponents / totalComponents * 100);
-                    
-                    // --- 🏆 INÍCIO DA ATRIBUIÇÃO DE BADGES (VERSÃO CONGELADA) ---
+
+                    // --- 🏆 INÍCIO DA ATRIBUIÇÃO DE BADGES ---
                     if (enrollment.ProgressPercentage == 100)
                     {
-                        // 1. Procuramos a Badge instanciada que pertence EXATAMENTE a este Percurso
                         var pathwayBadge = await _context.Badges
                             .FirstOrDefaultAsync(b => b.PathwayId == enrollment.PathwayId);
 
                         if (pathwayBadge != null)
                         {
-                            // 2. Garantir que não damos a mesma badge duas vezes
                             bool alreadyHasBadge = await _context.UserBadges
                                 .AnyAsync(ub => ub.UserId == enrollment.StudentId && ub.BadgeId == pathwayBadge.Id);
 
                             if (!alreadyHasBadge)
                             {
-                                // 3. Guardar a Badge no perfil do Aluno
                                 _context.UserBadges.Add(new UserBadge
                                 {
                                     UserId = enrollment.StudentId,
@@ -144,7 +142,6 @@ namespace GamP_SCPeriop.Server.Controllers
                                     EarnedAt = DateTime.UtcNow
                                 });
 
-                                // 4. Criar a Notificação de Conquista!
                                 var badgeNotification = new Notification
                                 {
                                     ReceiverId = enrollment.StudentId,
@@ -162,7 +159,6 @@ namespace GamP_SCPeriop.Server.Controllers
                     }
                     // --- 🏆 FIM DA ATRIBUIÇÃO DE BADGES ---
 
-                    // Grava a nova percentagem E a notificação de forma permanente na mesma transação
                     await _context.SaveChangesAsync();
                 }
             }

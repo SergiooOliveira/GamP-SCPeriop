@@ -261,19 +261,4 @@
         currentTab = tab;
         isDropdownOpen = false; // Fecha o dropdown ao selecionar
     }
-
-    private int CalculateModuleProgress(Module mod)
-    {
-        if (mod.Components == null) return 0;
-
-        var assessable = mod.Components
-                    .Where(c => c.Stage == ModuleStage.PraticaSupervisionada)
-                    .Where(c => !mod.Components.Any(child => child.ParentComponentId == c.Id))
-                    .ToList();
-
-        if (!assessable.Any()) return 0;
-
-        int completed = assessable.Count(c => c.Status == ComponentStatus.AcimaDaMedia || c.Status == ComponentStatus.Consistente);
-        return (int)((double)completed / assessable.Count * 100);
-    }
 }

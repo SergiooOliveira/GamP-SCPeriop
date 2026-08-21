@@ -327,8 +327,9 @@
     {
         if (mod.Components == null) return 0;
 
+        // Adicionada a Prática Assistida ao filtro, tal como combinámos
         var assessable = mod.Components
-                    .Where(c => c.Stage == ModuleStage.PraticaSupervisionada)
+                    .Where(c => c.Stage == ModuleStage.PraticaSupervisionada || c.Stage == ModuleStage.PraticaAssistida)
                     .Where(c => !mod.Components.Any(child => child.ParentComponentId == c.Id))
                     .ToList();
 
@@ -340,26 +341,6 @@
 
     private int CalculateGlobalProgress(Enrollment enrollment)
     {
-        if (enrollment?.Pathway?.Modules == null) return 0;
-
-        int totalComponents = 0;
-        int completedComponents = 0;
-
-        foreach (var mod in enrollment.Pathway.Modules)
-        {
-            if (mod.Components == null) continue;
-
-            var assessable = mod.Components
-                            .Where(c => c.Stage == ModuleStage.PraticaSupervisionada)
-                            .Where(c => !mod.Components.Any(child => child.ParentComponentId == c.Id))
-                            .ToList();
-
-            totalComponents += assessable.Count;
-            completedComponents += assessable.Count(c =>
-                c.Status == ComponentStatus.AcimaDaMedia ||
-                c.Status == ComponentStatus.Consistente);
-        }
-
-        return totalComponents > 0 ? (int)((double)completedComponents / totalComponents * 100) : 0;
+        return enrollment?.ProgressPercentage ?? 0;
     }
 }
