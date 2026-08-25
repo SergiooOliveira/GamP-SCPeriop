@@ -20,7 +20,7 @@ namespace GamP_SCPeriop.Server.Controllers
         }
 
         [HttpPost]
-        public async Task<ActionResult<Module>> CreateModule(ModuleCreateDTO dto)
+        public async Task<ActionResult<Module>> CreateModule(ModuleCreateDto dto)
         {
             var module = new Module
             {
@@ -131,8 +131,8 @@ namespace GamP_SCPeriop.Server.Controllers
                     }
                     else
                     {
-                        existingModule.StageTimelines ??= new List<ModuleStageTimeline>();
-                        existingModule.StageTimelines.Add(new ModuleStageTimeline
+                        existingModule.StageTimelines ??= new List<ModuleStageTimelineDto>();
+                        existingModule.StageTimelines.Add(new ModuleStageTimelineDto
                         {
                             Stage = updatedTimeline.Stage,
                             StartDate = updatedTimeline.StartDate,

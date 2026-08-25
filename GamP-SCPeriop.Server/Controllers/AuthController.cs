@@ -25,7 +25,7 @@ namespace GamP_SCPeriop.Server.Controllers
         }
 
         [HttpPost("register")]
-        public async Task<ActionResult<User>> Register(UserRegisterDTO request)
+        public async Task<ActionResult<User>> Register(UserRegisterDto request)
         {
             var emailExists = await _context.Users.AnyAsync(u => u.Email == request.Email);
             if (emailExists)
@@ -49,7 +49,7 @@ namespace GamP_SCPeriop.Server.Controllers
         }
 
         [HttpPost("login")]
-        public async Task<ActionResult> Login(UserLoginDTO request)
+        public async Task<ActionResult> Login(UserLoginDto request)
         {
             // Verifica na base de dados se as credenciais estão corretas
             var user = await _context.Users
@@ -90,7 +90,7 @@ namespace GamP_SCPeriop.Server.Controllers
             // 4. Limpamos a password por segurança e devolvemos o Token + Dados do Utilizador
             user.Password = string.Empty;
 
-            return Ok(new LoginResponseDTO
+            return Ok(new LoginResponseDto
             {
                 Token = tokenString,
                 User = user

@@ -21,7 +21,7 @@ namespace GamP_SCPeriop.Server.Controllers
 
         // --- 1. CREATE (POST) ---
         [HttpPost]
-        public async Task<ActionResult<ModuleComponent>> CreateModuleComponent(ModuleComponentCreateDTO dto)
+        public async Task<ActionResult<ModuleComponent>> CreateModuleComponent(ModuleComponentCreateDto dto)
         {
             var component = new ModuleComponent
             {

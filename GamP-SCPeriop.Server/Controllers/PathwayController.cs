@@ -20,7 +20,7 @@ namespace GamP_SCPeriop.Server.Controllers
         #region Subject Management
 
         [HttpPost]
-        public async Task<ActionResult<Pathway>> CreatePathway(PathwayCreateDTO dto)
+        public async Task<ActionResult<Pathway>> CreatePathway(PathwayCreateDto dto)
         {
             // 1. Cria a base do novo Percurso
             var pathway = new Pathway

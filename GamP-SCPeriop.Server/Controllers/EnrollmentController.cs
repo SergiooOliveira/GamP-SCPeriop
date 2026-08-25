@@ -32,7 +32,7 @@ namespace GamP_SCPeriop.Server.Controllers
         }
 
         [HttpGet("student/{studentId}")]
-        public async Task<ActionResult<List<StudentDashboardCardDTO>>> GetStudentEnrollments(int studentId)
+        public async Task<ActionResult<List<StudentDashboardCardDto>>> GetStudentEnrollments(int studentId)
         {
             var enrollmentsModules = await _context.EnrollmentModules
                 .Include(en => en.Enrollment)
@@ -41,14 +41,14 @@ namespace GamP_SCPeriop.Server.Controllers
                 .Where(en => en.Enrollment != null && en.Enrollment.StudentId == studentId)
                 .ToListAsync();
 
-            if (!enrollmentsModules.Any()) return Ok(new List<StudentDashboardCardDTO>());
+            if (!enrollmentsModules.Any()) return Ok(new List<StudentDashboardCardDto>());
 
             var dashboardCards = enrollmentsModules
                 .GroupBy(em => em.EnrollmentId)
                 .Select(group =>
                 {
                     var line = group.First();
-                    return new StudentDashboardCardDTO
+                    return new StudentDashboardCardDto
                     {
                         EnrollmentId = line.EnrollmentId,
                         PathwayId = line.Enrollment?.PathwayId ?? 0,
@@ -191,7 +191,7 @@ namespace GamP_SCPeriop.Server.Controllers
                 {
                     foreach (var timeline in baseModule.StageTimelines)
                     {
-                        _context.ModuleStageTimelines.Add(new ModuleStageTimeline
+                        _context.ModuleStageTimelines.Add(new ModuleStageTimelineDto
                         {
                             ModuleId = clonedModule.Id, // Aponta para o Clone!
                             Stage = timeline.Stage,
