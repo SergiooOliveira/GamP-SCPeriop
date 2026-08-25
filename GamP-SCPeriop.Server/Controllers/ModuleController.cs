@@ -187,6 +187,47 @@ namespace GamP_SCPeriop.Server.Controllers
             return NoContent();
         }
 
+        [HttpPut("{id}/timeline")]
+        public async Task<IActionResult> UpdateStudentTimeline(int id, [FromBody] Module updatedModule)
+        {
+            if (id != updatedModule.Id) return BadRequest();
+
+            var existingModule = await _context.Modules
+                .Include(m => m.StageTimelines)
+                .FirstOrDefaultAsync(m => m.Id == id);
+
+            if (existingModule == null) return NotFound();
+
+            // Atualiza APENAS as datas na tabela ModuleStageTimelines
+            if (updatedModule.StageTimelines != null)
+            {
+                foreach (var updatedTimeline in updatedModule.StageTimelines)
+                {
+                    var existingTimeline = existingModule.StageTimelines?.FirstOrDefault(t => t.Stage == updatedTimeline.Stage);
+
+                    if (existingTimeline != null)
+                    {
+                        existingTimeline.StartDate = updatedTimeline.StartDate;
+                        existingTimeline.EndDate = updatedTimeline.EndDate;
+                    }
+                    else
+                    {
+                        existingModule.StageTimelines = new List<ModuleStageTimelineDto>();
+                        existingModule.StageTimelines.Add(new ModuleStageTimelineDto
+                        {
+                            Stage = updatedTimeline.Stage,
+                            StartDate = updatedTimeline.StartDate,
+                            EndDate = updatedTimeline.EndDate,
+                            ModuleId = id
+                        });
+                    }
+                }
+            }
+
+            await _context.SaveChangesAsync();
+            return NoContent();
+        }
+
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteModule(int id)
         {

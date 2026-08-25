@@ -123,6 +123,7 @@ namespace GamP_SCPeriop.Server.Controllers
                         var newBadge = new Badge
                         {
                             PathwayId = pathway.Id, // Liga ao percurso instanciado!
+                            Pathway = pathway,
                             Name = badgeTpl.Name,
                             Description = badgeTpl.Description,
                             Icon = badgeTpl.Icon,

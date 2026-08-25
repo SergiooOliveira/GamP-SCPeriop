@@ -37,7 +37,9 @@ namespace GamP_SCPeriop.Server.Controllers
             var enrollmentsModules = await _context.EnrollmentModules
                 .Include(en => en.Enrollment)
                     .ThenInclude(e => e.Pathway)
-                        .ThenInclude(p => p.Professor)                            
+                        .ThenInclude(p => p.Professor)
+                .Include(en => en.Module)
+                    .ThenInclude(m => m.StageTimelines)
                 .Where(en => en.Enrollment != null && en.Enrollment.StudentId == studentId)
                 .ToListAsync();
 
@@ -48,21 +50,30 @@ namespace GamP_SCPeriop.Server.Controllers
                 .Select(group =>
                 {
                     var line = group.First();
+
+                    // Extrai todas as datas de todas as fases dos módulos deste aluno de forma segura
+                    var todasAsTimelines = group
+                        .SelectMany(em => em.Module?.StageTimelines ?? new List<ModuleStageTimelineDto>())
+                        .ToList();
+
+                    var datasInicio = todasAsTimelines.Where(t => t.StartDate != default).Select(t => t.StartDate).ToList();
+                    var datasFim = todasAsTimelines.Where(t => t.EndDate != default).Select(t => t.EndDate).ToList();
+
                     return new StudentDashboardCardDto
                     {
                         EnrollmentId = line.EnrollmentId,
                         PathwayId = line.Enrollment?.PathwayId ?? 0,
                         PathwayTitle = line.Enrollment?.Pathway?.Title ?? "Sem título",
                         ProfessorName = line.Enrollment?.Pathway?.Professor?.DisplayShortName ?? "Sem supervisor",
-                        StartDate = group.Min(em => em.StartDate),
-                        LimitDate = group.Max(em => em.EndDate),
+                        StartDate = datasInicio.Any() ? datasInicio.Min() : null,
+                        LimitDate = datasFim.Any() ? datasFim.Max() : null,
                         ProgressPercentage = line.Enrollment?.ProgressPercentage ?? 0,
                         MinimumApprovalScore = line.Enrollment?.Pathway?.MinimumApprovalScore ?? 65,
                         IsStarred = line.Enrollment?.IsStarred ?? false,
                         IsHidden = line.Enrollment?.IsHidden ?? false,
                         IsArchived = line.Enrollment?.Pathway?.IsArchived ?? false,
                         IsFullyEvaluated = (line.Enrollment?.ProgressPercentage ?? 0) == 100
-                    };                    
+                    };
                 })
                 .ToList();
 
