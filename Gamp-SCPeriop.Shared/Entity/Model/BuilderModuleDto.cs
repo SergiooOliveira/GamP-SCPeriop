@@ -15,6 +15,6 @@ namespace GamP_SCPeriop.Shared.Entity.Model
         public List<BuilderComponentDto> Components { get; set; } = new();
 
         // Mantemos a timeline aqui. Se for Template, o componente simplesmente ignora isto.
-        public List<ModuleStageTimeline>? StageTimelines { get; set; }
+        public List<ModuleStageTimelineDto>? StageTimelines { get; set; }
     }
 }

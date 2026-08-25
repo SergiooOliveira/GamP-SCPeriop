@@ -10,7 +10,7 @@ namespace GamP_SCPeriop.Shared.Data
         public string Title { get; set; } = string.Empty;
         public List<ModuleComponent> Components { get; set; } = new();
         public int? PathwayId { get; set; }
-        public List<ModuleStageTimeline>? StageTimelines { get; set; }
+        public List<ModuleStageTimelineDto>? StageTimelines { get; set; }
         public float Weight { get; set; } = 1;
         public bool IsFromTemplate { get; set; }
 

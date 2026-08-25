@@ -762,7 +762,7 @@
         return (int)Math.Round((double)Math.Max(1, mod.Weight) / total * 100);
     }
 
-    private ModuleStageTimeline? GetTimeline(BuilderModuleDto mod, ModuleStage stage)
+    private ModuleStageTimelineDto? GetTimeline(BuilderModuleDto mod, ModuleStage stage)
     {
         return mod.StageTimelines?.FirstOrDefault(t => t.Stage == stage);
     }

@@ -2,7 +2,6 @@
 @attribute [Authorize(Roles = "Supervisionado")]
 @using GamP_SCPeriop.Shared.Data
 @using GamP_SCPeriop.Shared.Entity.Model
-@using GamP_SCPeriop.Shared.Enum
 @layout TopNavBarLayout
 @inject HttpClient Http
 @inject NavigationManager Nav
@@ -193,7 +192,7 @@
     public User? currentUser { get; set; }
 
     private bool isDropdownOpen = false;
-    private List<StudentDashboardCardDTO>? enrollments;
+    private List<StudentDashboardCardDto>? enrollments;
 
     private string currentTab = "A decorrer";
     private string searchTerm = string.Empty;
@@ -202,7 +201,7 @@
     {
         try
         {
-            enrollments = await Http.GetFromJsonAsync<List<StudentDashboardCardDTO>>($"api/Enrollment/student/{currentUser!.Id}");
+            enrollments = await Http.GetFromJsonAsync<List<StudentDashboardCardDto>>($"api/Enrollment/student/{currentUser!.Id}");
         }
         catch (Exception ex)
         {
@@ -210,11 +209,11 @@
         }
     }
 
-    private IEnumerable<StudentDashboardCardDTO> FilteredEnrollments
+    private IEnumerable<StudentDashboardCardDto> FilteredEnrollments
     {
         get
         {
-            if (enrollments == null) return Enumerable.Empty<StudentDashboardCardDTO>();
+            if (enrollments == null) return Enumerable.Empty<StudentDashboardCardDto>();
 
             var now = DateTime.UtcNow;
             var query = enrollments.AsEnumerable();
@@ -239,13 +238,13 @@
         }
     }
 
-    private async Task ToggleStar(StudentDashboardCardDTO e)
+    private async Task ToggleStar(StudentDashboardCardDto e)
     {
         e.IsStarred = !e.IsStarred;
         await Http.PutAsJsonAsync($"api/Enrollment/{e.EnrollmentId}/star", e.IsStarred);
     }
 
-    private async Task ToggleHidden(StudentDashboardCardDTO e)
+    private async Task ToggleHidden(StudentDashboardCardDto e)
     {
         e.IsHidden = !e.IsHidden;
         await Http.PutAsJsonAsync($"api/Enrollment/{e.EnrollmentId}/hidden", e.IsHidden);

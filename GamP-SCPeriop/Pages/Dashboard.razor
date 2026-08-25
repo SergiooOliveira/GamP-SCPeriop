@@ -240,7 +240,7 @@
     // --- CREATE PATHWAY VARIABLES ---
     private bool showCreatePathwayModal = false;
     private bool isCreatingPathway = false;
-    private PathwayCreateDTO pathwayDto = new PathwayCreateDTO { MinimumPassScore = 50, MinimumApprovalScore = 75 };
+    private PathwayCreateDto pathwayDto = new PathwayCreateDto { MinimumPassScore = 50, MinimumApprovalScore = 75 };
 
     // --- INITIALIZATION ---
     protected override async Task OnInitializedAsync()
@@ -339,7 +339,7 @@
     private void OpenCreatePathwayModal()
     {
         // Reset the form every time we open it
-        pathwayDto = new PathwayCreateDTO { Title = "", MinimumPassScore = 50, MinimumApprovalScore = 75 };
+        pathwayDto = new PathwayCreateDto { Title = "", MinimumPassScore = 50, MinimumApprovalScore = 75 };
         showCreatePathwayModal = true;
     }
 

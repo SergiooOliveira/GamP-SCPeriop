@@ -4,7 +4,7 @@ using System.Text;
 
 namespace GamP_SCPeriop.Shared.Entity.Model
 {
-    public class StudentDashboardCardDTO
+    public class StudentDashboardCardDto
     {
         public int EnrollmentId { get; set; }
         public int PathwayId { get; set; }        

@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace GamP_SCPeriop.Shared.Entity.Model
 {
-    public class UserRegisterDTO
+    public class UserRegisterDto
     {
         #region Registration Fields
 

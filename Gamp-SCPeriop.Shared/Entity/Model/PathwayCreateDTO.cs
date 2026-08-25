@@ -4,7 +4,7 @@ using System.Text;
 
 namespace GamP_SCPeriop.Shared.Entity.Model
 {
-    public class PathwayCreateDTO
+    public class PathwayCreateDto
     {
         public string Title { get; set; } = string.Empty;
         public int MinimumPassScore { get; set; }

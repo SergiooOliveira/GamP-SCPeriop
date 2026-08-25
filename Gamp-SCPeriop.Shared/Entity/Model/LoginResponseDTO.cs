@@ -5,7 +5,7 @@ using System.Text;
 
 namespace GamP_SCPeriop.Shared.Entity.Model
 {
-    public class LoginResponseDTO
+    public class LoginResponseDto
     {
         public string Token { get; set; }
         public User User { get; set; }

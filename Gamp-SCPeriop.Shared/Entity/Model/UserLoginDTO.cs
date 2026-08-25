@@ -2,7 +2,7 @@
 
 namespace GamP_SCPeriop.Shared.Entity.Model
 {
-    public class UserLoginDTO
+    public class UserLoginDto
     {
         [Required(ErrorMessage = "Email is required")]
         public string Email { get; set; } = string.Empty;

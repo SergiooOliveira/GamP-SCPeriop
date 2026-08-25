@@ -5,7 +5,7 @@ using System.Text;
 
 namespace GamP_SCPeriop.Shared.Entity.Model
 {
-    public class ModuleComponentCreateDTO
+    public class ModuleComponentCreateDto
     {
         public int ModuleId { get; set; }
         public string Title { get; set; } = string.Empty;

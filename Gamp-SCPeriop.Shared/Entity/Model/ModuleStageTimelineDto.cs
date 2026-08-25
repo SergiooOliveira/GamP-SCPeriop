@@ -6,7 +6,7 @@ using GamP_SCPeriop.Shared.Enum;
 
 namespace GamP_SCPeriop.Shared.Entity.Model
 {
-    public class ModuleStageTimeline
+    public class ModuleStageTimelineDto
     {
         [Key]
         public int Id { get; set; }

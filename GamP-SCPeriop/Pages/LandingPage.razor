@@ -5,7 +5,6 @@
 
 @using GamP_SCPeriop.Shared.Entity.Model
 @using GamP_SCPeriop.Shared.Enum
-@using GamP_SCPeriop.Shared.Data
 @using Microsoft.AspNetCore.Components.Authorization
 @using Blazored.SessionStorage
 
@@ -63,7 +62,7 @@
 
 @code {
 
-    private UserLoginDTO loginModel = new UserLoginDTO();
+    private UserLoginDto loginModel = new UserLoginDto();
     private string error = "";
 
     private async Task HandleLogin()
@@ -75,7 +74,7 @@
             try
             {
                 // Lemos a nova estrutura em vez do "User" diretamente
-                var authResponse = await response.Content.ReadFromJsonAsync<LoginResponseDTO>();
+                var authResponse = await response.Content.ReadFromJsonAsync<LoginResponseDto>();
 
                 if (authResponse != null && authResponse.User != null)
                 {

@@ -114,7 +114,7 @@
     [SupplyParameterFromQuery(Name = "from")] public string? FromSource { get; set; }
 
     private bool isLoading = true;
-    private PathwayCreateDTO pathwayDto = new PathwayCreateDTO { MinimumPassScore = 50, MinimumApprovalScore = 75 };
+    private PathwayCreateDto pathwayDto = new PathwayCreateDto { MinimumPassScore = 50, MinimumApprovalScore = 75 };
     private Pathway? activePathway;
     private List<Module> savedModules = new();
     private List<PathwayTagDto> existingPathways = new();
@@ -261,7 +261,7 @@
         if (string.IsNullOrWhiteSpace(data.Title) || activePathway == null) return;
 
         // 1. Cria o Módulo Base
-        var moduleDto = new ModuleCreateDTO
+        var moduleDto = new ModuleCreateDto
         {
             Title = data.Title,
             Weight = data.Weight,
@@ -276,7 +276,7 @@
             var savedMod = await moduleResponse.Content.ReadFromJsonAsync<Module>();
             if (savedMod != null)
             {
-                savedMod.StageTimelines = new List<ModuleStageTimeline>();
+                savedMod.StageTimelines = new List<ModuleStageTimelineDto>();
                 foreach (var stage in GetTimelineStages()) GetOrCreateTimeline(savedMod, stage);
                 await Http.PutAsJsonAsync($"api/Module/{savedMod.Id}", savedMod);
 
@@ -287,7 +287,7 @@
                 {
                     foreach (var parentDraft in data.Drafts.Where(p => !string.IsNullOrWhiteSpace(p.Text)))
                     {
-                        var dtoParent = new ModuleComponentCreateDTO
+                        var dtoParent = new ModuleComponentCreateDto
                         {
                             ModuleId = savedMod.Id,
                             Title = parentDraft.Text,
@@ -305,7 +305,7 @@
                             {
                                 foreach (var childDraft in parentDraft.Children.Where(f => !string.IsNullOrWhiteSpace(f.Text)))
                                 {
-                                    var dtoChild = new ModuleComponentCreateDTO
+                                    var dtoChild = new ModuleComponentCreateDto
                                     {
                                         ModuleId = savedMod.Id,
                                         Title = childDraft.Text,
@@ -423,9 +423,9 @@
         };
     }
 
-    private ModuleStageTimeline GetOrCreateTimeline(Module mod, ModuleStage stage)
+    private ModuleStageTimelineDto GetOrCreateTimeline(Module mod, ModuleStage stage)
     {
-        mod.StageTimelines ??= new List<ModuleStageTimeline>();
+        mod.StageTimelines ??= new List<ModuleStageTimelineDto>();
         var timeline = mod.StageTimelines.FirstOrDefault(t => t.Stage == stage);
 
         if (timeline == null)
@@ -441,7 +441,7 @@
                 if (prevTimeline != null) defaultStart = prevTimeline.EndDate.AddDays(1);
             }
 
-            timeline = new ModuleStageTimeline
+            timeline = new ModuleStageTimelineDto
             {
                 ModuleId = mod.Id, Stage = stage, StartDate = defaultStart, EndDate = defaultStart.AddDays(7)
             };
@@ -478,7 +478,7 @@
     {
         foreach (var parent in data.Drafts.Where(p => !string.IsNullOrWhiteSpace(p.Text)))
         {
-            var dtoParent = new ModuleComponentCreateDTO
+            var dtoParent = new ModuleComponentCreateDto
             {
                 ModuleId = data.ModuleId,
                 Title = parent.Text,
@@ -493,7 +493,7 @@
                 {
                     foreach (var child in parent.Children.Where(f => !string.IsNullOrWhiteSpace(f.Text)))
                     {
-                        var dtoChild = new ModuleComponentCreateDTO
+                        var dtoChild = new ModuleComponentCreateDto
                         {
                             ModuleId = data.ModuleId,
                             Title = child.Text,
@@ -518,7 +518,7 @@
     {
         if (data.Component.Id == 0)
         {
-            var dto = new ModuleComponentCreateDTO
+            var dto = new ModuleComponentCreateDto
             {
                 ModuleId = data.ModuleId,
                 Title = data.Component.Title,
@@ -555,7 +555,7 @@
         {
             foreach (var task in kvp.Value)
             {
-                var dtoChild = new ModuleComponentCreateDTO
+                var dtoChild = new ModuleComponentCreateDto
                 {
                     ModuleId = data.ModuleId,
                     Title = task.Title,

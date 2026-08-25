@@ -106,7 +106,7 @@
     private bool isLoading = true;
     private List<User> allUsers = new();
 
-    private UserRegisterDTO registerModel = new();
+    private UserRegisterDto registerModel = new();
     private string statusMessage = "";
     private string statusColor = "success";
 
@@ -176,7 +176,7 @@
     private void OpenCreateModal()
     {
         // Limpa o formulário sempre que se abre o modal
-        registerModel = new UserRegisterDTO { Role = UserRole.Supervisionado };
+        registerModel = new UserRegisterDto { Role = UserRole.Supervisionado };
         showCreateModal = true;
     }
 
