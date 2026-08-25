@@ -405,7 +405,17 @@
             RecalculateStageDatesLocal(mod, data.Stage);
         }
 
-        await Http.PutAsJsonAsync($"api/Module/{mod.Id}", mod);
+        if (IsStudentMode)
+        {
+            // Vai para a rota segura, só atualiza as datas do Clone
+            await Http.PutAsJsonAsync($"api/Module/{mod.Id}/timeline", mod);
+        }
+        else
+        {
+            // Vai para a rota principal, atualiza o Molde e propaga
+            await Http.PutAsJsonAsync($"api/Module/{mod.Id}", mod);
+        }
+
         StateHasChanged();
     }
 

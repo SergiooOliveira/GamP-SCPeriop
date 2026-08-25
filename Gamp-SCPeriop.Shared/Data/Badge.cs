@@ -8,7 +8,7 @@ namespace GamP_SCPeriop.Shared.Data
 
         // Liga à INSTÂNCIA do percurso do aluno, não ao template!
         public int PathwayId { get; set; }
-        // public Pathway? Pathway { get; set; } // Descomenta se quiseres a navegação
+        public Pathway? Pathway { get; set; }
 
         // Os dados copiados que ficam congelados no tempo
         public string Name { get; set; } = string.Empty;

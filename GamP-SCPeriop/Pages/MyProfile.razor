@@ -201,7 +201,7 @@
     {
         try
         {
-            enrollments = await Http.GetFromJsonAsync<List<StudentDashboardCardDto>>($"api/Enrollment/student/{currentUser!.Id}");
+            enrollments = await Http.GetFromJsonAsync<List<StudentDashboardCardDto>>($"api/Enrollment/student/{currentUser.Id}");
         }
         catch (Exception ex)
         {

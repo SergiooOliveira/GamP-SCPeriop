@@ -2,13 +2,15 @@
 @layout TopNavBarLayout
 @attribute [Authorize(Roles = "Supervisionado")]
 @using GamP_SCPeriop.Shared.Data
+@using GamP_SCPeriop.Shared.Entity.Model
+@using GamP_SCPeriop.Shared.Enum
 @inject HttpClient Http
 @inject NavigationManager Nav
 @inject IJSRuntime JsRuntime
 @implements IAsyncDisposable
 
 <div class="max-width-container mt-4 px-4 pb-5">
-    
+
     <!-- Cabeçalho -->
     <div class="d-flex align-items-center mb-4 pb-2 border-bottom">
         <i class="bi bi-award-fill text-warning fs-1 me-3"></i>
@@ -18,84 +20,179 @@
         </div>
     </div>
 
-    <!-- Grelha de Badges -->
-    <div class="row row-cols-2 row-cols-md-4 g-4 mt-2">
-        @foreach (var badge in simulacaoBadges)
-        {
-            <div class="col">
-                <div class="card h-100 border-0 badge-card-heavy text-center p-4"
-                     style="border-radius: 20px; background-color: @(badge.IsUnlocked ? "#ffffff" : "#f1f4f6"); border: 1px solid rgba(0,0,0,0.05);">
+    @if (isLoading)
+    {
+        <div class="d-flex justify-content-center mt-5">
+            <div class="spinner-border text-primary" role="status"></div>
+        </div>
+    }
+    else if (!studentBadges.Any())
+    {
+        <div class="text-center mt-5 p-5 bg-light rounded-4 border-dashed">
+            <i class="bi bi-shield-slash text-muted mb-3" style="font-size: 3rem;"></i>
+            <h5 class="fw-bold text-secondary">Sem medalhas para mostrar</h5>
+            <p class="text-muted small">Ainda não tens percursos com sistema de conquistas ativo.</p>
+        </div>
+    }
+    else
+    {
+        <!-- Grelha de Badges Agrupada por Percurso -->
+        <div class="mt-2">
+            @foreach (var grupo in studentBadges.GroupBy(b => b.PathwayTitle))
+            {
+                <div class="mb-5">
+                    <!-- Cabeçalho do Percurso -->
+                    <h5 class="fw-bold mb-3 border-bottom pb-2" style="color: #6A96A6;">
+                        <i class="bi bi-signpost-split me-2"></i>@grupo.Key
+                    </h5>
 
-                    <!-- Ícone (já sem o title) -->
-                    <div class="rounded-circle mx-auto d-flex justify-content-center align-items-center shadow-sm mb-3"
-                         style="width: 80px; height: 80px; background-color: @(badge.IsUnlocked ? badge.Color : "#e9ecef");">
-                        <i class="bi @badge.Icon text-white" style="font-size: 2.5rem; opacity: @(badge.IsUnlocked ? "1" : "0.4");"></i>
+                    <div class="row row-cols-2 row-cols-md-4 g-4">
+                        @foreach (var badge in grupo)
+                        {
+                            var tierColor = GetTierColor(badge.Tier);
+
+                            <div class="col">
+                                <div class="card h-100 border-0 badge-card-heavy text-center p-4"
+                                     style="border-radius: 20px; background-color: @(badge.IsUnlocked ? "#ffffff" : "#f1f4f6"); border: 1px solid rgba(0,0,0,0.05);">
+
+                                    <!-- Ícone Dinâmico -->
+                                    <div class="rounded-circle mx-auto d-flex justify-content-center align-items-center shadow-sm mb-3"
+                                         style="width: 80px; height: 80px; background-color: @(badge.IsUnlocked ? tierColor : "#e9ecef");">
+                                        <i class="bi @badge.Icon text-white" style="font-size: 2.5rem; opacity: @(badge.IsUnlocked ? "1" : "0.4");"></i>
+                                    </div>
+
+                                    <!-- Título -->
+                                    <h6 class="fw-bold @(badge.IsUnlocked ? "text-dark" : "text-muted") mb-2">@badge.Name</h6>
+
+                                    <!-- Descrição -->
+                                    <p class="small @(badge.IsUnlocked ? "text-secondary" : "text-muted opacity-50") mb-0" style="line-height: 1.4;">
+                                        @badge.Description
+                                    </p>
+
+                                    <!-- Estado (Bloqueado/Desbloqueado) -->
+                                    @if (!badge.IsUnlocked)
+                                    {
+                                        <div class="mt-3 pt-2 border-top border-secondary border-opacity-10">
+                                            <small class="text-muted fw-bold"><i class="bi bi-lock-fill me-1"></i>Bloqueado</small>
+                                        </div>
+                                    }
+                                    else if (badge.UnlockedAt.HasValue)
+                                    {
+                                        <div class="mt-3 pt-2 border-top border-secondary border-opacity-10">
+                                            <small class="fw-bold" style="color: @tierColor;">
+                                                <i class="bi bi-calendar-check me-1"></i> @badge.UnlockedAt.Value.ToString("dd MMM yyyy")
+                                            </small>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        }
                     </div>
-
-                    <!-- Título -->
-                    <h6 class="fw-bold @(badge.IsUnlocked ? "text-dark" : "text-muted") mb-2">@badge.Name</h6>
-
-                    <!-- Nova Descrição Visível -->
-                    <p class="small @(badge.IsUnlocked ? "text-secondary" : "text-muted opacity-50") mb-0" style="line-height: 1.4;">
-                        @badge.Reason
-                    </p>
-
-                    <!-- Indicador visual extra se estiver bloqueado -->
-                    @if (!badge.IsUnlocked)
-                    {
-                        <div class="mt-3 pt-2 border-top border-secondary border-opacity-10">
-                            <small class="text-muted fw-bold"><i class="bi bi-lock-fill me-1"></i>Bloqueado</small>
-                        </div>
-                    }
                 </div>
-            </div>
-        }
-    </div>
+            }
+        </div>
+    }
 </div>
 
 @code {
     [CascadingParameter]
     public User? currentUser { get; set; }
 
-    private IJSObjectReference? module;
+    private IJSObjectReference? jsModule;
+    private List<StudentBadgeDto> studentBadges = new();
+    private bool isLoading = true;
 
-    // Modelo Rápido Temporário para testar o visual
-    private class BadgeFake 
+    protected override async Task OnParametersSetAsync()
     {
-        public string Name { get; set; } = "";
-        public string Icon { get; set; } = "";
-        public string Color { get; set; } = "";
-        public string Reason { get; set; } = "";
-        public bool IsUnlocked { get; set; }
+        if (currentUser != null && currentUser.Id > 0)
+        {
+            try
+            {
+                isLoading = true;
+                var response = await Http.GetAsync($"api/Badges/student/{currentUser.Id}");
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var content = await response.Content.ReadAsStringAsync();
+
+                    // Se o servidor devolver a tal página de erro HTML, ignoramos em segurança
+                    if (content.TrimStart().StartsWith("<"))
+                    {
+                        Console.WriteLine($"[AVISO] O servidor devolveu HTML. O Backend estourou para o ID {currentUser.Id}");
+                        studentBadges = new();
+                    }
+                    else
+                    {
+                        studentBadges = System.Text.Json.JsonSerializer.Deserialize<List<StudentBadgeDto>>(
+                            content,
+                            new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true }
+                        ) ?? new();
+                    }
+                }
+                else
+                {
+                    // Se der erro 500, capturamos o conteúdo JSON do erro
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    Console.WriteLine($"[ERRO API] {response.StatusCode} - {errorContent}");
+                    studentBadges = new();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ERRO CRÍTICO NO ECRÃ] {ex.Message}");
+                studentBadges = new();
+            }
+            finally
+            {
+                isLoading = false;
+            }
+        }
     }
-
-    private List<BadgeFake> simulacaoBadges = new()
-    {
-        new BadgeFake { Name = "Primeiro Passo", Icon = "bi-lightning-charge-fill", Color = "#ffc107", Reason = "Iniciaste o teu primeiro módulo com sucesso!", IsUnlocked = true },
-        new BadgeFake { Name = "Mestre Teórico", Icon = "bi-book-half", Color = "#1a73e8", Reason = "Concluíste todas as tarefas teóricas de um percurso.", IsUnlocked = true },
-        new BadgeFake { Name = "Mãos à Obra", Icon = "bi-person-gear", Color = "#198754", Reason = "Completaste a tua primeira prática assistida.", IsUnlocked = true },
-        new BadgeFake { Name = "Supervisionado de Elite", Icon = "bi-star-fill", Color = "#dc3545", Reason = "Atingiste aprovação máxima num percurso.", IsUnlocked = false },
-        new BadgeFake { Name = "Foco Inabalável", Icon = "bi-bullseye", Color = "#6f42c1", Reason = "Mantiveste acesso regular por 7 dias seguidos.", IsUnlocked = false }
-    };
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
-            // 1. Carrega o ficheiro JS isolado (ajusta o caminho "Pages" se estiver noutra pasta)
-            module = await JsRuntime.InvokeAsync<IJSObjectReference>("import", "./Pages/Badges.razor.js");
+            // 1. Carrega o ficheiro JS isolado
+            jsModule = await JsRuntime.InvokeAsync<IJSObjectReference>("import", "./Pages/Badges.razor.js");
 
-            // 2. Chama a função exportada de dentro do módulo
-            await module.InvokeVoidAsync("initBadge3DEffect");
+            // (Nota: o efeito só será ativado depois de a lista carregar, logo se os dados demorarem,
+            // podes ter de chamar isto novamente ou usar MutationObserver no JS)
+            await Apply3DEffect();
+        }
+        else if (!isLoading && studentBadges.Any())
+        {
+            // Garante que o efeito JS é aplicado aos cartões DEPOIS de o HTML os desenhar
+            await Apply3DEffect();
         }
     }
 
-    // É boa prática limpar a memória do módulo quando saímos da página
+    private async Task Apply3DEffect()
+    {
+        if (jsModule != null)
+        {
+            await jsModule.InvokeVoidAsync("initBadge3DEffect");
+        }
+    }
+
+    // =========================================================================
+    // HELPER DE CORES (Igual ao Modal de Criação)
+    // =========================================================================
+    private string GetTierColor(BadgeTier tier) => tier switch
+    {
+        BadgeTier.Common => "#7f8c8d",
+        BadgeTier.Uncommon => "#2ecc71",
+        BadgeTier.Rare => "#3498db",
+        BadgeTier.Epic => "#9b59b6",
+        BadgeTier.Legendary => "#f1c40f",
+        _ => "#7f8c8d"
+    };
+
     public async ValueTask DisposeAsync()
     {
-        if (module is not null)
+        if (jsModule is not null)
         {
-            await module.DisposeAsync();
+            await jsModule.DisposeAsync();
         }
     }
 }
