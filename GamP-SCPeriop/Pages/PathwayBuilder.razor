@@ -8,6 +8,7 @@
 @using GamP_SCPeriop.Shared.Entity.Model
 @using GamP_SCPeriop.Shared.Enum
 @using GamP_SCPeriop.Shared.Data
+@using GamP_SCPeriop.Helpers
 
 <div class="container mt-4">
     <!-- TÍTULO PRINCIPAL -->
@@ -277,11 +278,14 @@
             if (savedMod != null)
             {
                 savedMod.StageTimelines = new List<ModuleStageTimelineDto>();
-                foreach (var stage in GetTimelineStages()) GetOrCreateTimeline(savedMod, stage);
+
+                foreach (var stage in ModuleStageHelper.GetTimelineStages()) 
+                    GetOrCreateTimeline(savedMod, stage);
+
                 await Http.PutAsJsonAsync($"api/Module/{savedMod.Id}", savedMod);
 
                 // 2. A Mágica: Multiplica a estrutura definida no Modal pelas 4 fases práticas!
-                var practicalStages = GetTimelineStages();
+                var practicalStages = ModuleStageHelper.GetTimelineStages();
 
                 foreach (var stage in practicalStages)
                 {
@@ -392,15 +396,23 @@
 
         if (data.IsStart)
         {
-            var oldDuration = timeline.EndDate - timeline.StartDate;
-            if (oldDuration.TotalDays < 0) oldDuration = TimeSpan.FromDays(7);
+            TimeSpan oldDuration = TimeSpan.FromDays(7);
+
+            if (timeline.StartDate.HasValue && timeline.EndDate.HasValue)
+            {
+                oldDuration = timeline.EndDate.Value - timeline.StartDate.Value;
+                if (oldDuration.TotalDays < 0) oldDuration = TimeSpan.FromDays(7);
+            }
+
             timeline.StartDate = data.Date;
             timeline.EndDate = data.Date.Add(oldDuration);
             RecalculateStageDatesLocal(mod, data.Stage);
         }
         else
         {
-            if (data.Date < timeline.StartDate) data.Date = timeline.StartDate.AddDays(1);
+            if (timeline.StartDate.HasValue && data.Date < timeline.StartDate.Value)
+                data.Date = timeline.StartDate.Value.AddDays(1);
+
             timeline.EndDate = data.Date;
             RecalculateStageDatesLocal(mod, data.Stage);
         }
@@ -423,16 +435,6 @@
 
     #region [ Auxiliares de Timeline ]
 
-    private List<ModuleStage> GetTimelineStages()
-    {
-        return new List<ModuleStage> { 
-            ModuleStage.ObservacaoPassiva, 
-            ModuleStage.ObservacaoParticipada, 
-            ModuleStage.PraticaAssistida, 
-            ModuleStage.PraticaSupervisionada 
-        };
-    }
-
     private ModuleStageTimelineDto GetOrCreateTimeline(Module mod, ModuleStage stage)
     {
         mod.StageTimelines ??= new List<ModuleStageTimelineDto>();
@@ -441,20 +443,25 @@
         if (timeline == null)
         {
             var defaultStart = DateTime.Today;
-            var timelineStages = GetTimelineStages();
+            var timelineStages = ModuleStageHelper.GetTimelineStages().ToList();
             var currentIndex = timelineStages.IndexOf(stage);
 
             if (currentIndex > 0)
             {
                 var prevStage = timelineStages[currentIndex - 1];
                 var prevTimeline = mod.StageTimelines.FirstOrDefault(t => t.Stage == prevStage);
-                if (prevTimeline != null) defaultStart = prevTimeline.EndDate.AddDays(1);
+                if (prevTimeline != null && prevTimeline.EndDate.HasValue)
+                    defaultStart = prevTimeline.EndDate.Value.AddDays(1);
             }
 
             timeline = new ModuleStageTimelineDto
             {
-                ModuleId = mod.Id, Stage = stage, StartDate = defaultStart, EndDate = defaultStart.AddDays(7)
+                ModuleId = mod.Id,
+                Stage = stage,
+                StartDate = defaultStart,
+                EndDate = defaultStart.AddDays(7)
             };
+
             mod.StageTimelines.Add(timeline);
         }
         return timeline;
@@ -462,7 +469,7 @@
 
     private void RecalculateStageDatesLocal(Module mod, ModuleStage changedStage)
     {
-        var timelineStages = GetTimelineStages();
+        var timelineStages = ModuleStageHelper.GetTimelineStages().ToList();
         var startIndex = timelineStages.IndexOf(changedStage);
 
         if (startIndex != -1)
@@ -471,11 +478,23 @@
             {
                 var previousTimeline = GetOrCreateTimeline(mod, timelineStages[i - 1]);
                 var currentTimeline = GetOrCreateTimeline(mod, timelineStages[i]);
-                var currentDuration = currentTimeline.EndDate - currentTimeline.StartDate;
-                if (currentDuration.TotalDays < 0) currentDuration = TimeSpan.FromDays(7);
 
-                currentTimeline.StartDate = previousTimeline.EndDate.AddDays(1);
-                currentTimeline.EndDate = currentTimeline.StartDate.Add(currentDuration);
+                TimeSpan currentDuration = TimeSpan.FromDays(7);
+
+                if (currentTimeline.StartDate.HasValue && currentTimeline.EndDate.HasValue)
+                {
+                    currentDuration = currentTimeline.EndDate.Value - currentTimeline.StartDate.Value;
+                    if (currentDuration.TotalDays < 0) currentDuration = TimeSpan.FromDays(7);
+                }
+
+                // Só empurra as datas para a frente se a fase anterior tiver uma data de fim válida
+                if (previousTimeline.EndDate.HasValue)
+                {
+                    currentTimeline.StartDate = previousTimeline.EndDate.Value.AddDays(1);
+
+                    // Como acabámos de lhe dar um StartDate, o .Value é 100% seguro aqui
+                    currentTimeline.EndDate = currentTimeline.StartDate.Value.Add(currentDuration);
+                }
             }
         }
     }

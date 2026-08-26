@@ -20,7 +20,7 @@ namespace GamP_SCPeriop.Shared.Entity.Model
         [Required]
         public ModuleStage Stage { get; set; }
 
-        public DateTime StartDate { get; set; } = DateTime.Today;
-        public DateTime EndDate { get; set; } = DateTime.Today.AddDays(7);
+        public DateTime? StartDate { get; set; } = DateTime.Today;
+        public DateTime? EndDate { get; set; } = DateTime.Today.AddDays(7);
     }
 }

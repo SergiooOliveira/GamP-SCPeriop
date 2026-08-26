@@ -1,6 +1,8 @@
-﻿using GamP_SCPeriop.Server.Data;
+﻿using GamP_SCPeriop.Helpers;
+using GamP_SCPeriop.Server.Data;
 using GamP_SCPeriop.Shared.Data;
 using GamP_SCPeriop.Shared.Entity.Model;
+using GamP_SCPeriop.Shared.Enum;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -52,8 +54,20 @@ namespace GamP_SCPeriop.Server.Controllers
                             Title = modTpl.Title,
                             Weight = 1,
                             Components = new List<ModuleComponent>(),
-                            IsFromTemplate = true
+                            IsFromTemplate = true,
+                            StageTimelines = new List<ModuleStageTimelineDto>()
                         };
+
+                        // FORÇAR A CRIAÇÃO DAS 5 FASES A NULL 
+                        foreach (var stage in ModuleStageHelper.GetTimelineStages())
+                        {
+                            newModule.StageTimelines.Add(new ModuleStageTimelineDto
+                            {
+                                Stage = stage,
+                                StartDate = null,
+                                EndDate = null
+                            });
+                        }
 
                         // Dicionário para mapear quem é pai de quem
                         var parentMap = new Dictionary<int, ModuleComponent>();

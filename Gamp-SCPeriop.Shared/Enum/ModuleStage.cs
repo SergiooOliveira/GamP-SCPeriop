@@ -11,6 +11,6 @@ namespace GamP_SCPeriop.Shared.Enum
         ObservacaoParticipada = 3,
         PraticaAssistida = 4,
         PraticaSupervisionada = 5,
-        Avaliacao = 6
+        //Avaliacao = 6
     }
 }

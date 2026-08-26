@@ -205,6 +205,9 @@ namespace GamP_SCPeriop.Server.Controllers
                 {
                     var existingTimeline = existingModule.StageTimelines?.FirstOrDefault(t => t.Stage == updatedTimeline.Stage);
 
+                    DateTime? safeStartDate = updatedTimeline.StartDate == default(DateTime) ? null : updatedTimeline.StartDate;
+                    DateTime? safeEndDate = updatedTimeline.EndDate == default(DateTime) ? null : updatedTimeline.EndDate;
+
                     if (existingTimeline != null)
                     {
                         existingTimeline.StartDate = updatedTimeline.StartDate;

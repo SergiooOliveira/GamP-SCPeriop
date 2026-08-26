@@ -130,7 +130,11 @@
 
                                         @{
                                             var activeTimeline = module.StageTimelines?.FirstOrDefault(t => t.Stage == currentStage);
-                                            bool isStageBlocked = activeTimeline == null || DateTime.Now.Date < activeTimeline.StartDate.Date;
+
+                                            // Só está bloqueado se existir, tiver um StartDate, e o dia de hoje for anterior
+                                            bool isStageBlocked = activeTimeline != null &&
+                                                                  activeTimeline.StartDate.HasValue &&
+                                                                  DateTime.Now.Date < activeTimeline.StartDate.Value.Date;
                                         }
 
                                         @if (activeTimeline != null)
@@ -139,7 +143,7 @@
                                                 @if (isStageBlocked)
                                                 {
                                                     <span class="badge bg-warning text-dark border border-warning bg-opacity-25 px-3 py-2">
-                                                        <i class="bi bi-lock-fill me-1"></i> Avaliação Bloqueada (Inicia a @activeTimeline.StartDate.ToString("dd/MM/yyyy"))
+                                                        <i class="bi bi-lock-fill me-1"></i> Avaliação Bloqueada (Inicia a @(activeTimeline.StartDate.Value.ToString("dd/MM/yyyy")))
                                                     </span>
                                                 }
                                                 else
@@ -147,7 +151,10 @@
                                                     <span></span>
                                                 }
                                                 <small class="text-muted fw-bold">
-                                                    <i class="bi bi-clock-history me-1"></i> Data Limite da Fase: <span class="text-dark">@activeTimeline.EndDate.ToString("dd/MM/yyyy")</span>
+                                                    <i class="bi bi-clock-history me-1"></i> Data Limite da Fase: 
+                                                        <span class="text-dark">
+                                                        @(activeTimeline.EndDate.HasValue ? activeTimeline.EndDate.Value.ToString("dd/MM/yyyy") : "N/D")
+                                                        </span>
                                                 </small>
                                             </div>
                                         }
@@ -278,7 +285,9 @@
 
                     // 1. Tenta encontrar a fase onde o 'hoje' encaixa
                     var currentTimeline = module.StageTimelines
-                        .FirstOrDefault(t => today >= t.StartDate.Date && today <= t.EndDate.Date);
+                        .FirstOrDefault(t => t.StartDate.HasValue && t.EndDate.HasValue &&
+                                             today >= t.StartDate.Value.Date &&
+                                             today <= t.EndDate.Value.Date);
 
                     if (currentTimeline != null)
                     {
@@ -287,8 +296,12 @@
                     else
                     {
                         // 2. Se já passou de todas as datas, tranca na última fase
-                        var lastTimeline = module.StageTimelines.OrderBy(t => t.EndDate).LastOrDefault();
-                        if (lastTimeline != null && today > lastTimeline.EndDate.Date)
+                        var lastTimeline = module.StageTimelines
+                            .Where(t => t.EndDate.HasValue)
+                            .OrderBy(t => t.EndDate.Value)
+                            .LastOrDefault();
+
+                        if (lastTimeline != null && today > lastTimeline.EndDate.Value.Date)
                         {
                             actualStage = lastTimeline.Stage;
                         }
