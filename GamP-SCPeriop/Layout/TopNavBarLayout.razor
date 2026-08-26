@@ -8,6 +8,7 @@
 @inject AuthenticationStateProvider AuthStateProvider
 @inject NavigationManager Nav
 @inject HttpClient Http
+@implements IDisposable
 
 <AuthorizeView>
     <Authorized>
@@ -145,12 +146,10 @@
 
         if (tokenUser.Identity is not null && tokenUser.Identity.IsAuthenticated)
         {
-            // Procura o nome longo ou o nome comprimido ("nameid", "unique_name", "role")
             var userIdStr = tokenUser.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? tokenUser.FindFirst("nameid")?.Value;
             var userName = tokenUser.FindFirst(ClaimTypes.Name)?.Value ?? tokenUser.FindFirst("unique_name")?.Value;
             var userRoleStr = tokenUser.FindFirst(ClaimTypes.Role)?.Value ?? tokenUser.FindFirst("role")?.Value;
 
-            // TryParse evita o erro ArgumentNullException se a string vier vazia
             int.TryParse(userIdStr, out int parsedId);
 
             currentUser = new User
@@ -162,6 +161,24 @@
 
             await LoadNotifications();
         }
+
+        // 🔥 O SEGREDO: Escuta sempre que o utilizador muda de página
+        Nav.LocationChanged += HandleLocationChanged;
+    }
+
+    // Método que é disparado sempre que a rota muda
+    private void HandleLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        // InvokeAsync garante que o ecrã percebe que tem de ser redesenhado
+        InvokeAsync(async () =>
+        {
+            isDropdownOpen = false;
+            isNotificationOpen = false;
+
+            await LoadNotifications();
+
+            StateHasChanged();
+        });
     }
 
     private async Task LoadNotifications()
@@ -170,7 +187,9 @@
         {
             if (currentUser != null)
             {
-                notifications = await Http.GetFromJsonAsync<List<NotificationDto>>($"api/Notification/user/{currentUser.Id}");
+                // O '?t=...' destrói qualquer tentativa de cache do browser!
+                notifications = await Http.GetFromJsonAsync<List<NotificationDto>>(
+                    $"api/Notification/user/{currentUser.Id}?t={DateTime.UtcNow.Ticks}");
             }
         }
         catch (Exception ex)
@@ -179,11 +198,10 @@
         }
     }
 
-    // --- MÉTODOS DO MENU NOTIFICAÇÕES ---
     private void ToggleNotificationDropdown()
     {
         isNotificationOpen = !isNotificationOpen;
-        if (isNotificationOpen) isDropdownOpen = false; // Fecha o outro menu se estiver aberto
+        if (isNotificationOpen) isDropdownOpen = false;
     }
 
     private void CloseNotificationDropdown()
@@ -193,7 +211,6 @@
 
     private async Task HandleNotificationClick(NotificationDto notif)
     {
-        // 1. Marca como lida na base de dados se ainda não estiver
         if (!notif.IsRead)
         {
             try
@@ -201,7 +218,7 @@
                 var response = await Http.PutAsync($"api/Notification/{notif.Id}/read", null);
                 if (response.IsSuccessStatusCode)
                 {
-                    notif.IsRead = true; // Atualiza a UI instantaneamente
+                    notif.IsRead = true;
                 }
             }
             catch (Exception ex)
@@ -210,7 +227,6 @@
             }
         }
 
-        // 2. Fecha o menu e redireciona
         CloseNotificationDropdown();
 
         if (!string.IsNullOrWhiteSpace(notif.TargetUrl))
@@ -219,11 +235,10 @@
         }
     }
 
-    // --- MÉTODOS DA USER PILL (O teu código original) ---
     private void ToggleDropdown()
     {
         isDropdownOpen = !isDropdownOpen;
-        if (isDropdownOpen) isNotificationOpen = false; // Fecha as notificações se estiverem abertas
+        if (isDropdownOpen) isNotificationOpen = false;
     }
 
     private void CloseDropdown()
@@ -233,11 +248,14 @@
 
     private async Task Logout()
     {
-        // 1. Avisamos o sistema central para destruir a sessão
         var customAuthStateProvider = (CustomAuthStateProvider)AuthStateProvider;
         await customAuthStateProvider.LogoutAsync();
-
-        // 2. Voltamos à página inicial (Landing Page)
         Nav.NavigateTo("/", forceLoad: true);
+    }
+
+    // É obrigatório remover o listener quando o layout for destruído para não causar memory leaks
+    public void Dispose()
+    {
+        Nav.LocationChanged -= HandleLocationChanged;
     }
 }

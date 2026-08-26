@@ -115,6 +115,7 @@
                                                         <input type="date" class="form-control form-control-sm border-0 text-center text-muted fw-semibold p-0 shadow-none"
                                                                style="width: 100px; font-size: 0.75rem; background: transparent;"
                                                                value="@(timeline.EndDate?.ToString("yyyy-MM-dd") ?? "")"
+                                                               min="@(timeline.StartDate?.ToString("yyyy-MM-dd") ?? "")"
                                                                @onchange="(e) => HandleDateChange(mod.Id, stageInfo.Stage, e.Value?.ToString(), false)"
                                                                title="Data de Fim" />
                                                     </div>
