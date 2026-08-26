@@ -19,13 +19,11 @@
         <h5 class="fw-bold text-primary mb-0">Gestão de Módulos</h5>
 
         <div class="d-flex gap-2">
-            <!-- Novo Botão de Pesos (Visível se não for Template) -->
-            @if (CurrentMode != BuilderMode.Template)
-            {
-                <button class="btn btn-outline-primary shadow-sm fw-bold d-flex align-items-center" @onclick="OpenWeightModal">
-                    <i class="bi bi-sliders me-2"></i> Editar Pesos
-                </button>
-            }
+            <!-- Novo Botão de Pesos -->
+
+            <button class="btn btn-outline-primary shadow-sm fw-bold d-flex align-items-center" @onclick="OpenWeightModal">
+                <i class="bi bi-sliders me-2"></i> Editar Pesos
+            </button>
 
             <AuthorizeView Roles="Admin">
                 <Authorized>
@@ -52,15 +50,12 @@
                             <i class="bi bi-folder2-open text-primary me-3 fs-5"></i> @mod.Title
                         </button>
 
-                        <!-- PESO (Escondido se for Template) -->
-                        @if (CurrentMode != BuilderMode.Template)
-                        {
-                            <div class="d-flex align-items-center border-end pe-3 me-3 flex-shrink-0" @onclick:stopPropagation="true">
-                                <span class="badge bg-secondary bg-opacity-10 text-secondary border px-3 py-2" style="font-size: 0.85rem;">
-                                    Peso: <strong class="ms-1 text-dark">@mod.Weight%</strong>
-                                </span>
-                            </div>
-                        }
+                        <!-- PESO -->
+                        <div class="d-flex align-items-center border-end pe-3 me-3 flex-shrink-0" @onclick:stopPropagation="true">
+                            <span class="badge bg-secondary bg-opacity-10 text-secondary border px-3 py-2" style="font-size: 0.85rem;">
+                                Peso: <strong class="ms-1 text-dark">@mod.Weight%</strong>
+                            </span>
+                        </div>
 
                         <div class="d-flex align-items-center gap-3 flex-shrink-0">
                             @if (CurrentMode == BuilderMode.Template || !mod.IsFromTemplate)
@@ -81,7 +76,7 @@
                             <div class="list-group list-group-flush">
                                 @foreach (var stageInfo in stagesToRender)
                                 {
-                                    var count = mod.Components.Count(c => c.Stage == stageInfo.Stage);
+                                    var count = mod.Components?.Count(c => c.Stage == stageInfo.Stage) ?? 0;
 
                                     <div class="list-group-item d-flex flex-column border-0 border-bottom p-0" style="background-color: #f8f9fa;">
                                         <div class="d-flex justify-content-between align-items-center px-4 py-3">
@@ -396,7 +391,7 @@
                                                 <span class="fw-semibold text-dark text-wrap" style="font-size: 0.95rem;">@child.Title</span>
                                             </div>
 
-                                            @if (CurrentMode != BuilderMode.Template && activeModalStage.Value.Stage != ModuleStage.Teorica)
+                                            @if (activeModalStage.Value.Stage != ModuleStage.Teorica)
                                             {
                                                 <div class="d-flex align-items-center gap-1 me-2 pe-2">
                                                     <span class="badge bg-secondary bg-opacity-10 text-secondary" style="font-size: 0.7rem;">@child.Weight%</span>
@@ -658,6 +653,7 @@
     [Parameter] public List<BuilderModuleDto> Modules { get; set; } = new();
     [Parameter] public EventCallback OnOpenBadges { get; set; }
     [Parameter] public BuilderMode CurrentMode { get; set; } = BuilderMode.Geral;
+    [Parameter] public bool IsTemplateMode { get; set; }
 
     [Parameter] public EventCallback<(string Title, float Weight, List<DraftParent> Drafts)> OnCreateAdvancedModule { get; set; }
     [Parameter] public EventCallback<int> OnDeleteModule { get; set; }
@@ -913,6 +909,9 @@
     private async Task SaveAdvancedModule()
     {
         if (string.IsNullOrWhiteSpace(advancedModuleTitle)) return;
+
+        ApplyWeightDistribution();
+
         isSavingModal = true;
         await OnCreateAdvancedModule.InvokeAsync((advancedModuleTitle, advancedModuleWeight, drafts));
         isSavingModal = false;
@@ -1061,6 +1060,58 @@
 
         isSavingModal = false;
         isEditMode = false;
+    }
+
+    private void ApplyWeightDistribution()
+    {
+        // 1. Processar os Pais (Grupos/Tarefas Principais)
+        var validParents = drafts.Where(p => !string.IsNullOrWhiteSpace(p.Text)).ToList();
+        if (validParents.Any())
+        {
+            var emptyParents = validParents.Where(p => p.Weight <= 0).ToList();
+            float sumParents = validParents.Sum(p => p.Weight);
+
+            // Se houver vazios e a soma for menor que 100 (cobre a Regra 2 e a Regra 3)
+            if (emptyParents.Any() && sumParents < 100)
+            {
+                float remainder = 100f - sumParents;
+                float split = (float)Math.Round(remainder / emptyParents.Count, 2);
+
+                for (int i = 0; i < emptyParents.Count; i++)
+                {
+                    // O último elemento recebe o remanescente exato para garantir os 100% redondos
+                    if (i == emptyParents.Count - 1)
+                        emptyParents[i].Weight = (float)Math.Round(remainder - (split * i), 2);
+                    else
+                        emptyParents[i].Weight = split;
+                }
+            }
+
+            // 2. Processar os Filhos (Sub-parâmetros) dentro de cada Pai
+            foreach (var parent in validParents)
+            {
+                var validChildren = parent.Children.Where(c => !string.IsNullOrWhiteSpace(c.Text)).ToList();
+                if (validChildren.Any())
+                {
+                    var emptyChildren = validChildren.Where(c => c.Weight <= 0).ToList();
+                    float sumChildren = validChildren.Sum(c => c.Weight);
+
+                    if (emptyChildren.Any() && sumChildren < 100)
+                    {
+                        float remainderChildren = 100f - sumChildren;
+                        float splitChildren = (float)Math.Round(remainderChildren / emptyChildren.Count, 2);
+
+                        for (int i = 0; i < emptyChildren.Count; i++)
+                        {
+                            if (i == emptyChildren.Count - 1)
+                                emptyChildren[i].Weight = (float)Math.Round(remainderChildren - (splitChildren * i), 2);
+                            else
+                                emptyChildren[i].Weight = splitChildren;
+                        }
+                    }
+                }
+            }
+        }
     }
 
     #endregion

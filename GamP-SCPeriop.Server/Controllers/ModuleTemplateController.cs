@@ -60,5 +60,27 @@ namespace GamP_SCPeriop.Server.Controllers
 
             return Ok(template);
         }
+
+        [HttpPut("{id}")]
+        public async Task<IActionResult> UpdateModuleTemplate(int id, ModuleTemplate updatedTemplate)
+        {
+            if (id != updatedTemplate.Id)
+                return BadRequest("O ID da rota não corresponde ao ID do objeto.");
+
+            // Vai procurar o módulo existente à base de dados
+            var existingTemplate = await _context.ModuleTemplates.FindAsync(id);
+
+            if (existingTemplate == null)
+                return NotFound("Módulo não encontrado.");
+
+            // Atualiza apenas os campos que interessam (protege o resto da estrutura)
+            existingTemplate.Title = updatedTemplate.Title;
+            existingTemplate.Weight = updatedTemplate.Weight;
+
+            // Guarda as alterações
+            await _context.SaveChangesAsync();
+
+            return NoContent(); // Retorna 204 (Sucesso, sem conteúdo para devolver)
+        }
     }
 }

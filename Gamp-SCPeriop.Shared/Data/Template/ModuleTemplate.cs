@@ -11,6 +11,8 @@ namespace GamP_SCPeriop.Shared.Data.Template
         // Chave Estrangeira para o PathwayTemplate
         public int PathwayTemplateId { get; set; }
 
+        public float Weight { get; set; }
+
         [JsonIgnore]
         public PathwayTemplate? PathwayTemplate { get; set; }
 

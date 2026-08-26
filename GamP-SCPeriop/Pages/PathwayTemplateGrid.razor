@@ -7,6 +7,7 @@
 @using GamP_SCPeriop.Shared.Entity.Model
 @using GamP_SCPeriop.Components
 @using GamP_SCPeriop.Shared.Enum
+@using GamP_SCPeriop.Helpers
 
 <div class="max-width-container container-fluid mt-4">
     
@@ -108,9 +109,11 @@
         <PathwayBuilderComponent 
             PathwayTemplateId="@activeTemplate.Id"
             IsTemplateMode="@true"
+            CurrentMode="BuilderMode.Template"
             ParentTitle="@activeTemplate.Title"
             Modules="@BuilderModules"
-            OnCreateModule="CreateModuleFromBuilder"
+            OnUpdateBulkModuleWeights="SaveBulkModuleWeightsFromBuilder"
+            OnCreateAdvancedModule="CreateAdvancedModuleFromBuilder"
             OnDeleteModule="DeleteActiveModule"
             OnSaveRapidStructureEvent="SaveRapidStructureFromBuilder"
             OnSaveTheoreticalEvent="SaveTheoreticalFromBuilder"
@@ -177,6 +180,7 @@
     #endregion
 
     #region [ Variáveis de Estado do Construtor ]
+
     private PathwayTemplate? activeTemplate;
 
     // TRADUTOR: Converte os ModuleTemplates da BD para o formato visual que o Motor precisa
@@ -184,7 +188,7 @@
     {
         Id = m.Id,
         Title = m.Title,
-        Weight = 0, // Ignorado no Template
+        Weight = m.Weight, // Ignorado no Template
         StageTimelines = new(), // Ignorado no Template
         Components = m.ComponentTemplates?.Select(c => new BuilderComponentDto
         {
@@ -197,6 +201,7 @@
             PdfFilePath = c.PdfFilePath
         }).ToList() ?? new List<BuilderComponentDto>()
     }).ToList() ?? new List<BuilderModuleDto>();
+
     #endregion
 
     protected override async Task OnInitializedAsync()
@@ -217,6 +222,7 @@
     }
 
     #region [ Gestão da Lista e Modal Criar ]
+
     private void CreateNewTemplate() { newTemplate = new PathwayTemplate(); showCreateModal = true; }
     private void CloseCreateModal() { showCreateModal = false; }
 
@@ -240,6 +246,7 @@
         var response = await Http.DeleteAsync($"api/PathwayTemplate/{id}");
         if (response.IsSuccessStatusCode) await LoadTemplatesList();
     }
+
     #endregion
 
     #region [ Gestão do Construtor Ativo (Comunicação com o Motor) ]
@@ -265,12 +272,99 @@
         StateHasChanged();
     }
 
-    private async Task CreateModuleFromBuilder(string title)
+    private async Task SaveBulkModuleWeightsFromBuilder(List<BuilderModuleDto> updatedModules)
     {
-        // 1. Criar o objeto para a API (Assumindo que tens uma rota POST api/ModuleTemplate)
-        var newMod = new ModuleTemplate { Title = title, PathwayTemplateId = activeTemplate!.Id };
-        await Http.PostAsJsonAsync("api/ModuleTemplate", newMod);
-        await LoadActiveTemplate(activeTemplate.Id); // Recarrega os dados visuais
+        bool hasChanges = false;
+
+        foreach (var mod in updatedModules)
+        {
+            var dbMod = activeTemplate?.ModuleTemplates?.FirstOrDefault(m => m.Id == mod.Id);
+            if (dbMod != null && dbMod.Weight != mod.Weight)
+            {
+                hasChanges = true;
+
+                var cleanModule = new ModuleTemplate
+                {
+                    Id = dbMod.Id,
+                    Title = dbMod.Title,
+                    Weight = mod.Weight,
+                    PathwayTemplateId = activeTemplate!.Id
+                };
+
+                await Http.PutAsJsonAsync($"api/ModuleTemplate/{mod.Id}", cleanModule);
+            }
+        }
+
+        if (hasChanges)
+        {
+            await LoadActiveTemplate(activeTemplate!.Id);
+            StateHasChanged();
+        }
+    }
+
+    private async Task CreateAdvancedModuleFromBuilder((string Title, float Weight, List<PathwayBuilderComponent.DraftParent> Drafts) data)
+    {
+        if (string.IsNullOrWhiteSpace(data.Title) || activeTemplate == null) return;
+
+        // 1. Cria o Módulo Base (No template ignoramos o peso na BD, mas gravamos a estrutura)
+        var newMod = new ModuleTemplate
+        {
+            Title = data.Title,
+            PathwayTemplateId = activeTemplate.Id,
+            Weight = data.Weight
+        };
+
+        var moduleResponse = await Http.PostAsJsonAsync("api/ModuleTemplate", newMod);
+
+        if (moduleResponse.IsSuccessStatusCode)
+        {
+            var savedMod = await moduleResponse.Content.ReadFromJsonAsync<ModuleTemplate>();
+            if (savedMod != null)
+            {
+                // 2. A Mágica: Multiplica a estrutura definida no Modal pelas 4 fases práticas!
+                var practicalStages = ModuleStageHelper.GetTimelineStages();
+
+                foreach (var stage in practicalStages)
+                {
+                    foreach (var parentDraft in data.Drafts.Where(p => !string.IsNullOrWhiteSpace(p.Text)))
+                    {
+                        var dtoParent = new ComponentTemplate
+                        {
+                            ModuleTemplateId = savedMod.Id,
+                            Title = parentDraft.Text,
+                            Stage = stage,
+                            Weight = parentDraft.Weight
+                        };
+
+                        var responseParent = await Http.PostAsJsonAsync("api/ComponentTemplate", dtoParent);
+
+                        if (responseParent.IsSuccessStatusCode)
+                        {
+                            var savedParent = await responseParent.Content.ReadFromJsonAsync<ComponentTemplate>();
+                            if (savedParent != null)
+                            {
+                                foreach (var childDraft in parentDraft.Children.Where(f => !string.IsNullOrWhiteSpace(f.Text)))
+                                {
+                                    var dtoChild = new ComponentTemplate
+                                    {
+                                        ModuleTemplateId = savedMod.Id,
+                                        Title = childDraft.Text,
+                                        Stage = stage,
+                                        ParentComponentTemplateId = savedParent.Id,
+                                        Weight = childDraft.Weight
+                                    };
+                                    await Http.PostAsJsonAsync("api/ComponentTemplate", dtoChild);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Recarrega os dados visuais
+                await LoadActiveTemplate(activeTemplate.Id);
+                StateHasChanged();
+            }
+        }
     }
 
     private async Task DeleteActiveModule(int moduleId)
