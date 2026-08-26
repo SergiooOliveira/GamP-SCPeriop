@@ -15,5 +15,6 @@ namespace GamP_SCPeriop.Shared.Entity.Model
         public int? ParentComponentId { get; set; }
         public string? PdfFilePath { get; set; }
         public bool IsFromTemplate { get; set; }
+        public int OrderIndex { get; set; }
     }
 }

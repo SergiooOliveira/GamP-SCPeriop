@@ -54,6 +54,7 @@ namespace GamP_SCPeriop.Server.Controllers
             existingComponent.Description = updatedComponent.Description;
             existingComponent.PdfFilePath = updatedComponent.PdfFilePath ?? string.Empty;
             existingComponent.Weight = updatedComponent.Weight;
+            existingComponent.OrderIndex = updatedComponent.OrderIndex;
 
             await _context.SaveChangesAsync();
             return NoContent();

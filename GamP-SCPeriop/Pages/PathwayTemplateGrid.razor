@@ -199,7 +199,7 @@
             Weight = c.Weight, // Ignorado no Template
             ParentComponentId = c.ParentComponentTemplateId,
             PdfFilePath = c.PdfFilePath
-        }).ToList() ?? new List<BuilderComponentDto>()
+        }).OrderBy(c => c.OrderIndex).ToList() ?? new List<BuilderComponentDto>()
     }).ToList() ?? new List<BuilderModuleDto>();
 
     #endregion
@@ -433,7 +433,8 @@
                 Id = comp.Id,
                 Title = comp.Title,
                 Weight = comp.Weight,
-                Description = comp.Description
+                Description = comp.Description,
+                OrderIndex = comp.OrderIndex
             };
             await Http.PutAsJsonAsync($"api/ComponentTemplate/{comp.Id}", dummyComp);
         }

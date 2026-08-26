@@ -52,7 +52,7 @@ namespace GamP_SCPeriop.Server.Controllers
                         var newModule = new Module
                         {
                             Title = modTpl.Title,
-                            Weight = 1,
+                            Weight = modTpl.Weight,
                             Components = new List<ModuleComponent>(),
                             IsFromTemplate = true,
                             StageTimelines = new List<ModuleStageTimelineDto>()

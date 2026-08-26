@@ -144,7 +144,7 @@
             ParentComponentId = c.ParentComponentId,
             PdfFilePath = c.PdfFilePath,
             IsFromTemplate = c.IsFromTemplate
-        }).ToList() ?? new List<BuilderComponentDto>()
+        }).OrderBy(c => c.OrderIndex).ToList() ?? new List<BuilderComponentDto>()
     }).ToList();
 
     #endregion
@@ -576,6 +576,7 @@
             {
                 dbComp.Title = comp.Title;
                 dbComp.Weight = comp.Weight;
+                dbComp.OrderIndex = comp.OrderIndex;
                 await Http.PutAsJsonAsync($"api/ModuleComponent/{comp.Id}", dbComp);
             }
         }

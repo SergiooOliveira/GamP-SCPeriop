@@ -13,7 +13,7 @@ namespace GamP_SCPeriop.Shared.Data
         public ModuleStage Stage { get; set; }
         public float Weight { get; set; } = 1;
         public bool IsFromTemplate { get; set; }
-
+        public int OrderIndex { get; set; } = 0;
         public int? ParentComponentId { get; set; }
         public ModuleComponent? ParentComponent { get; set; }
         public List<ModuleComponent> SubComponents { get; set; } = new();
@@ -22,5 +22,6 @@ namespace GamP_SCPeriop.Shared.Data
         public ComponentStatus Status { get; set; } = ComponentStatus.Pending;
 
         public Module? Module { get; set; }
+
     }
 }

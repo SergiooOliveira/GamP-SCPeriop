@@ -13,8 +13,8 @@ namespace GamP_SCPeriop.Shared.Data.Template
         // A fase a que pertence (Observação, Prática, etc.)
         public ModuleStage Stage { get; set; }
 
-        public float Weight { get; set; } = 1; // Para o cálculo de percentagens do teu print
-
+        public float Weight { get; set; } = 1;
+        public int OrderIndex { get; set; } = 0;
         public string? PdfFilePath { get; set; }
 
         // Chave Estrangeira para o Módulo

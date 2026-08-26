@@ -20,7 +20,6 @@
 
         <div class="d-flex gap-2">
             <!-- Novo Botão de Pesos -->
-
             <button class="btn btn-outline-primary shadow-sm fw-bold d-flex align-items-center" @onclick="OpenWeightModal">
                 <i class="bi bi-sliders me-2"></i> Editar Pesos
             </button>
@@ -255,6 +254,7 @@
                                 @if (editModeDeletedIds.Contains(comp.Id)) continue;
 
                                 var children = stageComponents.Where(c => c.ParentComponentId == comp.Id).ToList();
+                                var hasAdminChildren = children.Any(c => c.IsFromTemplate);
 
                                 @if (isEditMode)
                                 {
@@ -268,7 +268,6 @@
 
                                                 @if (activeModalStage.Value.Stage == ModuleStage.Teorica)
                                                 {
-                                                    <!-- Removido o disabled -->
                                                     <textarea class="form-control form-control-sm text-muted mb-1" rows="2" placeholder="Descrição ou instruções..." @bind="comp.Description"></textarea>
                                                     <input class="form-control form-control-sm text-muted" placeholder="Link do Documento..." @bind="comp.PdfFilePath" />
                                                 }
@@ -277,7 +276,9 @@
                                             @if (activeModalStage.Value.Stage != ModuleStage.Teorica)
                                             {
                                                 <div class="input-group input-group-sm mx-2 flex-shrink-0" style="width: 80px;">
-                                                    <input type="text" inputmode="numeric" class="form-control text-center px-1" style="width: 30px;" @bind="comp.Weight" />
+                                                    <input type="text" inputmode="numeric" class="form-control text-center px-1" style="width: 30px;" 
+                                                            @bind="comp.Weight" 
+                                                            disabled="@(CurrentMode != BuilderMode.Template && comp.IsFromTemplate)" />
                                                     <span class="input-group-text px-1">%</span>
                                                 </div>
                                             }
@@ -300,19 +301,49 @@
 
                                                 @if (activeModalStage.Value.Stage != ModuleStage.Teorica)
                                                 {
-                                                    <div class="input-group input-group-sm mx-2 flex-shrink-0" style="width: 80px;">
-                                                        <input type="text" inputmode="numeric" class="form-control text-center px-1" style="width: 30px;" @bind="child.Weight" />
+                                                    if (CurrentMode == BuilderMode.Template || !hasAdminChildren)
+                                                    {
+                                                        <!-- Permite edição normal das percentagens -->
+                                                        <div class="input-group input-group-sm mx-2 flex-shrink-0" style="width: 80px;">
+                                                            <input type="text" inputmode="numeric" class="form-control text-center px-1" style="width: 30px;" @bind="child.Weight" disabled="@(CurrentMode != BuilderMode.Template && child.IsFromTemplate)" />
+                                                            <span class="input-group-text px-1">%</span>
+                                                        </div>
+                                                    }
+                                                    else
+                                                    {
+                                                        <!-- PARÂMETRO BLINDADO PELO ADMIN -->
+                                                        @if (child.IsFromTemplate)
+                                                        {
+                                                            <!-- Regra oficial do Admin (Mostra trancado) -->
+                                                            <div class="input-group input-group-sm mx-2 flex-shrink-0" style="width: 80px;">
+                                                                <input type="text" inputmode="numeric" class="form-control text-center px-1" style="width: 30px;" @bind="child.Weight" disabled="true" />
+                                                                <span class="input-group-text px-1">%</span>
+                                                            </div>
+                                                        }
+                                                        else
+                                                        {
+                                                            <!-- Adição do Professor (Mostra para sempre o Badge Descritivo) -->
+                                                            <div class="ms-2 flex-shrink-0">
+                                                                <span class="badge bg-light text-secondary border px-2 py-1">0% (Descritivo)</span>
+                                                            </div>
+                                                        }
+                                                    }
+                                                    
+                                                    @* <div class="input-group input-group-sm mx-2 flex-shrink-0" style="width: 80px;">
+                                                        <input type="text" inputmode="numeric" class="form-control text-center px-1" style="width: 30px;" 
+                                                                @bind="child.Weight"
+                                                                disabled="@(CurrentMode != BuilderMode.Template && child.IsFromTemplate)" />
                                                         <span class="input-group-text px-1">%</span>
-                                                    </div>
+                                                    </div> *@
                                                 }
 
-                                                <!-- CORREÇÃO AQUI -->
                                                 @if (CurrentMode == BuilderMode.Template || !child.IsFromTemplate)
                                                 {
                                                     <button class="btn btn-link text-danger p-0 ms-1 flex-shrink-0" @onclick="() => editModeDeletedIds.Add(child.Id)"><i class="bi bi-x-lg fs-5"></i></button>
                                                 }
                                             </div>
                                         }
+
 
                                         <!-- MODO EDIÇÃO: Rascunho para Novos Filhos -->
                                         @if (editModeNewChildren.ContainsKey(comp.Id))
@@ -330,14 +361,25 @@
 
                                                     @if (!string.IsNullOrWhiteSpace(newChild.Text) && activeModalStage.Value.Stage != ModuleStage.Teorica)
                                                     {
-                                                        <div class="input-group input-group-sm mx-2 flex-shrink-0" style="width: 80px;">
-                                                            <input type="text" inputmode="numeric" class="form-control text-center px-1" @bind="newChild.Weight" />
-                                                            <span class="input-group-text px-1">%</span>
-                                                        </div>
+                                                        if (CurrentMode == BuilderMode.Template || !hasAdminChildren)
+                                                        {
+                                                            <div class="input-group input-group-sm mx-2 flex-shrink-0" style="width: 80px;">
+                                                                <input type="text" inputmode="numeric" class="form-control text-center px-1" @bind="newChild.Weight" />
+                                                                <span class="input-group-text px-1">%</span>
+                                                            </div>
+                                                        }
+                                                        else
+                                                        {
+                                                            <div class="ms-2 flex-shrink-0">
+                                                                <span class="badge bg-light text-secondary border px-2 py-1">0% (Descritivo)</span>
+                                                            </div>
+                                                        }
                                                     }
                                                 </div>
                                             }
                                         }
+
+
                                     </div>
                                 }
                                 else
@@ -385,16 +427,38 @@
 
                                     @foreach (var child in children)
                                     {
-                                        <div class="list-group-item d-flex justify-content-between align-items-center py-2 border-0 border-bottom ms-4">
+                                        bool isDescriptive = child.Weight == 0;
+
+                                        <div class="list-group-item d-flex justify-content-between align-items-center py-2 border-0 border-bottom @(isDescriptive ? "ms-5" : "ms-4")">
                                             <div class="d-flex align-items-center pe-3 flex-grow-1">
-                                                <i class="bi bi-arrow-return-right text-secondary fs-6 me-3 flex-shrink-0"></i>
-                                                <span class="fw-semibold text-dark text-wrap" style="font-size: 0.95rem;">@child.Title</span>
+                                                @if (isDescriptive)
+                                                {
+                                                    <!-- Design Escuro + Seta Diferente para os Descritivos -->
+                                                    <i class="bi bi-chevron-right text-dark fs-6 me-3 flex-shrink-0"></i>
+                                                    <span class="text-dark text-wrap" style="font-size: 0.90rem;">@child.Title</span>
+                                                }
+                                                else
+                                                {
+                                                    <!-- Design Normal para os Oficiais (Avaliados) -->
+                                                    <i class="bi bi-arrow-return-right text-secondary fs-6 me-3 flex-shrink-0"></i>
+                                                    <span class="fw-semibold text-dark text-wrap" style="font-size: 0.95rem;">@child.Title</span>
+                                                }
                                             </div>
 
                                             @if (activeModalStage.Value.Stage != ModuleStage.Teorica)
                                             {
                                                 <div class="d-flex align-items-center gap-1 me-2 pe-2">
-                                                    <span class="badge bg-secondary bg-opacity-10 text-secondary" style="font-size: 0.7rem;">@child.Weight%</span>
+                                                    @if (isDescriptive)
+                                                    {
+                                                        <!-- Pílula Escura a destacar que é apenas Descritivo -->
+                                                        <span class="badge bg-dark text-white px-2 py-1 shadow-sm" style="font-size: 0.7rem;">
+                                                            <i class="bi bi-info-circle me-1"></i>Descritivo
+                                                        </span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="badge bg-secondary bg-opacity-10 text-secondary" style="font-size: 0.7rem;">@child.Weight%</span>
+                                                    }
                                                 </div>
                                             }
                                         </div>
@@ -1025,6 +1089,44 @@
                 var existingChildren = componentsToUpdate.Where(c => c.ParentComponentId == parent.Id).ToList();
                 var newChildren = editModeNewChildren.ContainsKey(parent.Id) ? editModeNewChildren[parent.Id].Where(c => !string.IsNullOrWhiteSpace(c.Text)).ToList() : new();
 
+                bool hasAdminChildren = existingChildren.Any(c => c.IsFromTemplate);
+
+                if (CurrentMode != BuilderMode.Template && hasAdminChildren)
+                {
+                    foreach (var nc in newChildren) nc.Weight = 0;
+                }
+                else if (activeModalStage.Value.Stage != ModuleStage.Teorica)
+                {
+                    // AUTO-DISTRIBUIÇÃO: Calcula e preenche as % de quem está a zeros
+                    var emptyExisting = existingChildren.Where(c => c.Weight <= 0).ToList();
+                    var emptyNew = newChildren.Where(c => c.Weight <= 0).ToList();
+                    int totalEmptyCount = emptyExisting.Count + emptyNew.Count;
+
+                    float currentSum = existingChildren.Sum(c => c.Weight) + newChildren.Sum(c => c.Weight);
+
+                    if (totalEmptyCount > 0 && currentSum < 100)
+                    {
+                        float remainder = 100f - currentSum;
+                        float split = (float)Math.Round(remainder / totalEmptyCount, 2);
+
+                        int currentIndex = 0;
+
+                        // Distribui pelos existentes que foram postos a 0
+                        foreach (var child in emptyExisting)
+                        {
+                            child.Weight = (currentIndex == totalEmptyCount - 1) ? (float)Math.Round(remainder - (split * currentIndex), 2) : split;
+                            currentIndex++;
+                        }
+
+                        // Distribui pelos novos rascunhos que estão a 0
+                        foreach (var nc in emptyNew)
+                        {
+                            nc.Weight = (currentIndex == totalEmptyCount - 1) ? (float)Math.Round(remainder - (split * currentIndex), 2) : split;
+                            currentIndex++;
+                        }
+                    }
+                }
+
                 var totalWeight = existingChildren.Sum(c => c.Weight) + newChildren.Sum(c => c.Weight);
 
                 if ((existingChildren.Any() || newChildren.Any()) && totalWeight != 100)
@@ -1047,6 +1149,7 @@
         editModeDeletedIds.Clear();
 
         var newSubTasksDict = new Dictionary<int, List<(string Title, float Weight)>>();
+
         foreach (var kvp in editModeNewChildren)
         {
             // Se o pai foi apagado, não criamos os filhos dele
