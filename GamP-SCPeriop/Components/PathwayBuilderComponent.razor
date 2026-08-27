@@ -245,141 +245,165 @@
                         <div class="list-group mb-4 shadow-sm" style="border-radius: 8px;">
                             @{
                                 var stageComponents = activeModalModule.Components.Where(c => c.Stage == activeModalStage.Value.Stage).ToList();
-                                var topLevel = stageComponents.Where(c => c.ParentComponentId == null).ToList();
+                                var topLevel = stageComponents.Where(c => c.ParentComponentId == null).OrderBy(c => c.OrderIndex).ToList();
                             }
 
                             @foreach (var comp in topLevel)
                             {
                                 // Salta a renderização se tiver sido "apagado" temporariamente no modo edição
-                                @if (editModeDeletedIds.Contains(comp.Id)) continue;
+                                if (editModeDeletedIds.Contains(comp.Id)) continue;
 
-                                var children = stageComponents.Where(c => c.ParentComponentId == comp.Id).ToList();
+                                var children = stageComponents.Where(c => c.ParentComponentId == comp.Id).OrderBy(c => c.OrderIndex).ToList();
                                 var hasAdminChildren = children.Any(c => c.IsFromTemplate);
 
-                                @if (isEditMode)
+                                if (isEditMode)
                                 {
-                                    <div class="mb-3">
-                                        <!-- MODO EDIÇÃO: Pai -->
-                                        <div class="d-flex align-items-start mb-2">
-                                            <div class="flex-grow-1">
-                                                <!-- Removido o disabled -->
-                                                <input type="text" class="form-control border-success fw-bold mb-1" @bind="comp.Title" />
-                                                @* <span class="badge bg-dark">Template: @comp.IsFromTemplate</span> *@
+                                    <!-- MODO EDIÇÃO: Pai -->
+                                    bool isDraggingThisParent = draggingParentId == comp.Id && draggingChildId == null;
 
-                                                @if (activeModalStage.Value.Stage == ModuleStage.Teorica)
-                                                {
-                                                    <textarea class="form-control form-control-sm text-muted mb-1" rows="2" placeholder="Descrição ou instruções..." @bind="comp.Description"></textarea>
-                                                    <input class="form-control form-control-sm text-muted" placeholder="Link do Documento..." @bind="comp.PdfFilePath" />
-                                                }
-                                            </div>
+                                    <div @key="comp.Id" class="mb-3 p-2 rounded"
+                                         style="@(isDraggingThisParent ? "background-color: rgba(0,0,0,0.03); border: 2px dashed #adb5bd;" : "transition: all 0.2s ease;")"
+                                         @ondrop="HandleDrop"
+                                         ondragover="event.preventDefault();">
 
-                                            @if (activeModalStage.Value.Stage != ModuleStage.Teorica)
-                                            {
-                                                <div class="input-group input-group-sm mx-2 flex-shrink-0" style="width: 80px;">
-                                                    <input type="text" inputmode="numeric" class="form-control text-center px-1" style="width: 30px;" 
-                                                            @bind="comp.Weight" 
-                                                            disabled="@(CurrentMode != BuilderMode.Template && comp.IsFromTemplate)" />
-                                                    <span class="input-group-text px-1">%</span>
+                                        <!-- 1. CAPA FANTASMA: Reduzimos a opacidade em vez de a esconder totalmente -->
+                                        <div style="@(isDraggingThisParent ? "opacity: 0.4;" : "")">
+            
+                                            <!-- 2. NOVO ALVO DO PAI: O evento "ondragenter" está AGORA SÓ NO CABEÇALHO! -->
+                                            <div class="d-flex align-items-start mb-2" @ondragenter="@(() => HandleDragEnter(comp.Id))">
+                
+                                                <!-- 3. PEGA + PROTEÇÃO DE CANCELAMENTO: Adicionámos o @ondragend -->
+                                                <div draggable="true" 
+                                                     @ondragstart="() => HandleDragStart(comp.Id)" 
+                                                     @ondragend="ResetDrag"
+                                                     class="d-flex align-items-center justify-content-center me-2 pt-1" 
+                                                     style="cursor: grab;">
+                                                    <i class="bi bi-grip-vertical fs-5 text-muted hover-primary"></i>
                                                 </div>
-                                            }
 
-                                            <!-- SÓ APAGA SE FOR O TEMPLATE OU SE FOR UM PARÂMETRO NOVO DO ALUNO -->
-                                            @if (CurrentMode == BuilderMode.Template || !comp.IsFromTemplate)
-                                            {
-                                                <button class="btn btn-link text-danger p-0 ms-1 flex-shrink-0" @onclick="() => editModeDeletedIds.Add(comp.Id)"><i class="bi bi-x-lg fs-5"></i></button>
-                                            }
-                                        </div>
+                                                <div class="flex-grow-1">
+                                                    <input type="text" class="form-control border-success fw-bold mb-1 shadow-none" @bind="comp.Title" />
 
-                                        <!-- MODO EDIÇÃO: Filhos Existentes -->
-                                        @foreach (var child in children)
-                                        {
-                                            @if (editModeDeletedIds.Contains(child.Id)) continue;
-
-                                            <div class="d-flex align-items-center ms-4 mb-2">
-                                                <i class="bi bi-arrow-return-right text-muted me-2"></i>
-                                                <input type="text" class="form-control border-dark" @bind="child.Title" />
+                                                    @if (activeModalStage.Value.Stage == ModuleStage.Teorica)
+                                                    {
+                                                        <textarea class="form-control form-control-sm text-muted mb-1" rows="2" placeholder="Descrição ou instruções..." @bind="comp.Description"></textarea>
+                                                        <input class="form-control form-control-sm text-muted" placeholder="Link do Documento..." @bind="comp.PdfFilePath" />
+                                                    }
+                                                </div>
 
                                                 @if (activeModalStage.Value.Stage != ModuleStage.Teorica)
                                                 {
-                                                    if (CurrentMode == BuilderMode.Template || !hasAdminChildren)
-                                                    {
-                                                        <!-- Permite edição normal das percentagens -->
-                                                        <div class="input-group input-group-sm mx-2 flex-shrink-0" style="width: 80px;">
-                                                            <input type="text" inputmode="numeric" class="form-control text-center px-1" style="width: 30px;" @bind="child.Weight" disabled="@(CurrentMode != BuilderMode.Template && child.IsFromTemplate)" />
-                                                            <span class="input-group-text px-1">%</span>
-                                                        </div>
-                                                    }
-                                                    else
-                                                    {
-                                                        <!-- PARÂMETRO BLINDADO PELO ADMIN -->
-                                                        @if (child.IsFromTemplate)
-                                                        {
-                                                            <!-- Regra oficial do Admin (Mostra trancado) -->
-                                                            <div class="input-group input-group-sm mx-2 flex-shrink-0" style="width: 80px;">
-                                                                <input type="text" inputmode="numeric" class="form-control text-center px-1" style="width: 30px;" @bind="child.Weight" disabled="true" />
-                                                                <span class="input-group-text px-1">%</span>
-                                                            </div>
-                                                        }
-                                                        else
-                                                        {
-                                                            <!-- Adição do Professor (Mostra para sempre o Badge Descritivo) -->
-                                                            <div class="ms-2 flex-shrink-0">
-                                                                <span class="badge bg-light text-secondary border px-2 py-1">0% (Descritivo)</span>
-                                                            </div>
-                                                        }
-                                                    }
-                                                    
-                                                    @* <div class="input-group input-group-sm mx-2 flex-shrink-0" style="width: 80px;">
+                                                    <div class="input-group input-group-sm mx-2 flex-shrink-0" style="width: 80px;">
                                                         <input type="text" inputmode="numeric" class="form-control text-center px-1" style="width: 30px;" 
-                                                                @bind="child.Weight"
-                                                                disabled="@(CurrentMode != BuilderMode.Template && child.IsFromTemplate)" />
+                                                                @bind="comp.Weight" 
+                                                                disabled="@(CurrentMode != BuilderMode.Template && comp.IsFromTemplate)" />
                                                         <span class="input-group-text px-1">%</span>
-                                                    </div> *@
+                                                    </div>
                                                 }
 
-                                                @if (CurrentMode == BuilderMode.Template || !child.IsFromTemplate)
+                                                @if (CurrentMode == BuilderMode.Template || !comp.IsFromTemplate)
                                                 {
-                                                    <button class="btn btn-link text-danger p-0 ms-1 flex-shrink-0" @onclick="() => editModeDeletedIds.Add(child.Id)"><i class="bi bi-x-lg fs-5"></i></button>
+                                                    <button class="btn btn-link text-danger p-0 ms-1 flex-shrink-0" @onclick="() => editModeDeletedIds.Add(comp.Id)"><i class="bi bi-x-lg fs-5"></i></button>
                                                 }
                                             </div>
-                                        }
 
-
-                                        <!-- MODO EDIÇÃO: Rascunho para Novos Filhos -->
-                                        @if (editModeNewChildren.ContainsKey(comp.Id))
-                                        {
-                                            @foreach (var newChild in editModeNewChildren[comp.Id])
+                                            <!-- MODO EDIÇÃO: Filhos Existentes -->
+                                            @foreach (var child in children)
                                             {
-                                                <div class="d-flex align-items-center ms-4 mb-1">
-                                                    <i class="bi bi-arrow-return-right text-muted me-2"></i>
-                                                    <input type="text" class="form-control @(string.IsNullOrWhiteSpace(newChild.Text) ? "draft-empty" : "draft-filled-success")"
-                                                           placeholder="Adicionar novo sub-parâmetro..."
-                                                           style="@(string.IsNullOrWhiteSpace(newChild.Text) ? "border: 2px dashed #adb5bd !important; background-color: #f8f9fa;" : "border: 2px solid #198754;")"
-                                                           @bind="newChild.Text"
-                                                           @bind:event="oninput"
-                                                           @onkeyup="() => CheckEditModeChildrenState(comp.Id)" />
+                                                if (editModeDeletedIds.Contains(child.Id)) continue;
+                
+                                                bool isDraggingThisChild = draggingParentId == comp.Id && draggingChildId == child.Id;
 
-                                                    @if (!string.IsNullOrWhiteSpace(newChild.Text) && activeModalStage.Value.Stage != ModuleStage.Teorica)
-                                                    {
-                                                        if (CurrentMode == BuilderMode.Template || !hasAdminChildren)
+                                                <div @key="child.Id" class="ms-4 mb-2 p-1 rounded"
+                                                     style="@(isDraggingThisChild ? "background-color: rgba(0,0,0,0.03); border: 2px dashed #adb5bd;" : "transition: all 0.2s ease;")"
+                                                     @ondrop="HandleDrop"
+                                                     ondragover="event.preventDefault();"
+                                                     @ondragenter="@(() => HandleDragEnter(comp.Id, child.Id))">
+
+                                                    <!-- CAPA FANTASMA DO FILHO (0.4) -->
+                                                    <div class="d-flex align-items-center" style="@(isDraggingThisChild ? "opacity: 0.4;" : "")">
+                        
+                                                        <!-- PEGA DO FILHO + PROTEÇÃO DE CANCELAMENTO (@ondragend) -->
+                                                        <div draggable="true" 
+                                                             @ondragstart="() => HandleDragStart(comp.Id, child.Id)" 
+                                                             @ondragend="ResetDrag"
+                                                             class="me-1 d-flex" 
+                                                             style="cursor: grab;">
+                                                            <i class="bi bi-grip-vertical fs-5 text-muted"></i>
+                                                        </div>
+
+                                                        <i class="bi bi-arrow-return-right text-muted me-2"></i>
+                                                        <input type="text" class="form-control border-dark shadow-none" @bind="child.Title" />
+
+                                                        @if (activeModalStage.Value.Stage != ModuleStage.Teorica)
                                                         {
-                                                            <div class="input-group input-group-sm mx-2 flex-shrink-0" style="width: 80px;">
-                                                                <input type="text" inputmode="numeric" class="form-control text-center px-1" @bind="newChild.Weight" />
-                                                                <span class="input-group-text px-1">%</span>
-                                                            </div>
+                                                            if (CurrentMode == BuilderMode.Template || !hasAdminChildren)
+                                                            {
+                                                                <div class="input-group input-group-sm mx-2 flex-shrink-0" style="width: 80px;">
+                                                                    <input type="text" inputmode="numeric" class="form-control text-center px-1" style="width: 30px;" @bind="child.Weight" disabled="@(CurrentMode != BuilderMode.Template && child.IsFromTemplate)" />
+                                                                    <span class="input-group-text px-1">%</span>
+                                                                </div>
+                                                            }
+                                                            else
+                                                            {
+                                                                if (child.IsFromTemplate)
+                                                                {
+                                                                    <div class="input-group input-group-sm mx-2 flex-shrink-0" style="width: 80px;">
+                                                                        <input type="text" inputmode="numeric" class="form-control text-center px-1" style="width: 30px;" @bind="child.Weight" disabled="true" />
+                                                                        <span class="input-group-text px-1">%</span>
+                                                                    </div>
+                                                                }
+                                                                else
+                                                                {
+                                                                    <div class="ms-2 flex-shrink-0">
+                                                                        <span class="badge bg-light text-secondary border px-2 py-1">0% (Descritivo)</span>
+                                                                    </div>
+                                                                }
+                                                            }
                                                         }
-                                                        else
+
+                                                        @if (CurrentMode == BuilderMode.Template || !child.IsFromTemplate)
                                                         {
-                                                            <div class="ms-2 flex-shrink-0">
-                                                                <span class="badge bg-light text-secondary border px-2 py-1">0% (Descritivo)</span>
-                                                            </div>
+                                                            <button class="btn btn-link text-danger p-0 ms-1 flex-shrink-0" @onclick="() => editModeDeletedIds.Add(child.Id)"><i class="bi bi-x-lg fs-5"></i></button>
                                                         }
-                                                    }
+                                                    </div>
                                                 </div>
                                             }
-                                        }
 
+                                            <!-- MODO EDIÇÃO: Rascunho para Novos Filhos -->
+                                            @if (editModeNewChildren.ContainsKey(comp.Id))
+                                            {
+                                                foreach (var newChild in editModeNewChildren[comp.Id])
+                                                {
+                                                    <div class="d-flex align-items-center ms-4 mb-1">
+                                                        <i class="bi bi-arrow-return-right text-muted me-2"></i>
+                                                        <input type="text" class="form-control @(string.IsNullOrWhiteSpace(newChild.Text) ? "draft-empty" : "draft-filled-success")"
+                                                               placeholder="Adicionar novo sub-parâmetro..."
+                                                               style="@(string.IsNullOrWhiteSpace(newChild.Text) ? "border: 2px dashed #adb5bd !important; background-color: #f8f9fa;" : "border: 2px solid #198754;")"
+                                                               @bind="newChild.Text"
+                                                               @bind:event="oninput"
+                                                               @onkeyup="() => CheckEditModeChildrenState(comp.Id)" />
 
+                                                        @if (!string.IsNullOrWhiteSpace(newChild.Text) && activeModalStage.Value.Stage != ModuleStage.Teorica)
+                                                        {
+                                                            if (CurrentMode == BuilderMode.Template || !hasAdminChildren)
+                                                            {
+                                                                <div class="input-group input-group-sm mx-2 flex-shrink-0" style="width: 80px;">
+                                                                    <input type="text" inputmode="numeric" class="form-control text-center px-1" @bind="newChild.Weight" />
+                                                                    <span class="input-group-text px-1">%</span>
+                                                                </div>
+                                                            }
+                                                            else
+                                                            {
+                                                                <div class="ms-2 flex-shrink-0">
+                                                                    <span class="badge bg-light text-secondary border px-2 py-1">0% (Descritivo)</span>
+                                                                </div>
+                                                            }
+                                                        }
+                                                    </div>
+                                                }
+                                            }
+                                        </div>
                                     </div>
                                 }
                                 else
@@ -416,6 +440,7 @@
                                             {
                                                 <p class="text-muted small mb-2">@comp.Description</p>
                                             }
+
                                             @if (!string.IsNullOrWhiteSpace(comp.PdfFilePath))
                                             {
                                                 <a href="@comp.PdfFilePath" target="_blank" class="btn btn-sm btn-outline-danger mt-1">
@@ -1248,5 +1273,85 @@
         await OnUpdateBulkModuleWeights.InvokeAsync(updatedModules);
     }
 
+    #endregion
+
+    #region [ Drag & Drop (Ordenação) ]
+
+    // Memória de quem está a ser arrastado
+    private int? draggingParentId;
+    private int? draggingChildId;
+
+    private string? dropTargetId;
+
+    private void HandleDragStart(int parentId, int? childId = null)
+    {
+        draggingParentId = parentId;
+        draggingChildId = childId;
+    }
+
+    private void HandleDrop()
+    {        
+        ResetDrag();        
+    }
+
+    private void ReorderList(List<BuilderComponentDto> list, int draggedId, int targetId)
+    {
+        var draggedItem = list.FirstOrDefault(c => c.Id == draggedId);
+        var targetItem = list.FirstOrDefault(c => c.Id == targetId);
+
+        if (draggedItem == null || targetItem == null || draggedItem == targetItem) return;
+
+        int oldIndex = list.IndexOf(draggedItem);
+        int newIndex = list.IndexOf(targetItem);
+
+        list.RemoveAt(oldIndex);
+        list.Insert(newIndex, draggedItem);
+
+        for (int i = 0; i < list.Count; i++) list[i].OrderIndex = i;
+    }
+
+    private void ResetDrag()
+    {
+        draggingParentId = null;
+        draggingChildId = null;
+    }
+
+    private void HandleDragEnter(int targetParentId, int? targetChildId = null)
+    {
+        if (activeModalModule == null || !activeModalStage.HasValue || draggingParentId == null) return;
+
+        var stageComponents = activeModalModule.Components.Where(c => c.Stage == activeModalStage.Value.Stage).ToList();
+
+        if (draggingChildId.HasValue)
+        {
+            // O Segurança: Filhos só trocam de lugar com filhos do mesmo pai
+            if (draggingParentId != targetParentId || !targetChildId.HasValue || draggingChildId == targetChildId) return;
+
+            var children = stageComponents.Where(c => c.ParentComponentId == targetParentId).OrderBy(c => c.OrderIndex).ToList();
+            ReorderList(children, draggingChildId.Value, targetChildId.Value);
+        }
+        else
+        {
+            // O Segurança: Pais só trocam de lugar com outros pais
+            if (targetChildId.HasValue || draggingParentId == targetParentId) return;
+
+            var parents = stageComponents.Where(c => c.ParentComponentId == null).OrderBy(c => c.OrderIndex).ToList();
+            ReorderList(parents, draggingParentId.Value, targetParentId);
+        }
+    }
+
+    private void HandleDragLeave(string targetId)
+    {
+        if (dropTargetId == targetId) dropTargetId = null;
+    }
+
+    private string GetDropStyle(string id) =>
+        dropTargetId == id ? "border-style: dashed !important;" : "";
+
+    private string GetDraftStyle(string text) =>
+        string.IsNullOrWhiteSpace(text)
+            ? "border: 2px dashed #adb5bd !important; background-color: #f8f9fa;"
+            : "border: 2px solid #198754;";
+        
     #endregion
 }
