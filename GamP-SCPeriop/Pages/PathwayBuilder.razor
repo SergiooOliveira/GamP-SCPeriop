@@ -134,6 +134,7 @@
         Weight = m.Weight,
         StageTimelines = m.StageTimelines,
         IsFromTemplate = m.IsFromTemplate,
+        OrderIndex = m.OrderIndex,
         Components = m.Components?.Select(c => new BuilderComponentDto
         {
             Id = c.Id,
@@ -145,7 +146,7 @@
             PdfFilePath = c.PdfFilePath,
             IsFromTemplate = c.IsFromTemplate
         }).OrderBy(c => c.OrderIndex).ToList() ?? new List<BuilderComponentDto>()
-    }).ToList();
+    }).OrderBy(m => m.OrderIndex).ToList();
 
     #endregion
 

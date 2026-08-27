@@ -188,8 +188,9 @@
     {
         Id = m.Id,
         Title = m.Title,
-        Weight = m.Weight, // Ignorado no Template
-        StageTimelines = new(), // Ignorado no Template
+        Weight = m.Weight,
+        StageTimelines = new(),
+        OrderIndex = m.OrderIndex,
         Components = m.ComponentTemplates?.Select(c => new BuilderComponentDto
         {
             Id = c.Id,
@@ -201,7 +202,7 @@
             PdfFilePath = c.PdfFilePath,
             OrderIndex = c.OrderIndex
         }).OrderBy(c => c.OrderIndex).ToList() ?? new List<BuilderComponentDto>()
-    }).ToList() ?? new List<BuilderModuleDto>();
+    }).OrderBy(m => m.OrderIndex).OrderBy(m => m.OrderIndex).ToList() ?? new List<BuilderModuleDto>();
 
     #endregion
 

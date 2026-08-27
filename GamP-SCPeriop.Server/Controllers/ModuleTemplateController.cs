@@ -45,13 +45,11 @@ namespace GamP_SCPeriop.Server.Controllers
         }
 
         [HttpGet("{id}")]
-        public async Task<ActionResult<PathwayTemplate>> GetTemplate(int id)
+        public async Task<ActionResult<ModuleTemplate>> GetTemplate(int id)
         {
-            // A magia do Entity Framework: carrega o Molde, inclui os Módulos, e dentro dos Módulos inclui as Tarefas
-            var template = await _context.PathwayTemplates
-                .Include(p => p.ModuleTemplates)
-                    .ThenInclude(m => m.ComponentTemplates)
-                .FirstOrDefaultAsync(p => p.Id == id);
+            var template = await _context.ModuleTemplates
+                .Include(m => m.ComponentTemplates)
+                .FirstOrDefaultAsync(m => m.Id == id);
 
             if (template == null)
             {
@@ -76,6 +74,7 @@ namespace GamP_SCPeriop.Server.Controllers
             // Atualiza apenas os campos que interessam (protege o resto da estrutura)
             existingTemplate.Title = updatedTemplate.Title;
             existingTemplate.Weight = updatedTemplate.Weight;
+            existingTemplate.OrderIndex = updatedTemplate.OrderIndex;
 
             // Guarda as alterações
             await _context.SaveChangesAsync();

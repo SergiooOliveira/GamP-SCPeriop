@@ -1,3 +1,5 @@
+@using GamP_SCPeriop.Shared.Data
+@using GamP_SCPeriop.Shared.Data.Template
 @using GamP_SCPeriop.Shared.Entity.Model
 @using GamP_SCPeriop.Shared.Enum
 @inject HttpClient Http
@@ -40,96 +42,117 @@
             @foreach (var mod in Modules)
             {
                 var isExpanded = expandedModuleId == mod.Id;
+                bool isDraggingThisModule = draggingModuleId == mod.Id;
 
-                <div class="card border-0 shadow-sm mb-3" style="border-radius: 10px; overflow: hidden;">
-                    <!-- CABEÇALHO DO MÓDULO -->
-                    <div class="card-header bg-white border-0 p-0 d-flex align-items-center pe-4">
-                        <button class="btn btn-link text-decoration-none fw-bold text-dark text-start flex-grow-1 p-3 px-4 shadow-none"
-                                type="button" @onclick="() => ToggleModule(mod.Id)">
-                            <i class="bi bi-folder2-open text-primary me-3 fs-5"></i> @mod.Title
-                        </button>
+                <!-- CAIXA BASE: Onde acontece o ondragenter para a troca em tempo real -->
+                <div @key="mod.Id" class="mb-3 rounded"
+                     style="@(isDraggingThisModule ? "background-color: rgba(0,0,0,0.03); border: 2px dashed #adb5bd;" : "transition: all 0.2s ease;")"
+                     @ondrop="HandleModuleDrop"
+                     ondragover="event.preventDefault();"
+                     @ondragenter="@(() => HandleModuleDragEnter(mod.Id))">
 
-                        <!-- PESO -->
-                        <div class="d-flex align-items-center border-end pe-3 me-3 flex-shrink-0" @onclick:stopPropagation="true">
-                            <span class="badge bg-secondary bg-opacity-10 text-secondary border px-3 py-2" style="font-size: 0.85rem;">
-                                Peso: <strong class="ms-1 text-dark">@mod.Weight%</strong>
-                            </span>
-                        </div>
+                    <!-- CAPA FANTASMA (0.4 de opacidade se estiver a ser arrastado) -->
+                    <div class="card border-0 shadow-sm" style="border-radius: 10px; overflow: hidden; @(isDraggingThisModule ? "opacity: 0.4;" : "")">
+                    
+                        <!-- CABEÇALHO DO MÓDULO -->
+                        <div class="card-header bg-white border-0 p-0 d-flex align-items-center pe-4">
+                        
+                            <!-- PEGA (DRAG HANDLE) + Proteção ondragend -->
+                            <div draggable="true" 
+                                 @ondragstart="() => HandleModuleDragStart(mod.Id)" 
+                                 @ondragend="ResetModuleDrag"
+                                 class="d-flex align-items-center justify-content-center ps-4 pe-2" 
+                                 style="cursor: grab;">
+                                <i class="bi bi-grip-vertical fs-5 text-muted hover-primary"></i>
+                            </div>
 
-                        <div class="d-flex align-items-center gap-3 flex-shrink-0">
-                            @if (CurrentMode == BuilderMode.Template || !mod.IsFromTemplate)
-                            {
-                                <button class="btn btn-sm text-danger border-0 p-1 shadow-none" title="Eliminar Módulo"
-                                        @onclick="() => OnDeleteModule.InvokeAsync(mod.Id)" @onclick:stopPropagation="true">
-                                    <i class="bi bi-trash3 fs-5"></i>
-                                </button>
-                            }
-                            <i class="bi @(isExpanded ? "bi-chevron-up" : "bi-chevron-down") text-muted" style="cursor: pointer;" @onclick="() => ToggleModule(mod.Id)"></i>
-                        </div>
-                    </div>
+                            <!-- Botão de Toggle -->
+                            <button class="btn btn-link text-decoration-none fw-bold text-dark text-start flex-grow-1 py-3 pe-3 shadow-none"
+                                    type="button" @onclick="() => ToggleModule(mod.Id)">
+                                <i class="bi bi-folder2-open text-primary me-3 fs-5"></i> @mod.Title
+                            </button>
 
-                    <!-- CORPO DO MÓDULO (Fases) -->
-                    @if (isExpanded)
-                    {
-                        <div class="card-body p-0 border-top">
-                            <div class="list-group list-group-flush">
-                                @foreach (var stageInfo in stagesToRender)
+                            <!-- PESO -->
+                            <div class="d-flex align-items-center border-end pe-3 me-3 flex-shrink-0" @onclick:stopPropagation="true">
+                                <span class="badge bg-secondary bg-opacity-10 text-secondary border px-3 py-2" style="font-size: 0.85rem;">
+                                    Peso: <strong class="ms-1 text-dark">@mod.Weight%</strong>
+                                </span>
+                            </div>
+
+                            <div class="d-flex align-items-center gap-3 flex-shrink-0">
+                                @if (CurrentMode == BuilderMode.Template || !mod.IsFromTemplate)
                                 {
-                                    var count = mod.Components?.Count(c => c.Stage == stageInfo.Stage) ?? 0;
-
-                                    <div class="list-group-item d-flex flex-column border-0 border-bottom p-0" style="background-color: #f8f9fa;">
-                                        <div class="d-flex justify-content-between align-items-center px-4 py-3">
-
-                                            <!-- Botão que vai abrir o Modal -->
-                                            <button type="button" class="btn btn-link text-decoration-none p-0 d-flex align-items-center flex-grow-1 text-start shadow-none"
-                                                    @onclick="() => OpenStageModal(mod, stageInfo)">
-                                                <i class="bi @stageInfo.Icon me-3 text-secondary fs-5"></i>
-                                                <span class="fw-semibold text-dark">@stageInfo.Title</span>
-                                            </button>
-
-                                            <div class="d-flex align-items-center gap-2 flex-shrink-0">
-                                                <!-- DATAS / TIMELINE (Escondido se for Template ou Teórica) -->
-                                                @if (CurrentMode != BuilderMode.Template && stageInfo.Stage != ModuleStage.Teorica)
-                                                {
-                                                    var timeline = GetTimeline(mod, stageInfo.Stage);
-
-                                                    <!-- Cápsula compacta para as datas -->
-                                                    <div class="d-flex align-items-center bg-white border shadow-sm flex-nowrap me-2"
-                                                         style="border-radius: 8px; padding: 2px 6px;"
-                                                         @onclick:stopPropagation="true">
-
-                                                        <input type="date" class="form-control form-control-sm border-0 text-center text-muted fw-semibold p-0 shadow-none"
-                                                               style="width: 100px; font-size: 0.75rem; background: transparent;"
-                                                               value="@(timeline.StartDate?.ToString("yyyy-MM-dd") ?? "")"
-                                                               @onchange="(e) => HandleDateChange(mod.Id, stageInfo.Stage, e.Value?.ToString(), true)"
-                                                               title="Data de Início" />
-
-                                                        <i class="bi bi-arrow-right-short text-muted mx-1"></i>
-
-                                                        <input type="date" class="form-control form-control-sm border-0 text-center text-muted fw-semibold p-0 shadow-none"
-                                                               style="width: 100px; font-size: 0.75rem; background: transparent;"
-                                                               value="@(timeline.EndDate?.ToString("yyyy-MM-dd") ?? "")"
-                                                               min="@(timeline.StartDate?.ToString("yyyy-MM-dd") ?? "")"
-                                                               @onchange="(e) => HandleDateChange(mod.Id, stageInfo.Stage, e.Value?.ToString(), false)"
-                                                               title="Data de Fim" />
-                                                    </div>
-                                                }
-
-                                                @if (count > 0)
-                                                {
-                                                    <span class="badge bg-success bg-opacity-10 text-success rounded-pill px-3 py-1 border border-success border-opacity-25 flex-shrink-0">@count itens</span>
-                                                }
-                                                else
-                                                {
-                                                    <span class="badge bg-light text-muted border rounded-pill px-3 py-1 flex-shrink-0">Vazio</span>
-                                                }
-                                            </div>
-                                        </div>
-                                    </div>
+                                    <button class="btn btn-sm text-danger border-0 p-1 shadow-none" title="Eliminar Módulo"
+                                            @onclick="() => OnDeleteModule.InvokeAsync(mod.Id)" @onclick:stopPropagation="true">
+                                        <i class="bi bi-trash3 fs-5"></i>
+                                    </button>
                                 }
+                                <i class="bi @(isExpanded ? "bi-chevron-up" : "bi-chevron-down") text-muted" style="cursor: pointer;" @onclick="() => ToggleModule(mod.Id)"></i>
                             </div>
                         </div>
-                    }
+
+                        <!-- CORPO DO MÓDULO (Fases) -->
+                        @if (isExpanded)
+                        {
+                            <div class="card-body p-0 border-top">
+                                <div class="list-group list-group-flush">
+                                    @foreach (var stageInfo in stagesToRender)
+                                    {
+                                        var count = mod.Components?.Count(c => c.Stage == stageInfo.Stage) ?? 0;
+
+                                        <div class="list-group-item d-flex flex-column border-0 border-bottom p-0" style="background-color: #f8f9fa;">
+                                            <div class="d-flex justify-content-between align-items-center px-4 py-3">
+
+                                                <!-- Botão que vai abrir o Modal -->
+                                                <button type="button" class="btn btn-link text-decoration-none p-0 d-flex align-items-center flex-grow-1 text-start shadow-none"
+                                                        @onclick="() => OpenStageModal(mod, stageInfo)">
+                                                    <i class="bi @stageInfo.Icon me-3 text-secondary fs-5"></i>
+                                                    <span class="fw-semibold text-dark">@stageInfo.Title</span>
+                                                </button>
+
+                                                <div class="d-flex align-items-center gap-2 flex-shrink-0">
+                                                    <!-- DATAS / TIMELINE -->
+                                                    @if (CurrentMode != BuilderMode.Template && stageInfo.Stage != ModuleStage.Teorica)
+                                                    {
+                                                        var timeline = GetTimeline(mod, stageInfo.Stage);
+
+                                                        <div class="d-flex align-items-center bg-white border shadow-sm flex-nowrap me-2"
+                                                             style="border-radius: 8px; padding: 2px 6px;"
+                                                             @onclick:stopPropagation="true">
+
+                                                            <input type="date" class="form-control form-control-sm border-0 text-center text-muted fw-semibold p-0 shadow-none"
+                                                                   style="width: 100px; font-size: 0.75rem; background: transparent;"
+                                                                   value="@(timeline.StartDate?.ToString("yyyy-MM-dd") ?? "")"
+                                                                   @onchange="(e) => HandleDateChange(mod.Id, stageInfo.Stage, e.Value?.ToString(), true)"
+                                                                   title="Data de Início" />
+
+                                                            <i class="bi bi-arrow-right-short text-muted mx-1"></i>
+
+                                                            <input type="date" class="form-control form-control-sm border-0 text-center text-muted fw-semibold p-0 shadow-none"
+                                                                   style="width: 100px; font-size: 0.75rem; background: transparent;"
+                                                                   value="@(timeline.EndDate?.ToString("yyyy-MM-dd") ?? "")"
+                                                                   min="@(timeline.StartDate?.ToString("yyyy-MM-dd") ?? "")"
+                                                                   @onchange="(e) => HandleDateChange(mod.Id, stageInfo.Stage, e.Value?.ToString(), false)"
+                                                                   title="Data de Fim" />
+                                                        </div>
+                                                    }
+
+                                                    @if (count > 0)
+                                                    {
+                                                        <span class="badge bg-success bg-opacity-10 text-success rounded-pill px-3 py-1 border border-success border-opacity-25 flex-shrink-0">@count itens</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="badge bg-light text-muted border rounded-pill px-3 py-1 flex-shrink-0">Vazio</span>
+                                                    }
+                                                </div>
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    </div>
                 </div>
             }
         </div>
@@ -1275,7 +1298,84 @@
 
     #endregion
 
-    #region [ Drag & Drop (Ordenação) ]
+    #region [ Drag & Drop (Ordenação de Módulos) ]
+
+    private int? draggingModuleId;
+
+    private void HandleModuleDragStart(int id)
+    {
+        draggingModuleId = id;
+    }
+
+    private void HandleModuleDragEnter(int targetId)
+    {
+        if (draggingModuleId == null || draggingModuleId == targetId) return;
+
+        var draggedItem = Modules.FirstOrDefault(m => m.Id == draggingModuleId);
+        var targetItem = Modules.FirstOrDefault(m => m.Id == targetId);
+
+        if (draggedItem == null || targetItem == null) return;
+
+        int oldIndex = Modules.IndexOf(draggedItem);
+        int newIndex = Modules.IndexOf(targetItem);
+
+        Modules.RemoveAt(oldIndex);
+        Modules.Insert(newIndex, draggedItem);
+
+        // Atualiza os índices de ordem imediatamente na memória
+        for (int i = 0; i < Modules.Count; i++)
+        {
+            Modules[i].OrderIndex = i;
+        }
+    }
+
+    private async Task HandleModuleDrop()
+    {
+        ResetModuleDrag();
+
+        try
+        {
+            // Grava a nova ordem enviando as alterações diretas sem precisar de fazer GET antes!
+            foreach (var mod in Modules)
+            {
+                if (CurrentMode == BuilderMode.Template)
+                {
+                    var dummyMod = new ModuleTemplate
+                    {
+                        Id = mod.Id,
+                        Title = mod.Title,
+                        Weight = mod.Weight,
+                        OrderIndex = mod.OrderIndex
+                    };
+                    await Http.PutAsJsonAsync($"api/ModuleTemplate/{mod.Id}", dummyMod);
+                }
+                else
+                {
+                    var dummyMod = new Module
+                    {
+                        Id = mod.Id,
+                        Title = mod.Title,
+                        Weight = mod.Weight,
+                        OrderIndex = mod.OrderIndex
+                    };
+                    await Http.PutAsJsonAsync($"api/Module/{mod.Id}", dummyMod);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Erro a gravar a nova ordem: {ex.Message}");
+        }
+    }
+
+    private void ResetModuleDrag()
+    {
+        draggingModuleId = null;
+    }
+
+    #endregion
+
+    #region [ Drag & Drop (Ordenação de Parametros) ]
 
     // Memória de quem está a ser arrastado
     private int? draggingParentId;

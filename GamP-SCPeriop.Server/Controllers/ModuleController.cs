@@ -117,6 +117,7 @@ namespace GamP_SCPeriop.Server.Controllers
             // 2. Atualiza os dados do Módulo
             existingModule.Title = updatedModule.Title;
             existingModule.Weight = updatedModule.Weight;
+            existingModule.OrderIndex = updatedModule.OrderIndex;
 
             if (updatedModule.StageTimelines != null)
             {
