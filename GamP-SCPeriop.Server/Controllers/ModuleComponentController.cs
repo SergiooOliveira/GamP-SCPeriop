@@ -31,6 +31,7 @@ namespace GamP_SCPeriop.Server.Controllers
                 Stage = dto.Stage,
                 ParentComponentId = dto.ParentComponentId,
                 Weight = dto.Weight,
+                OrderIndex = dto.OrderIndex,
                 IsFromTemplate = false
             };
 

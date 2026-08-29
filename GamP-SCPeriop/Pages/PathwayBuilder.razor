@@ -68,9 +68,7 @@
                 OnDeleteModule="DeleteActiveModule"
                 OnUpdateBulkModuleWeights="SaveBulkModuleWeightsFromBuilder"
                 OnUpdateTimeline="HandleTimelineUpdateFromBuilder"
-                OnSaveRapidStructureEvent="SaveRapidStructureFromBuilder"
                 OnSaveTheoreticalEvent="SaveTheoreticalFromBuilder"
-                OnCopyComponentsEvent="CopyComponentsFromBuilder"
                 OnDeleteComponent="DeleteComponentFromBuilder"
                 OnSaveBulkEditEvent="SaveBulkEditFromBuilder" />
         </div>
@@ -513,7 +511,8 @@
                 ModuleId = data.ModuleId,
                 Title = parent.Text,
                 Stage = data.Stage,
-                IsFromTemplate = !IsStudentMode
+                IsFromTemplate = !IsStudentMode,
+                OrderIndex = parent.OrderIndex
             };
             var responseParent = await Http.PostAsJsonAsync("api/ModuleComponent", dtoParent);
             if (responseParent.IsSuccessStatusCode)
@@ -529,7 +528,8 @@
                             Title = child.Text,
                             Stage = data.Stage,
                             ParentComponentId = savedParent.Id,
-                            IsFromTemplate = !IsStudentMode
+                            IsFromTemplate = !IsStudentMode,
+                            OrderIndex = child.OrderIndex
                         };
                         await Http.PostAsJsonAsync("api/ModuleComponent", dtoChild);
                     }
@@ -568,9 +568,9 @@
         StateHasChanged();
     }
 
-    private async Task SaveBulkEditFromBuilder((int ModuleId, ModuleStage Stage, List<BuilderComponentDto> UpdatedComponents, Dictionary<int, List<(string Title, float Weight)>> NewSubTasks) data)
+    private async Task SaveBulkEditFromBuilder((int ModuleId, ModuleStage Stage, List<BuilderComponentDto> UpdatedComponents, Dictionary<int, List<(string Title, float Weight, int OrderIndex)>> NewSubTasks, List<(string Title, float Weight, int OrderIndex, List<(string Title, float Weight, int OrderIndex)> Children)> NewParents) payload)
     {
-        foreach (var comp in data.UpdatedComponents)
+        foreach (var comp in payload.UpdatedComponents)
         {
             var dbComp = await Http.GetFromJsonAsync<ModuleComponent>($"api/ModuleComponent/{comp.Id}");
             if (dbComp != null)
@@ -582,78 +582,66 @@
             }
         }
 
-        foreach (var kvp in data.NewSubTasks)
+        foreach (var kvp in payload.NewSubTasks)
         {
             foreach (var task in kvp.Value)
             {
                 var dtoChild = new ModuleComponentCreateDto
                 {
-                    ModuleId = data.ModuleId,
+                    ModuleId = payload.ModuleId,
                     Title = task.Title,
-                    Stage = data.Stage,
+                    Stage = payload.Stage,
                     ParentComponentId = kvp.Key,
                     Weight = task.Weight,
+                    OrderIndex = task.OrderIndex,
                     IsFromTemplate = !IsStudentMode
                 };
                 await Http.PostAsJsonAsync("api/ModuleComponent", dtoChild);
             }
         }
 
-        if (IsStudentMode)
-            await LoadStudentPathway();
-        else
-            await LoadExistingPathway();
-
-        StateHasChanged();
-    }
-
-    private async Task CopyComponentsFromBuilder((int ModuleId, ModuleStage CurrentStage, ModuleStage SourceStage) data)
-    {
-        var module = activePathway?.Modules?.FirstOrDefault(m => m.Id == data.ModuleId);
-        if (module == null || module.Components == null) return;
-
-        var sourceComponents = module.Components.Where(c => c.Stage == data.SourceStage).ToList();
-        var topLevelComponents = sourceComponents.Where(c => c.ParentComponentId == null).ToList();
-
-        if (!topLevelComponents.Any()) return; 
-
-        foreach (var parent in topLevelComponents)
+        // NOVA SECÇÃO: Gravar Pais Novos e os seus respetivos Filhos
+        foreach (var parent in payload.NewParents)
         {
-            var newParent = new ModuleComponent
+            var dtoParent = new ModuleComponentCreateDto
             {
-                ModuleId = data.ModuleId,
-                Stage = data.CurrentStage,
+                ModuleId = payload.ModuleId,
                 Title = parent.Title,
-                Description = parent.Description,
-                Weight = parent.Weight // As percentagens nascem a zero no novo Percurso!
+                Stage = payload.Stage,
+                ParentComponentId = null,
+                Weight = parent.Weight,
+                OrderIndex = parent.OrderIndex,
+                IsFromTemplate = !IsStudentMode
             };
 
-            var parentResponse = await Http.PostAsJsonAsync("api/ModuleComponent", newParent);
-            if (parentResponse.IsSuccessStatusCode)
+            var response = await Http.PostAsJsonAsync("api/ModuleComponent", dtoParent);
+            if (response.IsSuccessStatusCode)
             {
-                var savedParent = await parentResponse.Content.ReadFromJsonAsync<ModuleComponent>();
-                if (savedParent != null)
+                var createdParent = await response.Content.ReadFromJsonAsync<ModuleComponent>();
+                if (createdParent != null && parent.Children.Any())
                 {
-                    var children = sourceComponents.Where(c => c.ParentComponentId == parent.Id).ToList();
-                    foreach (var child in children)
+                    foreach (var child in parent.Children)
                     {
-                        var newChild = new ModuleComponent
+                        var dtoChild = new ModuleComponentCreateDto
                         {
-                            ModuleId = data.ModuleId,
-                            Stage = data.CurrentStage,
+                            ModuleId = payload.ModuleId,
                             Title = child.Title,
-                            Description = child.Description,
+                            Stage = payload.Stage,
+                            ParentComponentId = createdParent.Id,
                             Weight = child.Weight,
-                            ParentComponentId = savedParent.Id
+                            OrderIndex = child.OrderIndex,
+                            IsFromTemplate = !IsStudentMode
                         };
-                        await Http.PostAsJsonAsync("api/ModuleComponent", newChild);
+                        await Http.PostAsJsonAsync("api/ModuleComponent", dtoChild);
                     }
                 }
             }
         }
 
-        // Altera para o nome exato do teu método de atualizar os dados da página
-        if (activePathway != null) await LoadExistingPathway(); 
+        if (IsStudentMode) await LoadStudentPathway();
+        else await LoadExistingPathway();
+
+        StateHasChanged();
     }
 
     private async Task DeleteComponentFromBuilder(int componentId)

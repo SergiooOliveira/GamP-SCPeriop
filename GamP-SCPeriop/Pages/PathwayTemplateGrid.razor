@@ -115,11 +115,9 @@
             OnUpdateBulkModuleWeights="SaveBulkModuleWeightsFromBuilder"
             OnCreateAdvancedModule="CreateAdvancedModuleFromBuilder"
             OnDeleteModule="DeleteActiveModule"
-            OnSaveRapidStructureEvent="SaveRapidStructureFromBuilder"
             OnSaveTheoreticalEvent="SaveTheoreticalFromBuilder"
             OnDeleteComponent="DeleteComponentFromBuilder"
             OnSaveBulkEditEvent="SaveBulkEditFromBuilder"
-            OnCopyComponentsEvent="CopyComponentsFromBuilder" 
             OnOpenBadges="OpenBadgesModal" />
 
         @if (showBadgesModal)
@@ -375,29 +373,6 @@
         await LoadActiveTemplate(activeTemplate!.Id);
     }
 
-    private async Task SaveRapidStructureFromBuilder((int ModuleId, ModuleStage Stage, List<PathwayBuilderComponent.DraftParent> Drafts) data)
-    {
-        // NOTA: Requer o controlador ComponentTemplate configurado
-        foreach (var parent in data.Drafts.Where(p => !string.IsNullOrWhiteSpace(p.Text)))
-        {
-            var dtoParent = new ComponentTemplate { ModuleTemplateId = data.ModuleId, Title = parent.Text, Stage = data.Stage };
-            var response = await Http.PostAsJsonAsync("api/ComponentTemplate", dtoParent);
-            if (response.IsSuccessStatusCode)
-            {
-                var savedParent = await response.Content.ReadFromJsonAsync<ComponentTemplate>();
-                if (savedParent != null)
-                {
-                    foreach (var child in parent.Children.Where(f => !string.IsNullOrWhiteSpace(f.Text)))
-                    {
-                        var dtoChild = new ComponentTemplate { ModuleTemplateId = data.ModuleId, Title = child.Text, Stage = data.Stage, ParentComponentTemplateId = savedParent.Id };
-                        await Http.PostAsJsonAsync("api/ComponentTemplate", dtoChild);
-                    }
-                }
-            }
-        }
-        await LoadActiveTemplate(activeTemplate!.Id);
-    }
-
     private async Task SaveTheoreticalFromBuilder((int ModuleId, BuilderComponentDto Component) data)
     {
         if (data.Component.Id == 0)
@@ -425,10 +400,9 @@
         await LoadActiveTemplate(activeTemplate!.Id);
     }
 
-    private async Task SaveBulkEditFromBuilder((int ModuleId, ModuleStage Stage, List<BuilderComponentDto> UpdatedComponents, Dictionary<int, List<(string Title, float Weight)>> NewSubTasks) data)
+    private async Task SaveBulkEditFromBuilder((int ModuleId, ModuleStage Stage, List<BuilderComponentDto> UpdatedComponents, Dictionary<int, List<(string Title, float Weight, int OrderIndex)>> NewSubTasks, List<(string Title, float Weight, int OrderIndex, List<(string Title, float Weight, int OrderIndex)> Children)> NewParents) payload)
     {
-        // 1. Atualizar Títulos e PESOS
-        foreach (var comp in data.UpdatedComponents)
+        foreach (var comp in payload.UpdatedComponents)
         {
             var dummyComp = new ComponentTemplate
             {
@@ -441,75 +415,61 @@
             await Http.PutAsJsonAsync($"api/ComponentTemplate/{comp.Id}", dummyComp);
         }
 
-        // 2. Criar Novas Tarefas (e guardar o peso delas também)
-        foreach (var kvp in data.NewSubTasks)
+        foreach (var kvp in payload.NewSubTasks)
         {
             foreach (var task in kvp.Value)
             {
                 var dtoChild = new ComponentTemplate
                 {
-                    ModuleTemplateId = data.ModuleId,
+                    ModuleTemplateId = payload.ModuleId,
                     Title = task.Title,
-                    Stage = data.Stage,
+                    Stage = payload.Stage,
                     ParentComponentTemplateId = kvp.Key,
-                    Weight = task.Weight
+                    Weight = task.Weight,
+                    OrderIndex = task.OrderIndex
                 };
                 await Http.PostAsJsonAsync("api/ComponentTemplate", dtoChild);
             }
         }
 
-        await LoadActiveTemplate(activeTemplate!.Id);
-    }
-
-    private async Task CopyComponentsFromBuilder((int ModuleId, ModuleStage CurrentStage, ModuleStage SourceStage) data)
-    {
-        // 1. Encontrar o módulo atual nos dados que já estão carregados na página
-        var module = activeTemplate?.ModuleTemplates?.FirstOrDefault(m => m.Id == data.ModuleId);
-        if (module == null || module.ComponentTemplates == null) return;
-
-        // 2. Isolar as tarefas que queremos copiar (da fase anterior) e apanhar só os "Pais"
-        var sourceComponents = module.ComponentTemplates.Where(c => c.Stage == data.SourceStage).ToList();
-        var topLevelComponents = sourceComponents.Where(c => c.ParentComponentTemplateId == null).ToList();
-
-        if (!topLevelComponents.Any()) return;
-
-        foreach (var parent in topLevelComponents)
+        // NOVA SECÇÃO: Gravar Pais Novos e os seus respetivos Filhos
+        foreach (var parent in payload.NewParents)
         {
-            // 3. Criar a cópia do Pai para a fase atual
-            var newParent = new ComponentTemplate
+            var dtoParent = new ComponentTemplate
             {
-                ModuleTemplateId = data.ModuleId,
-                Stage = data.CurrentStage,
+                ModuleTemplateId = payload.ModuleId,
                 Title = parent.Title,
-                Description = parent.Description
+                Stage = payload.Stage,
+                ParentComponentTemplateId = null,
+                Weight = parent.Weight,
+                OrderIndex = parent.OrderIndex
             };
 
-            var parentResponse = await Http.PostAsJsonAsync("api/ComponentTemplate", newParent);
-            if (parentResponse.IsSuccessStatusCode)
+            var response = await Http.PostAsJsonAsync("api/ComponentTemplate", dtoParent);
+            if (response.IsSuccessStatusCode)
             {
-                var savedParent = await parentResponse.Content.ReadFromJsonAsync<ComponentTemplate>();
-                if (savedParent != null)
+                var createdParent = await response.Content.ReadFromJsonAsync<ComponentTemplate>();
+                if (createdParent != null && parent.Children.Any())
                 {
-                    // 4. Se o Pai foi guardado, vamos procurar os filhos dele e copiá-los também
-                    var children = sourceComponents.Where(c => c.ParentComponentTemplateId == parent.Id).ToList();
-                    foreach (var child in children)
+                    foreach (var child in parent.Children)
                     {
-                        var newChild = new ComponentTemplate
+                        var dtoChild = new ComponentTemplate
                         {
-                            ModuleTemplateId = data.ModuleId,
-                            Stage = data.CurrentStage,
+                            ModuleTemplateId = payload.ModuleId,
                             Title = child.Title,
-                            Description = child.Description,
-                            ParentComponentTemplateId = savedParent.Id // <- Liga-se ao novo Pai!
+                            Stage = payload.Stage,
+                            ParentComponentTemplateId = createdParent.Id,
+                            Weight = child.Weight,
+                            OrderIndex = child.OrderIndex
                         };
-                        await Http.PostAsJsonAsync("api/ComponentTemplate", newChild);
+                        await Http.PostAsJsonAsync("api/ComponentTemplate", dtoChild);
                     }
                 }
             }
         }
 
-        // 5. Atualizar o ecrã para mostrar as novas tarefas copiadas
         await LoadActiveTemplate(activeTemplate!.Id);
     }
+
     #endregion
 }
