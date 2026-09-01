@@ -50,5 +50,34 @@ namespace GamP_SCPeriop.Server.Controllers
 
             return Ok(badges);
         }
+
+        [HttpPut("{id}")]
+        public async Task<IActionResult> UpdateBadgeTemplate(int id, [FromBody] BadgeTemplateCreateDto badgeDto)
+        {
+            var existingBadge = await _context.BadgeTemplates.FindAsync(id);
+
+            if (existingBadge == null)
+            {
+                return NotFound("Badge não encontrada.");
+            }
+
+            // Map the updated fields from the UI
+            existingBadge.Name = badgeDto.Name;
+            existingBadge.Description = badgeDto.Description;
+            existingBadge.Icon = badgeDto.Icon;
+            existingBadge.TriggerType = badgeDto.TriggerType;
+            existingBadge.TriggerValue = badgeDto.TriggerValue;
+            existingBadge.Tier = badgeDto.Tier;
+
+            try
+            {
+                await _context.SaveChangesAsync();
+                return Ok(existingBadge);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Erro interno ao atualizar a badge: {ex.Message}");
+            }
+        }
     }
 }

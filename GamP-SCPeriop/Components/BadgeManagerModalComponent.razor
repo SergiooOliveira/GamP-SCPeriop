@@ -21,8 +21,7 @@
                     <!-- ESTADO 1: LISTA -->
                     <div class="p-4 flex-grow-1" style="overflow-y: auto;">
                         <div class="mb-4">
-                            <p class="text-muted small">Lista ordenada por raridade e ordem alfabética.</p>
-
+                            
                             @if (!existingBadges.Any())
                             {
                                 <div class="alert alert-light text-center text-muted" role="alert">
@@ -36,19 +35,31 @@
                                     {
                                         <div class="d-flex align-items-center justify-content-between py-3 border-bottom">
 
-                                            <!-- Lado Esquerdo: Ícone e Título -->
+                                            <!-- Left Side: Icon and Name -->
                                             <div class="d-flex align-items-center">
+                                                
+                                                <!-- Badge Icon -->
                                                 <i class="bi @badge.Icon fs-4 text-warning me-3"></i>
+
+                                                <!-- Badge Name -->
                                                 <span class="fw-bold text-dark">@badge.Name</span>
+
                                             </div>
 
-                                            <!-- Lado Direito: Raridade e Botão Editar -->
+                                            <!-- Right Side: Rarity and Edit Button -->
                                             <div class="d-flex align-items-center">
-                                                <span class="badge bg-light text-dark border me-3">@badge.Tier</span>
 
-                                                <button class="btn btn-sm btn-outline-secondary" title="Editar Badge">
+                                                <!-- Badge rarity -->
+                                                <span class="badge me-3 shadow-sm"
+                                                      style="background-color: @(GetTierColor(badge.Tier) + "15"); color: @GetTierColor(badge.Tier); border: 1px solid @(GetTierColor(badge.Tier) + "50");">
+                                                    <i class="bi bi-stars me-1"></i>@badge.Tier.ToString()
+                                                </span>
+
+                                                <!-- Edit button -->
+                                                <button class="btn btn-sm btn-outline-secondary" title="Editar Badge" @onclick="() => EditBadge(badge)">
                                                     <i class="bi bi-pencil"></i>
                                                 </button>
+
                                             </div>
 
                                         </div>
@@ -207,22 +218,39 @@
 </div>
 
 @code {
+
+    #region [ Parameters & Properties ]
+
     [Parameter] public EventCallback OnClose { get; set; }
     [Parameter] public List<BuilderModuleDto> AvailableModules { get; set; } = new();
     [Parameter] public int CurrentPathwayTemplateId { get; set; }
 
+    #endregion
+
+    #region [ UI State Variables ]
+
     private bool isCreating = false;
+    private bool isEditing = false; // Tracks if the modal is editing an existing badge
+    private int? editingBadgeId = null; // Tracks the ID of the badge being edited
     private BadgeTemplateCreateDto newBadge = new();
     private List<BadgeTemplate> existingBadges = new();
+
+    #endregion
+
+    #region [ Lifecycle Methods ]
 
     protected override async Task OnInitializedAsync()
     {
         await LoadBadges();
     }
 
-    // =========================================================================
-    // ENUMS E HELPERS DE CORES
-    // =========================================================================
+    #endregion
+
+    #region [ Enums & Color Helpers ]
+
+    /// <summary>
+    /// Returns the hex color code for the border, text, and icons based on the badge's rarity tier.
+    /// </summary>
     private string GetTierColor(BadgeTier tier) => tier switch
     {
         BadgeTier.Common => "#7f8c8d",
@@ -233,6 +261,9 @@
         _ => "#7f8c8d"
     };
 
+    /// <summary>
+    /// Returns a CSS gradient background string for the preview card based on the badge's rarity tier.
+    /// </summary>
     private string GetTierBackground(BadgeTier tier) => tier switch
     {
         BadgeTier.Common => "linear-gradient(135deg, #ffffff 0%, #f1f2f6 100%)",
@@ -243,20 +274,30 @@
         _ => "#ffffff"
     };
 
-    private string ModalTitle => isCreating ? "Criar Nova Badge" : "Badges do Template";
+    /// <summary>
+    /// Returns the appropriate modal title based on the current UI state.
+    /// </summary>
+    private string ModalTitle => isCreating
+        ? (isEditing ? "Editar Badge" : "Criar Nova Badge")
+        : "Badges do Template";
 
-    // =========================================================================
-    // PREVIEW STYLES
-    // =========================================================================
+    #endregion
+
+    #region [ Preview Styles ]
+
     private string PreviewCircleStyle => $"width: 90px; height: 90px; border-radius: 50%; border: 3px solid {GetTierColor(newBadge.Tier)};";
     private string PreviewIconClass => string.IsNullOrWhiteSpace(newBadge.Icon) ? "bi-award-fill" : newBadge.Icon;
     private string PreviewIconStyle => $"font-size: 2.5rem; color: {GetTierColor(newBadge.Tier)};";
     private string PreviewTitle => string.IsNullOrWhiteSpace(newBadge.Name) ? "Título da Badge" : newBadge.Name;
     private string PreviewDescription => string.IsNullOrWhiteSpace(newBadge.Description) ? "A descrição que o aluno vai ler ao desbloquear aparecerá aqui." : newBadge.Description;
 
-    // =========================================================================
-    // EVENTOS
-    // =========================================================================
+    #endregion
+
+    #region [ Events & Core Logic ]
+
+    /// <summary>
+    /// Handles changes to the unlock rule dropdown, updating the underlying logic and auto-generating rarity.
+    /// </summary>
     private void OnRuleChanged(ChangeEventArgs e)
     {
         if (Enum.TryParse<BadgeTriggerType>(e.Value?.ToString(), out var selectedTrigger))
@@ -276,25 +317,77 @@
         }
     }
 
+    /// <summary>
+    /// Closes the entire badge manager modal.
+    /// </summary>
     private async Task CloseModal() => await OnClose.InvokeAsync();
-    private void OpenCreateMode() => isCreating = true;
-    private void CloseCreateMode() => isCreating = false;
 
+    /// <summary>
+    /// Resets the form and opens the creation view for a completely new badge.
+    /// </summary>
+    private void OpenCreateMode()
+    {
+        isEditing = false;
+        editingBadgeId = null;
+        newBadge = new BadgeTemplateCreateDto();
+
+        // Ensure default Tier matches the default TriggerType (ModuleCompletion)
+        newBadge.TriggerType = BadgeTriggerType.ModuleCompletion;
+        newBadge.Tier = BadgeTier.Uncommon;
+
+        isCreating = true;
+    }
+
+    /// <summary>
+    /// Loads an existing badge's data into the creation form and switches to edit mode.
+    /// </summary>
+    private void EditBadge(BadgeTemplate badge)
+    {
+        isEditing = true;
+        editingBadgeId = badge.Id;
+
+        newBadge = new BadgeTemplateCreateDto
+        {
+            PathwayTemplateId = badge.PathwayTemplateId,
+            Name = badge.Name,
+            Description = badge.Description,
+            Icon = badge.Icon,
+            TriggerType = badge.TriggerType,
+            TriggerValue = badge.TriggerValue,
+            Tier = badge.Tier // Preserves the exact Tier from the database
+        };
+
+        isCreating = true;
+    }
+
+    /// <summary>
+    /// Returns to the list view, discarding any active creation or edit states.
+    /// </summary>
+    private void CloseCreateMode()
+    {
+        isCreating = false;
+        isEditing = false;
+        editingBadgeId = null;
+    }
+
+    /// <summary>
+    /// Fetches all existing badges for the current pathway template from the API.
+    /// </summary>
     private async Task LoadBadges()
     {
         try
         {
-            existingBadges = await Http.GetFromJsonAsync<List<BadgeTemplate>>($"api/BadgeTemplate/pathway/{CurrentPathwayTemplateId}");
+            var badges = await Http.GetFromJsonAsync<List<BadgeTemplate>>($"api/BadgeTemplate/pathway/{CurrentPathwayTemplateId}");
 
-            // Lógica inteligente de abertura:
-            // Se a lista vier vazia, muda automaticamente para o ecrã de criação
-            if (existingBadges == null || !existingBadges.Any())
+            // Se a lista vier vazia, abre em modo de criação automaticamente
+            if (badges == null || !badges.Any())
             {
-                isCreating = true;
+                OpenCreateMode();
             }
             else
             {
-                isCreating = false; // Se já há badges, garante que abre a lista
+                existingBadges = badges.OrderBy(b => b.Tier).ToList();
+                isCreating = false;
             }
         }
         catch (Exception ex)
@@ -303,27 +396,39 @@
         }
     }
 
+    /// <summary>
+    /// Submits the badge data to the API, using either POST for creation or PUT for updates.
+    /// </summary>
     private async Task SaveBadge()
     {
         try
         {
             newBadge.PathwayTemplateId = CurrentPathwayTemplateId;
 
-            // Log para garantirmos que o ID não está a zero!
-            Console.WriteLine($"A enviar Badge para o PathwayTemplateId: {newBadge.PathwayTemplateId}");
+            HttpResponseMessage response;
 
-            var response = await Http.PostAsJsonAsync("api/badgetemplate", newBadge);
+            if (isEditing && editingBadgeId.HasValue)
+            {
+                // Editar Badge Existente (PUT)
+                response = await Http.PutAsJsonAsync($"api/badgetemplate/{editingBadgeId.Value}", newBadge);
+            }
+            else
+            {
+                // Criar Nova Badge (POST)
+                response = await Http.PostAsJsonAsync("api/badgetemplate", newBadge);
+            }
 
             if (response.IsSuccessStatusCode)
             {
                 Console.WriteLine("Badge guardada com sucesso!");
                 newBadge = new BadgeTemplateCreateDto();
                 isCreating = false;
+                isEditing = false;
+                editingBadgeId = null;
                 await LoadBadges();
             }
             else
             {
-                // LÊ O ERRO EXATO DO BACKEND
                 var errorMessage = await response.Content.ReadAsStringAsync();
                 Console.WriteLine($"Erro ao guardar a badge. Status: {response.StatusCode}");
                 Console.WriteLine($"Detalhes do Backend: {errorMessage}");
@@ -335,6 +440,10 @@
         }
     }
 
+    #endregion
+
+    #region [ Static Data ]
+
     private List<string> availableIcons = new()
     {
         "bi-award-fill", "bi-star-fill", "bi-trophy-fill", "bi-medal-fill",
@@ -342,4 +451,7 @@
         "bi-lightning-fill", "bi-gem", "bi-book-fill", "bi-check-circle-fill",
         "bi-fire", "bi-magic", "bi-mortarboard-fill", "bi-person-arms-up"
     };
+
+    #endregion
+
 }
