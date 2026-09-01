@@ -186,6 +186,17 @@ namespace GamP_SCPeriop.Server.Controllers
                     enrollment.PathwayId,
                     enrollment.ProgressPercentage);
 
+                _context.Notifications.Add(new Notification
+                {
+                    ReceiverId = enrollment.StudentId,
+                    SenderId = enrollment.Pathway.ProfessorId,
+                    Title = "Atualização de Avaliação 📊",
+                    Message = $"O professor atualizou as tuas avaliações no percurso '{enrollment.Pathway.Title}'.",
+                    TargetUrl = $"/pathway/{enrollment.PathwayId}",
+                    CreatedAt = DateTime.Now,
+                    IsRead = false
+                });
+
                 await _context.SaveChangesAsync();
             }
 
