@@ -24,6 +24,8 @@ namespace GamP_SCPeriop.Server.Controllers
         [HttpPost]
         public async Task<ActionResult<Pathway>> CreatePathway(PathwayCreateDto dto)
         {
+            Dictionary<int, Module> moduleMap = new();
+
             // 1. Cria a base do novo Percurso
             var pathway = new Pathway
             {
@@ -114,6 +116,8 @@ namespace GamP_SCPeriop.Server.Controllers
                         }
 
                         pathway.Modules.Add(newModule);
+
+                        moduleMap[modTpl.Id] = newModule;
                     }
                 }
             }
@@ -134,18 +138,31 @@ namespace GamP_SCPeriop.Server.Controllers
                     // Para cada template de badge, criamos uma cópia congelada para este aluno/turma
                     foreach (var badgeTpl in badgeTemplates)
                     {
+                        string newTriggerValue = badgeTpl.TriggerValue;
+
+                        // Se for badge de módulo, traduz o ID antigo (Template) para o ID novo
+                        if (badgeTpl.TriggerType == BadgeTriggerType.ModuleCompletion &&
+                            int.TryParse(badgeTpl.TriggerValue, out int oldModuleId))
+                        {
+                            // Verifica se o ID antigo existe no nosso mapa de módulos clonados
+                            if (moduleMap.TryGetValue(oldModuleId, out Module mappedModule))
+                            {
+                                newTriggerValue = mappedModule.Id.ToString();
+                            }
+                        }
+
                         var newBadge = new Badge
                         {
-                            PathwayId = pathway.Id, // Liga ao percurso instanciado!
-                            Pathway = pathway,
+                            PathwayId = pathway.Id,
                             Name = badgeTpl.Name,
                             Description = badgeTpl.Description,
                             Icon = badgeTpl.Icon,
                             Tier = badgeTpl.Tier,
                             TriggerType = badgeTpl.TriggerType,
-                            TriggerValue = badgeTpl.TriggerValue
+                            TriggerValue = newTriggerValue // Grava o valor traduzido
                         };
-                        _context.Badges.Add(newBadge); // Assume que adicionaste public DbSet<Badge> Badges ao teu DbContext
+
+                        _context.Badges.Add(newBadge);
                     }
 
                     // Gravamos as novas badges na base de dados

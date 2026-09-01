@@ -31,7 +31,7 @@ namespace GamP_SCPeriop.Server.Controllers
         {
             var template = await _context.PathwayTemplates
                 .Include(p => p.ModuleTemplates)
-                    .ThenInclude(m => m.ComponentTemplates)
+                    .ThenInclude(m => m.ComponentTemplates)                
                 .FirstOrDefaultAsync(p => p.Id == id);
 
             if (template == null) return NotFound();

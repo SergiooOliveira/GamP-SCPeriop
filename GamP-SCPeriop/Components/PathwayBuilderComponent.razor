@@ -39,7 +39,7 @@
     @if (Modules.Any())
     {
         <div class="mb-4">
-            @foreach (var mod in Modules)
+            @foreach (var mod in Modules.OrderBy(m => m.OrderIndex))
             {
                 var isExpanded = expandedModuleId == mod.Id;
                 bool isDraggingThisModule = draggingModuleId == mod.Id;
@@ -422,7 +422,7 @@
                                                                 if (CurrentMode == BuilderMode.Template || !hasAdminChildren)
                                                                 {
                                                                     <div class="input-group input-group-sm mx-2 flex-shrink-0" style="width: 80px;">
-                                                                        <input type="text" inputmode="numeric" class="form-control text-center px-1" @bind="newChild.Weight" />
+                                                                        <input type="text" inputmode="decimal" class="form-control text-center px-1" @bind="newChild.Weight" />
                                                                         <span class="input-group-text px-1">%</span>
                                                                     </div>
                                                                 }
@@ -451,10 +451,10 @@
                                                                    style="@(string.IsNullOrWhiteSpace(newParent.Text) ? "border: 2px dashed #adb5bd !important; background-color: #f8f9fa;" : "border: 2px solid #198754;")"
                                                                    @bind="newParent.Text" @bind:event="oninput" @onkeyup="() => CheckEditModeParentsState(comp.Id)" @onfocus="() => SetActiveParent(comp.Id)" />
                                                         </div>
-                                                        @if (activeModalStage.Value.Stage != ModuleStage.Teorica)
+                                                        @if (!string.IsNullOrWhiteSpace(newParent.Text) && activeModalStage.Value.Stage != ModuleStage.Teorica)
                                                         {
                                                             <div class="input-group input-group-sm mx-2 flex-shrink-0" style="width: 80px;">
-                                                                <input type="text" inputmode="numeric" class="form-control text-center px-1" placeholder="Peso" @bind="newParent.Weight" />
+                                                                <input type="text" class="form-control text-center px-1" placeholder="Peso" @bind="newParent.Weight" />
                                                                 <span class="input-group-text px-1">%</span>
                                                             </div>
                                                         }
@@ -466,7 +466,7 @@
                                                         <div class="position-relative ms-5 ps-2 py-1 mb-2 mt-1 border-start border-3 border-secondary" style="border-radius: 6px 0 0 6px;">
                                                             @foreach (var newChild in newParent.Children)
                                                             {
-                                                                <div class="d-flex align-items-center mb-1 p-1">
+                                                                <div class="d-flex align-items-center mb-1 p-1" @key="newChild">
                                                                     <div class="me-1" style="width: 24px;"></div>
                                                                     <i class="bi bi-arrow-return-right text-muted me-2"></i>
                                                                     <input type="text" class="form-control @(string.IsNullOrWhiteSpace(newChild.Text) ? "draft-empty" : "draft-filled-success")"
@@ -477,7 +477,7 @@
                                                                     @if (!string.IsNullOrWhiteSpace(newChild.Text) && activeModalStage.Value.Stage != ModuleStage.Teorica)
                                                                     {
                                                                         <div class="input-group input-group-sm mx-2 flex-shrink-0" style="width: 80px;">
-                                                                            <input type="text" inputmode="numeric" class="form-control text-center px-1" placeholder="Peso" @bind="newChild.Weight" />
+                                                                            <input type="text" inputmode="decimal" class="form-control text-center px-1" placeholder="Peso" @bind="newChild.Weight" @bind:event="oninput"/>
                                                                             <span class="input-group-text px-1">%</span>
                                                                         </div>
                                                                     }
@@ -593,7 +593,7 @@
                                     @if (activeModalStage.Value.Stage != ModuleStage.Teorica)
                                     {
                                         <div class="input-group input-group-sm mx-2 flex-shrink-0" style="width: 80px;">
-                                            <input type="text" inputmode="numeric" class="form-control text-center px-1" placeholder="Peso" @bind="newParent.Weight" />
+                                            <input type="text" inputmode="decimal" class="form-control text-center px-1" placeholder="Peso" @bind="newParent.Weight" />
                                             <span class="input-group-text px-1">%</span>
                                         </div>
                                     }
@@ -616,7 +616,7 @@
                                                 @if (!string.IsNullOrWhiteSpace(newChild.Text) && activeModalStage.Value.Stage != ModuleStage.Teorica)
                                                 {
                                                     <div class="input-group input-group-sm mx-2 flex-shrink-0" style="width: 80px;">
-                                                        <input type="text" inputmode="numeric" class="form-control text-center px-1" placeholder="Peso" @bind="newChild.Weight" />
+                                                        <input type="text" inputmode="decimal" class="form-control text-center px-1" placeholder="Peso" @bind="newChild.Weight" />
                                                         <span class="input-group-text px-1">%</span>
                                                     </div>
                                                 }
@@ -754,7 +754,7 @@
                                         @if (!string.IsNullOrWhiteSpace(parent.Text))
                                         {
                                             <div class="input-group input-group-sm ms-2 flex-shrink-0" style="width: 85px;">
-                                                <input type="text" class="form-control text-center px-1" placeholder="Peso" @bind="parent.Weight" />
+                                                <input type="text" inputmode="decimal" class="form-control text-center px-1" placeholder="Peso" @bind="parent.Weight" />
                                                 <span class="input-group-text px-1">%</span>
                                             </div>
                                         }
@@ -778,7 +778,7 @@
                                                         {
                                                             <div class="input-group input-group-sm ms-2 flex-shrink-0" style="width: 85px;">
 
-                                                                <input type="text" class="form-control text-center px-1" placeholder="Peso" @bind="child.Weight" />
+                                                                <input type="text" inputmode="decimal" class="form-control text-center px-1" placeholder="Peso" @bind="child.Weight" />
                                                                 <span class="input-group-text px-1">%</span>
                                                             </div>
                                                         }
@@ -819,17 +819,17 @@
 
 
 @code {
-    
-    #region [ Parâmetros e Eventos (Comunicação com o Pai) ]
 
-    [Parameter] public int PathwayTemplateId { get; set; }    
+    #region [ Parameters & Events ]
+
+    [Parameter] public int PathwayTemplateId { get; set; }
     [Parameter] public string ParentTitle { get; set; } = string.Empty;
     [Parameter] public List<BuilderModuleDto> Modules { get; set; } = new();
     [Parameter] public EventCallback OnOpenBadges { get; set; }
     [Parameter] public BuilderMode CurrentMode { get; set; } = BuilderMode.Geral;
     [Parameter] public bool IsTemplateMode { get; set; }
 
-    [Parameter] public EventCallback<(string Title, float Weight, List<DraftParent> Drafts)> OnCreateAdvancedModule { get; set; }
+    [Parameter] public EventCallback<(string Title, float Weight, int OrderIndex, List<DraftParent> Drafts)> OnCreateAdvancedModule { get; set; }
     [Parameter] public EventCallback<int> OnDeleteModule { get; set; }
     [Parameter] public EventCallback<BuilderModuleDto> OnUpdateModuleWeight { get; set; }
     [Parameter] public EventCallback<(int ModuleId, ModuleStage Stage, DateTime Date, bool IsStart)> OnUpdateTimeline { get; set; }
@@ -840,22 +840,22 @@
 
     #endregion
 
-    #region [ Variáveis de Estado UI ]
+    #region [ UI State Variables ]
 
     private int expandedModuleId = 0;
     private string newModuleTitle = string.Empty;
     private bool isBadgeModalOpen = false;
 
-    // Estado do Modal
+    // Modal State
     private BuilderModuleDto? activeModalModule;
     private BuilderComponentDto componentToEdit = new();
     private (ModuleStage Stage, string Title, string Icon)? activeModalStage;
-    private bool isSavingModal = false;    
+    private bool isSavingModal = false;
 
-    // Controlo de Visualização Local
+    // Local View Control
     private int? expandedComponentId = null;
 
-    // Estado do Bulk Edit (Edição em Massa)
+    // Bulk Edit State
     private bool isEditMode = false;
     private string? validationError;
     private Dictionary<int, List<DraftParent>> editModeNewParents = new();
@@ -863,30 +863,35 @@
     private List<DraftParent> editModeEmptyListParents = new() { new DraftParent() };
     private HashSet<int> editModeDeletedIds = new();
     private Dictionary<int, (string Title, string Description, string PdfFilePath, float Weight)> originalComponentStates = new();
-    private bool isUploading = false; // Para quando está a fazer upload de ficheiros PDF
+    private bool isUploading = false;
 
-    // Estado do Rascunho (Adicionar Nova Estrutura)
-    public class DraftParent {
+    // Draft State Classes
+    public class DraftParent
+    {
         public string Text { get; set; } = "";
-        public float Weight { get; set; } = 0;
+        public float? Weight { get; set; } = null;
         public int OrderIndex { get; set; }
-        public List<DraftChild> Children { get; set; } = new() { 
-            new DraftChild() 
-        }; 
+        public List<DraftChild> Children { get; set; } = new() {
+            new DraftChild()
+        };
     }
 
-    public class DraftChild { 
+    public class DraftChild
+    {
         public string Text { get; set; } = "";
-        public float Weight { get; set; } = 0;
+        public float? Weight { get; set; } = null;
         public int OrderIndex { get; set; }
     }
 
-    private List<DraftParent> drafts = new() { 
+    private List<DraftParent> drafts = new() {
         new DraftParent()
     };
-    
+
     private DraftParent? activeDraftParent = null;
 
+    /// <summary>
+    /// Manages the dynamic addition or removal of draft parents within an existing component during edit mode.
+    /// </summary>
     private void CheckEditModeParentsState(int parentId)
     {
         var list = editModeNewParents[parentId];
@@ -895,6 +900,9 @@
             list.RemoveAt(list.Count - 2);
     }
 
+    /// <summary>
+    /// Manages the dynamic addition or removal of draft parents when the component list is initially empty.
+    /// </summary>
     private void CheckEditModeEmptyParentsState()
     {
         var list = editModeEmptyListParents;
@@ -903,7 +911,9 @@
             list.RemoveAt(list.Count - 2);
     }
 
-    // 3. NOVO: Verificador para os filhos de um rascunho de Pai
+    /// <summary>
+    /// Manages the dynamic addition or removal of draft children for a given draft parent.
+    /// </summary>
     private void CheckEditModeDraftChildState(DraftParent parent)
     {
         var list = parent.Children;
@@ -911,7 +921,7 @@
         else if (list.Count > 1 && string.IsNullOrWhiteSpace(list[^2].Text)) list.RemoveAt(list.Count - 2);
     }
 
-    // Definição estática das fases
+    // Static definition of module stages
     private List<(ModuleStage Stage, string Title, string Icon)> stagesToRender = new()
     {
         (ModuleStage.Teorica, "Componente Teórica", "bi-journal-text"),
@@ -925,9 +935,12 @@
     private string advancedModuleTitle = string.Empty;
     private float advancedModuleWeight = 100f;
 
-    // Controlo de Foco (Rascunho)
+    // Draft Focus Control
     private int? activeFocusParentId;
 
+    /// <summary>
+    /// Sets the currently active parent to manage focus and display relevant draft inputs.
+    /// </summary>
     private void SetActiveParent(int parentId)
     {
         activeFocusParentId = parentId;
@@ -935,7 +948,7 @@
 
     #endregion
 
-    #region [ Ciclo de Vida ]
+    #region [ Lifecycle Methods ]
 
     protected override void OnParametersSet()
     {
@@ -947,10 +960,16 @@
 
     #endregion
 
-    #region [ Controlo de Módulos e Visuais Base ]
+    #region [ Module Control & Base Visuals ]
 
+    /// <summary>
+    /// Toggles the expanded/collapsed state of a specific module panel.
+    /// </summary>
     private void ToggleModule(int moduleId) => expandedModuleId = (expandedModuleId == moduleId) ? 0 : moduleId;
 
+    /// <summary>
+    /// Handles changes to the start or end dates of a module's stage timeline.
+    /// </summary>
     private async Task HandleDateChange(int moduleId, ModuleStage stage, string? dateStr, bool isStart)
     {
         if (DateTime.TryParse(dateStr, out DateTime newDate))
@@ -959,6 +978,9 @@
         }
     }
 
+    /// <summary>
+    /// Calculates a module's weight relative to the sum of all module weights.
+    /// </summary>
     private int GetModulePercentage(BuilderModuleDto mod)
     {
         if (!Modules.Any()) return 0;
@@ -966,6 +988,9 @@
         return (int)Math.Round((double)Math.Max(1, mod.Weight) / total * 100);
     }
 
+    /// <summary>
+    /// Retrieves the timeline information for a specific module and stage.
+    /// </summary>
     private ModuleStageTimelineDto? GetTimeline(BuilderModuleDto mod, ModuleStage stage)
     {
         return mod.StageTimelines?.FirstOrDefault(t => t.Stage == stage);
@@ -973,8 +998,11 @@
 
     #endregion
 
-    #region [ Controlo do Modal e Formulários ]
+    #region [ Modal & Form Control ]
 
+    /// <summary>
+    /// Opens the modal to view or edit parameters for a specific stage within a module.
+    /// </summary>
     private void OpenStageModal(BuilderModuleDto mod, (ModuleStage Stage, string Title, string Icon) stageInfo)
     {
         activeModalModule = mod;
@@ -987,6 +1015,9 @@
         ResetForm();
     }
 
+    /// <summary>
+    /// Closes the stage parameters modal and clears all active editing states.
+    /// </summary>
     private void CloseStageModal()
     {
         if (isEditMode) CancelEditMode();
@@ -1002,12 +1033,18 @@
         ResetForm();
     }
 
+    /// <summary>
+    /// Resets the base component form and clears local drafts.
+    /// </summary>
     private void ResetForm()
     {
         componentToEdit = new BuilderComponentDto();
         drafts = new List<DraftParent> { new DraftParent() };
     }
 
+    /// <summary>
+    /// Dynamically expands or shrinks the list of parent and child drafts for the advanced module modal.
+    /// </summary>
     private void CheckListState(DraftParent currentParent)
     {
         if (!string.IsNullOrWhiteSpace(drafts.Last().Text)) drafts.Add(new DraftParent());
@@ -1023,6 +1060,9 @@
         }
     }
 
+    /// <summary>
+    /// Exits bulk edit mode, discarding any unsaved modifications and restoring original component states.
+    /// </summary>
     private void CancelEditMode()
     {
         isEditMode = false;
@@ -1051,6 +1091,9 @@
         StateHasChanged();
     }
 
+    /// <summary>
+    /// Handles file uploads by streaming data to the backend API and setting the resulting secure URL.
+    /// </summary>
     private async Task HandleFileUpload(InputFileChangeEventArgs e)
     {
         isUploading = true;
@@ -1062,54 +1105,54 @@
         try
         {
             using var content = new MultipartFormDataContent();
-
-            // Read the file from the browser
             var fileContent = new StreamContent(file.OpenReadStream(maxAllowedSize));
             fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(file.ContentType);
 
             content.Add(fileContent, "file", file.Name);
 
-            // Send it to our new Backend Vault
             var response = await Http.PostAsync("api/files/upload", content);
 
             if (response.IsSuccessStatusCode)
             {
-                // The backend hands us back the secure API URL
                 var secureUrl = await response.Content.ReadAsStringAsync();
-
-                // Automatically fill the text box with the new secure URL! (Trim removes potential extra JSON quotes)
                 componentToEdit.PdfFilePath = secureUrl.Trim('"');
             }
             else
             {
                 validationError = "Erro ao enviar ficheiro para o servidor.";
-                Console.WriteLine("Erro ao enviar ficheiro.");
             }
         }
         catch (Exception ex)
         {
             validationError = "Ocorreu um erro no upload. Verifique o tamanho do ficheiro.";
-            Console.WriteLine($"Erro: {ex.Message}");
         }
 
         isUploading = false;
         StateHasChanged();
     }
 
+    /// <summary>
+    /// Calculates the sum of existing children weights plus the drafted children weights.
+    /// </summary>
     private float GetChildrenSum(int parentId, List<BuilderComponentDto> existingChildren)
     {
         float sum = existingChildren.Where(c => !editModeDeletedIds.Contains(c.Id)).Sum(c => c.Weight);
+
         if (editModeNewChildren.TryGetValue(parentId, out var drafts))
         {
-            sum += drafts.Where(c => !string.IsNullOrWhiteSpace(c.Text)).Sum(c => c.Weight);
+            sum += drafts.Where(c => !string.IsNullOrWhiteSpace(c.Text)).Sum(c => c.Weight ?? 0f);
         }
+
         return (float)Math.Round(sum, 2);
     }
 
     #endregion
 
-    #region [ Module Modal ]
+    #region [ Advanced Module Modal ]
 
+    /// <summary>
+    /// Prepares and opens the modal to create a completely new advanced module.
+    /// </summary>
     private void OpenAddModuleModal()
     {
         advancedModuleTitle = string.Empty;
@@ -1119,27 +1162,38 @@
         StateHasChanged();
     }
 
+    /// <summary>
+    /// Closes the advanced module creation modal.
+    /// </summary>
     private void CloseAddModuleModal()
     {
         isAddModuleModalOpen = false;
     }
 
+    /// <summary>
+    /// Auto-calculates weights and submits the newly configured advanced module to the parent view.
+    /// </summary>
     private async Task SaveAdvancedModule()
     {
         if (string.IsNullOrWhiteSpace(advancedModuleTitle)) return;
 
         ApplyWeightDistribution();
 
+        int orderIndex = Modules.Any() ? Modules.Max(m => m.OrderIndex) + 1 : 0;
+
         isSavingModal = true;
-        await OnCreateAdvancedModule.InvokeAsync((advancedModuleTitle, advancedModuleWeight, drafts));
+        await OnCreateAdvancedModule.InvokeAsync((advancedModuleTitle, advancedModuleWeight, orderIndex, drafts));
         isSavingModal = false;
         isAddModuleModalOpen = false;
     }
 
     #endregion
 
-    #region [ Processamento de Gravações ]
+    #region [ Save Processing ]
 
+    /// <summary>
+    /// Saves the new Theoretical Component to the active parent module and stage.
+    /// </summary>
     private async Task SaveComponent()
     {
         if (activeModalModule == null || !activeModalStage.HasValue) return;
@@ -1152,8 +1206,11 @@
 
     #endregion
 
-    #region [ Edição em Massa (Bulk Edit) ]
+    #region [ Bulk Edit Mode ]
 
+    /// <summary>
+    /// Activates Bulk Edit Mode, backing up original component states and preparing draft objects for UI rendering.
+    /// </summary>
     private void ToggleEditMode()
     {
         isEditMode = true;
@@ -1171,7 +1228,7 @@
         var stageComponents = activeModalModule?.Components.Where(c => c.Stage == activeModalStage?.Stage).ToList() ?? new();
         var topLevel = stageComponents.Where(c => c.ParentComponentId == null).ToList();
 
-        // 1. Distribuição Automática (Apenas se a soma for 0% - itens recém-criados)
+        // 1. Auto-Distribution for newly created standalone items (0%)
         if (activeModalStage.Value.Stage != ModuleStage.Teorica && topLevel.Any() && topLevel.Sum(c => c.Weight) == 0)
         {
             int wPerItem = 100 / topLevel.Count;
@@ -1181,7 +1238,7 @@
 
         foreach (var c in stageComponents)
         {
-            // Fotografia do estado original
+            // Snapshot original state
             originalComponentStates[c.Id] = (c.Title, c.Description ?? "", c.PdfFilePath ?? "", c.Weight);
 
             if (c.ParentComponentId == null)
@@ -1192,7 +1249,7 @@
 
                 editModeNewParents[c.Id] = new List<DraftParent> { new DraftParent() };
 
-                // 2. Distribuição Automática para Filhos (Apenas se a soma for 0%)
+                // 2. Auto-Distribution for newly created children (0%)
                 var children = stageComponents
                     .Where(child => child.ParentComponentId == c.Id)
                     .ToList();
@@ -1210,6 +1267,9 @@
         }
     }
 
+    /// <summary>
+    /// Dynamically expands or shrinks the available child drafts within bulk edit mode.
+    /// </summary>
     private void CheckEditModeChildrenState(int parentId)
     {
         var list = editModeNewChildren[parentId];
@@ -1217,11 +1277,14 @@
         else if (list.Count > 1 && string.IsNullOrWhiteSpace(list[^2].Text)) list.RemoveAt(list.Count - 2);
     }
 
+    /// <summary>
+    /// Validates rules, auto-distributes empty percentage fields, and submits the bulk edit payload.
+    /// </summary>
     private async Task SaveChangesBulk()
     {
         if (activeModalModule == null || !activeModalStage.HasValue) return;
 
-        // 1. Filtrar existentes e rascunhos
+        // 1. Filter existing components and drafts
         var componentsToUpdate = activeModalModule.Components
             .Where(c => c.Stage == activeModalStage.Value.Stage && !editModeDeletedIds.Contains(c.Id))
             .ToList();
@@ -1229,14 +1292,14 @@
         var topLevel = componentsToUpdate.Where(c => c.ParentComponentId == null).OrderBy(c => c.OrderIndex).ToList();
         var allNewParents = editModeEmptyListParents.Concat(editModeNewParents.Values.SelectMany(x => x)).Where(p => !string.IsNullOrWhiteSpace(p.Text)).ToList();
 
-        // 2. VALIDAÇÕES E AUTO-DISTRIBUIÇÃO
+        // 2. Validations and Auto-Distribution
         if (activeModalStage.Value.Stage != ModuleStage.Teorica)
         {
-            // A. Auto-Distribuição de Pais (Existentes e Novos)
+            // A. Auto-Distribute Parents (Existing and New)
             var emptyExistingParents = topLevel.Where(c => c.Weight <= 0).ToList();
-            var emptyNewParents = allNewParents.Where(p => p.Weight <= 0).ToList();
+            var emptyNewParents = allNewParents.Where(p => p.Weight == null || p.Weight <= 0).ToList();
             int totalEmptyParents = emptyExistingParents.Count + emptyNewParents.Count;
-            float currentSumParents = topLevel.Sum(c => c.Weight) + allNewParents.Sum(p => p.Weight);
+            float currentSumParents = topLevel.Sum(c => c.Weight) + allNewParents.Where(p => p.Weight > 0).Sum(p => p.Weight ?? 0f);
 
             if (totalEmptyParents > 0 && currentSumParents < 100)
             {
@@ -1248,15 +1311,15 @@
                 foreach (var p in emptyNewParents) { p.Weight = (currentIndex == totalEmptyParents - 1) ? (float)Math.Round(remainder - (split * currentIndex), 2) : split; currentIndex++; }
             }
 
-            // B. Validação Global de Pais
-            float totalParentWeight = topLevel.Sum(c => c.Weight) + allNewParents.Sum(p => p.Weight);
+            // B. Global Parent Validation
+            float totalParentWeight = topLevel.Sum(c => c.Weight) + allNewParents.Sum(p => p.Weight ?? 0f);
             if ((topLevel.Any() || allNewParents.Any()) && totalParentWeight != 100)
             {
                 validationError = "A soma das percentagens dos parâmetros principais tem de ser exatamente 100%.";
                 return;
             }
 
-            // C. Auto-Distribuição e Validação de Filhos
+            // C. Auto-Distribute and Validate Children
             foreach (var parent in topLevel)
             {
                 var existingChildren = componentsToUpdate.Where(c => c.ParentComponentId == parent.Id).ToList();
@@ -1270,10 +1333,9 @@
                 }
                 else
                 {
-                    var emptyExisting = existingChildren.Where(c => c.Weight <= 0).ToList();
-                    var emptyNew = newChildren.Where(c => c.Weight <= 0).ToList();
-                    int totalEmptyCount = emptyExisting.Count + emptyNew.Count;
-                    float currentSum = existingChildren.Sum(c => c.Weight) + newChildren.Sum(c => c.Weight);
+                    var emptyNew = newChildren.Where(c => c.Weight == null).ToList();
+                    int totalEmptyCount = emptyNew.Count;
+                    float currentSum = existingChildren.Sum(c => c.Weight) + newChildren.Where(c => c.Weight > 0).Sum(c => c.Weight ?? 0f);
 
                     if (totalEmptyCount > 0 && currentSum < 100)
                     {
@@ -1281,27 +1343,27 @@
                         float split = (float)Math.Round(remainder / totalEmptyCount, 2);
                         int currentIndex = 0;
 
-                        foreach (var child in emptyExisting) { child.Weight = (currentIndex == totalEmptyCount - 1) ? (float)Math.Round(remainder - (split * currentIndex), 2) : split; currentIndex++; }
                         foreach (var nc in emptyNew) { nc.Weight = (currentIndex == totalEmptyCount - 1) ? (float)Math.Round(remainder - (split * currentIndex), 2) : split; currentIndex++; }
                     }
                 }
 
-                if ((existingChildren.Any() || newChildren.Any()) && (existingChildren.Sum(c => c.Weight) + newChildren.Sum(c => c.Weight)) != 100)
+                float finalSum = existingChildren.Sum(c => c.Weight) + newChildren.Sum(c => c.Weight ?? 0f);
+                if ((existingChildren.Any() || newChildren.Any()) && finalSum != 100 && finalSum != 0)
                 {
-                    validationError = $"A soma das percentagens dos sub-parâmetros de '{parent.Title}' tem de ser exatamente 100%.";
+                    validationError = $"A soma das percentagens dos sub-parâmetros de '{parent.Title}' tem de ser exatamente 100% (ou 0% para descritivos).";
                     return;
                 }
             }
 
-            // D. Auto-Distribuição e Validação de Filhos (NOVOS PAIS)
+            // D. Auto-Distribute and Validate Children (New Parents)
             foreach (var newParent in allNewParents)
             {
                 var validChildren = newParent.Children.Where(c => !string.IsNullOrWhiteSpace(c.Text)).ToList();
-                
+
                 if (validChildren.Any())
                 {
-                    var emptyChildren = validChildren.Where(c => c.Weight <= 0).ToList();
-                    float currentSum = validChildren.Sum(c => c.Weight);
+                    var emptyChildren = validChildren.Where(c => c.Weight == null).ToList();
+                    float currentSum = validChildren.Where(c => c.Weight > 0).Sum(c => c.Weight ?? 0f);
 
                     if (emptyChildren.Any() && currentSum < 100)
                     {
@@ -1309,43 +1371,44 @@
                         float split = (float)Math.Round(remainder / emptyChildren.Count, 2);
                         int currentIndex = 0;
 
-                        foreach (var child in emptyChildren) 
-                        { 
-                            child.Weight = (currentIndex == emptyChildren.Count - 1) ? (float)Math.Round(remainder - (split * currentIndex), 2) : split; 
-                            currentIndex++; 
+                        foreach (var child in emptyChildren)
+                        {
+                            child.Weight = (currentIndex == emptyChildren.Count - 1) ? (float)Math.Round(remainder - (split * currentIndex), 2) : split;
+                            currentIndex++;
                         }
                     }
 
-                    if (validChildren.Sum(c => c.Weight) != 100)
+                    float finalSum = validChildren.Sum(c => c.Weight ?? 0f);
+                    if (finalSum != 100 && finalSum != 0)
                     {
-                        validationError = $"A soma das percentagens dos sub-parâmetros de '{newParent.Text}' tem de ser exatamente 100%.";
+                        validationError = $"A soma das percentagens dos sub-parâmetros de '{newParent.Text}' tem de ser exatamente 100% (ou 0% para descritivos).";
                         return;
                     }
                 }
             }
         }
 
-        // 3. TUDO VALIDADO! PROCESSAR ELIMINAÇÕES
+        // 3. All validated! Process deletions.
         validationError = null;
         isSavingModal = true;
         foreach (var id in editModeDeletedIds) await OnDeleteComponent.InvokeAsync(id);
         editModeDeletedIds.Clear();
 
-        // 4. CALCULAR ORDEM DOS NOVOS PAIS E SEUS FILHOS REATIVOS
+        // 4. Calculate ordering for new parents and their children.
         int currentParentOrder = 0;
         var validNewParents = new List<(string Title, float Weight, int OrderIndex, List<(string Title, float Weight, int OrderIndex)> Children)>();
 
-        // Pais da Lista Vazia
         foreach (var draft in editModeEmptyListParents.Where(p => !string.IsNullOrWhiteSpace(p.Text) || p.Children.Any(c => !string.IsNullOrWhiteSpace(c.Text))))
         {
             var childrenList = new List<(string Title, float Weight, int OrderIndex)>();
             int childOrder = 0;
-            foreach (var c in draft.Children.Where(child => !string.IsNullOrWhiteSpace(child.Text))) childrenList.Add((c.Text, c.Weight, childOrder++));
 
-            validNewParents.Add((draft.Text ?? "", draft.Weight, currentParentOrder++, childrenList));
+            foreach (var c in draft.Children.Where(child => !string.IsNullOrWhiteSpace(child.Text)))
+                childrenList.Add((c.Text, c.Weight ?? 0f, childOrder++));
+
+            validNewParents.Add((draft.Text ?? "", draft.Weight ?? 0f, currentParentOrder++, childrenList));
         }
 
-        // Pais Intercalados
         foreach (var parent in topLevel)
         {
             parent.OrderIndex = currentParentOrder++;
@@ -1355,46 +1418,54 @@
                 {
                     var childrenList = new List<(string Title, float Weight, int OrderIndex)>();
                     int childOrder = 0;
-                    foreach (var c in draft.Children.Where(child => !string.IsNullOrWhiteSpace(child.Text))) childrenList.Add((c.Text, c.Weight, childOrder++));
 
-                    validNewParents.Add((draft.Text ?? "", draft.Weight, currentParentOrder++, childrenList));
+                    foreach (var c in draft.Children.Where(child => !string.IsNullOrWhiteSpace(child.Text)))
+                        childrenList.Add((c.Text, c.Weight ?? 0f, childOrder++));
+
+                    validNewParents.Add((draft.Text ?? "", draft.Weight ?? 0f, currentParentOrder++, childrenList));
                 }
             }
         }
 
-        // 5. CALCULAR ORDEM DOS FILHOS
+        // 5. Calculate ordering for children.
         var newSubTasksDict = new Dictionary<int, List<(string Title, float Weight, int OrderIndex)>>();
         foreach (var kvp in editModeNewChildren)
         {
             if (editModeDeletedIds.Contains(kvp.Key)) continue;
             int maxChildOrder = componentsToUpdate.Where(c => c.ParentComponentId == kvp.Key).Select(c => c.OrderIndex).DefaultIfEmpty(-1).Max();
             var validTasks = new List<(string Title, float Weight, int OrderIndex)>();
-            
+
             foreach (var draft in kvp.Value.Where(c => !string.IsNullOrWhiteSpace(c.Text)))
             {
                 maxChildOrder++;
-                validTasks.Add((draft.Text, draft.Weight, maxChildOrder));
+                validTasks.Add((draft.Text, draft.Weight ?? 0f, maxChildOrder));
             }
-            if (validTasks.Any()) newSubTasksDict[kvp.Key] = validTasks;       
+            if (validTasks.Any()) newSubTasksDict[kvp.Key] = validTasks;
         }
 
-        // 6. ENVIAR EVENTO (Com a assinatura nova correta!)
+        // 6. Emit event.
         await OnSaveBulkEditEvent.InvokeAsync((activeModalModule.Id, activeModalStage.Value.Stage, componentsToUpdate, newSubTasksDict, validNewParents));
 
         isSavingModal = false;
         isEditMode = false;
     }
 
+    /// <summary>
+    /// Distributes remaining percentage weights equally among missing parent/child targets dynamically.
+    /// </summary>
     private void ApplyWeightDistribution()
     {
-        // 1. Processar os Pais (Grupos/Tarefas Principais)
+        // 1. Process Parents (Main Tasks)
         var validParents = drafts.Where(p => !string.IsNullOrWhiteSpace(p.Text)).ToList();
+
         if (validParents.Any())
         {
-            var emptyParents = validParents.Where(p => p.Weight <= 0).ToList();
-            float sumParents = validParents.Sum(p => p.Weight);
+            // Target ONLY the nulls (empty inputs) and explicit 0s (parents cannot be descriptive)
+            var emptyParents = validParents.Where(p => p.Weight == null || p.Weight <= 0).ToList();
 
-            // Se houver vazios e a soma for menor que 100 (cobre a Regra 2 e a Regra 3)
+            float sumParents = validParents.Where(p => p.Weight > 0).Sum(p => p.Weight.Value);
+
+            // Apply remainder logic if sum is under 100
             if (emptyParents.Any() && sumParents < 100)
             {
                 float remainder = 100f - sumParents;
@@ -1402,7 +1473,7 @@
 
                 for (int i = 0; i < emptyParents.Count; i++)
                 {
-                    // O último elemento recebe o remanescente exato para garantir os 100% redondos
+                    // Provide the exact rounding remainder to the final item
                     if (i == emptyParents.Count - 1)
                         emptyParents[i].Weight = (float)Math.Round(remainder - (split * i), 2);
                     else
@@ -1410,14 +1481,16 @@
                 }
             }
 
-            // 2. Processar os Filhos (Sub-parâmetros) dentro de cada Pai
+            // 2. Process Children (Sub-parameters) inside each Parent
             foreach (var parent in validParents)
             {
                 var validChildren = parent.Children.Where(c => !string.IsNullOrWhiteSpace(c.Text)).ToList();
                 if (validChildren.Any())
                 {
-                    var emptyChildren = validChildren.Where(c => c.Weight <= 0).ToList();
-                    float sumChildren = validChildren.Sum(c => c.Weight);
+                    // STRICT FILTER: Target ONLY nulls. Typed 0s are ignored and saved as descriptive.
+                    var emptyChildren = validChildren.Where(c => c.Weight == null).ToList();
+
+                    float sumChildren = validChildren.Where(c => c.Weight > 0).Sum(c => c.Weight.Value);
 
                     if (emptyChildren.Any() && sumChildren < 100)
                     {
@@ -1439,14 +1512,20 @@
 
     #endregion
 
-    #region [ Controlo de Badges ]
+    #region [ Badge Control ]
 
+    /// <summary>
+    /// Opens the badge management modal.
+    /// </summary>
     private void OpenBadgeModal()
     {
         isBadgeModalOpen = true;
         StateHasChanged();
     }
 
+    /// <summary>
+    /// Closes the badge management modal.
+    /// </summary>
     private void CloseBadgeModal()
     {
         isBadgeModalOpen = false;
@@ -1456,12 +1535,18 @@
 
     #region [ Weight Modal ]
 
-    // Variável e novo Evento
     private bool isWeightModalOpen = false;
+
     [Parameter] public EventCallback<List<BuilderModuleDto>> OnUpdateBulkModuleWeights { get; set; }
 
+    /// <summary>
+    /// Opens the module weight management modal.
+    /// </summary>
     private void OpenWeightModal() => isWeightModalOpen = true;
 
+    /// <summary>
+    /// Closes the module weight modal and emits the bulk weight update event.
+    /// </summary>
     private async Task SaveBulkWeights(List<BuilderModuleDto> updatedModules)
     {
         isWeightModalOpen = false;
@@ -1470,15 +1555,21 @@
 
     #endregion
 
-    #region [ Drag & Drop (Ordenação de Módulos) ]
+    #region [ Drag & Drop (Module Sorting) ]
 
     private int? draggingModuleId;
 
+    /// <summary>
+    /// Tracks the identifier of the module currently being dragged.
+    /// </summary>
     private void HandleModuleDragStart(int id)
     {
         draggingModuleId = id;
     }
 
+    /// <summary>
+    /// Intercepts a dragged module entering a new position and live-updates the array index.
+    /// </summary>
     private void HandleModuleDragEnter(int targetId)
     {
         if (draggingModuleId == null || draggingModuleId == targetId) return;
@@ -1494,20 +1585,21 @@
         Modules.RemoveAt(oldIndex);
         Modules.Insert(newIndex, draggedItem);
 
-        // Atualiza os índices de ordem imediatamente na memória
         for (int i = 0; i < Modules.Count; i++)
         {
             Modules[i].OrderIndex = i;
         }
     }
 
+    /// <summary>
+    /// Executes the final drop action and permanently saves the new module ordering to the database.
+    /// </summary>
     private async Task HandleModuleDrop()
     {
         ResetModuleDrag();
 
         try
         {
-            // Grava a nova ordem enviando as alterações diretas sem precisar de fazer GET antes!
             foreach (var mod in Modules)
             {
                 if (CurrentMode == BuilderMode.Template)
@@ -1540,6 +1632,9 @@
         }
     }
 
+    /// <summary>
+    /// Clears the active module dragging state.
+    /// </summary>
     private void ResetModuleDrag()
     {
         draggingModuleId = null;
@@ -1547,25 +1642,34 @@
 
     #endregion
 
-    #region [ Drag & Drop (Ordenação de Parametros) ]
+    #region [ Drag & Drop (Component Sorting) ]
 
-    // Memória de quem está a ser arrastado
     private int? draggingParentId;
     private int? draggingChildId;
 
     private string? dropTargetId;
 
+    /// <summary>
+    /// Identifies the component (parent or child) currently being dragged.
+    /// </summary>
     private void HandleDragStart(int parentId, int? childId = null)
     {
         draggingParentId = parentId;
         draggingChildId = childId;
     }
 
+    /// <summary>
+    /// Resets states on successful component drop.
+    /// Real-time reordering is handled via HandleDragEnter.
+    /// </summary>
     private void HandleDrop()
-    {        
-        ResetDrag();        
+    {
+        ResetDrag();
     }
 
+    /// <summary>
+    /// Core utility to swap elements in a generic component list based on Drag & Drop events.
+    /// </summary>
     private void ReorderList(List<BuilderComponentDto> list, int draggedId, int targetId)
     {
         var draggedItem = list.FirstOrDefault(c => c.Id == draggedId);
@@ -1582,12 +1686,18 @@
         for (int i = 0; i < list.Count; i++) list[i].OrderIndex = i;
     }
 
+    /// <summary>
+    /// Clears the active component dragging state.
+    /// </summary>
     private void ResetDrag()
     {
         draggingParentId = null;
         draggingChildId = null;
     }
 
+    /// <summary>
+    /// Handles complex drag-enter logic, ensuring children only swap with children inside the same parent, and parents swap with parents.
+    /// </summary>
     private void HandleDragEnter(int targetParentId, int? targetChildId = null)
     {
         if (activeModalModule == null || !activeModalStage.HasValue || draggingParentId == null) return;
@@ -1596,7 +1706,7 @@
 
         if (draggingChildId.HasValue)
         {
-            // O Segurança: Filhos só trocam de lugar com filhos do mesmo pai
+            // Security: Children can only swap places with other children of the same parent
             if (draggingParentId != targetParentId || !targetChildId.HasValue || draggingChildId == targetChildId) return;
 
             var children = stageComponents.Where(c => c.ParentComponentId == targetParentId).OrderBy(c => c.OrderIndex).ToList();
@@ -1604,7 +1714,7 @@
         }
         else
         {
-            // O Segurança: Pais só trocam de lugar com outros pais
+            // Security: Parents can only swap places with other parents
             if (targetChildId.HasValue || draggingParentId == targetParentId) return;
 
             var parents = stageComponents.Where(c => c.ParentComponentId == null).OrderBy(c => c.OrderIndex).ToList();
@@ -1612,18 +1722,28 @@
         }
     }
 
+    /// <summary>
+    /// Clears the drop target UI styling on leave.
+    /// </summary>
     private void HandleDragLeave(string targetId)
     {
         if (dropTargetId == targetId) dropTargetId = null;
     }
 
+    /// <summary>
+    /// Generates dynamic inline CSS for the current drop target area.
+    /// </summary>
     private string GetDropStyle(string id) =>
         dropTargetId == id ? "border-style: dashed !important;" : "";
 
+    /// <summary>
+    /// Generates dynamic inline CSS to distinguish between empty drafts and populated items.
+    /// </summary>
     private string GetDraftStyle(string text) =>
         string.IsNullOrWhiteSpace(text)
             ? "border: 2px dashed #adb5bd !important; background-color: #f8f9fa;"
             : "border: 2px solid #198754;";
-        
+
     #endregion
+
 }

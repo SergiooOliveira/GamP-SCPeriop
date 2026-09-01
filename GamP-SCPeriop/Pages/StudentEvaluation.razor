@@ -1,5 +1,6 @@
 ﻿@page "/evaluate/{EnrollmentId:int}"
 @using GamP_SCPeriop.Shared.Data
+@using GamP_SCPeriop.Shared.Entity.Model
 @using GamP_SCPeriop.Shared.Enum
 @layout TopNavBarLayout
 @inject HttpClient Http
@@ -9,9 +10,22 @@
     <div class="row justify-content-center">
         <div class="col-12 col-lg-10 px-3">
 
-            <button class="btn btn-link text-decoration-none text-muted p-0 mb-4 fw-semibold" @onclick="GoBack">
-                <i class="bi bi-arrow-left me-2"></i> Voltar ao Dashboard
-            </button>
+            <!-- Top Action Bar -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <button class="btn btn-link text-decoration-none text-muted p-0 fw-semibold" @onclick="GoBack">
+                    <i class="bi bi-arrow-left me-2"></i> Voltar ao Dashboard
+                </button>
+
+                <div class="d-flex align-items-center">
+                    @if (!string.IsNullOrEmpty(successMessage))
+                    {
+                        <span class="text-success fw-bold me-3">@successMessage</span>
+                    }
+                    <button class="btn btn-primary" @onclick="SaveEvaluationsAsync" disabled="@(isSaving || !pendingEvaluations.Any())">
+                        @(isSaving ? "A guardar..." : "Guardar Avaliações")
+                    </button>
+                </div>
+            </div>
 
             @if (isLoading)
             {
@@ -50,22 +64,17 @@
                             bool isExpanded = expandedModules.Contains(module.Id);
 
                             <div class="card shadow-sm border-0 mb-4" style="border-radius: 15px; border-left: 5px solid #2c3e50; overflow: hidden;">
-
-                                <!-- CABEÇALHO CLICÁVEL (ACORDEÃO) -->
-                                <div class="card-header bg-white border-0 pt-4 pb-3 px-4 d-flex justify-content-between align-items-center" 
-                                style="cursor: pointer;" 
-                                @onclick="() => ToggleAccordion(module.Id)">
-
+                                <div class="card-header bg-white border-0 pt-4 pb-3 px-4 d-flex justify-content-between align-items-center"
+                                     style="cursor: pointer;"
+                                     @onclick="() => ToggleAccordion(module.Id)">
                                     <h4 class="fw-bold text-uppercase mb-0" style="color: #2c3e50; letter-spacing: 1px;">
                                         @module.Title
                                     </h4>
-
                                     <button class="btn btn-link text-muted p-0 shadow-none">
                                         <i class="bi @(isExpanded ? "bi-chevron-up" : "bi-chevron-down") fs-5"></i>
                                     </button>
                                 </div>
 
-                                <!-- CORPO DO MÓDULO (SÓ MOSTRA SE EXPANDIDO) -->
                                 @if (isExpanded)
                                 {
                                     <div class="card-body p-4 border-top">
@@ -75,33 +84,29 @@
                                             var currentProgress = CalculateStageProgress(module, currentStage);
                                         }
 
-                                        <!-- 1. BARRA TEMPORAL (Abas) -->
                                         <div class="d-flex w-100 mb-4 shadow-sm" style="height: 55px; border-radius: 12px; overflow: hidden; border: 1px solid rgba(0,0,0,0.1);">
                                             @foreach (var stage in practicalStages)
                                             {
                                                 var isActive = currentStage == stage;
                                                 var isChronological = chronoStage == stage;
-
                                                 var isPastOrCurrent = (int)stage <= (int)chronoStage;
                                                 string baseColor = isPastOrCurrent ? GetStageColor(stage) : "#e9ecef";
                                                 string textColor = isPastOrCurrent ? "text-white" : "text-muted";
                                                 string opacity = isActive ? "1" : (isPastOrCurrent ? "0.8" : "0.5");
 
                                                 <button class="btn border-0 rounded-0 flex-grow-1 position-relative d-flex align-items-center justify-content-center p-0 shadow-none"
-                                                style="background-color: @baseColor; transition: all 0.3s ease; opacity: @opacity; border-right: 1px solid rgba(255,255,255,0.3);"
-                                                @onclick="() => activeTabs[module.Id] = stage" title="@FormatStageName(stage)">
-
+                                                        style="background-color: @baseColor; transition: all 0.3s ease; opacity: @opacity; border-right: 1px solid rgba(255,255,255,0.3);"
+                                                        @onclick="() => activeTabs[module.Id] = stage" title="@FormatStageName(stage)">
                                                     <div class="d-flex align-items-center px-2 text-truncate @textColor" style="@(isPastOrCurrent ? "text-shadow: 1px 1px 2px rgba(0,0,0,0.4);" : "")">
                                                         <i class="bi @(isActive ? "bi-check-circle-fill" : "bi-calendar-week") me-2"></i>
                                                         <span class="@(isActive ? "fw-bold" : "fw-medium") text-truncate" style="font-size: 0.85rem; letter-spacing: 0.5px;">
                                                             @FormatStageName(stage)
                                                         </span>
                                                     </div>
-
                                                     @if (isChronological)
                                                     {
                                                         <span class="position-absolute top-0 start-50 translate-middle-x badge bg-dark bg-opacity-75 rounded-bottom shadow-sm"
-                                                        style="font-size: 0.60rem; padding: 0.2rem 0.5rem; letter-spacing: 1px;">
+                                                              style="font-size: 0.60rem; padding: 0.2rem 0.5rem; letter-spacing: 1px;">
                                                             SEMANA ATUAL
                                                         </span>
                                                     }
@@ -109,7 +114,6 @@
                                             }
                                         </div>
 
-                                        <!-- 2. BARRA DE PROGRESSO ANIMADA (Semáforo) -->
                                         <div class="mb-4 px-2">
                                             <div class="d-flex justify-content-between align-items-end mb-2">
                                                 <small class="text-muted fw-bold text-uppercase" style="letter-spacing: 0.5px;">
@@ -119,19 +123,17 @@
                                             </div>
 
                                             <div class="w-100 bg-light shadow-inner" style="height: 10px; border-radius: 10px; overflow: hidden; border: 1px solid #e9ecef;">
-                                                <div class="h-100" 
-                                                style="width: @(currentProgress)%; 
-                                                            background-color: @GetTrafficLightColor(currentProgress); 
-                                                            transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.6s ease; 
-                                                            border-radius: 10px;">
+                                                <div class="h-100"
+                                                     style="width: @(currentProgress)%;
+                                                    background-color: @GetTrafficLightColor(currentProgress);
+                                                    transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.6s ease;
+                                                    border-radius: 10px;">
                                                 </div>
                                             </div>
                                         </div>
 
                                         @{
                                             var activeTimeline = module.StageTimelines?.FirstOrDefault(t => t.Stage == currentStage);
-
-                                            // Só está bloqueado se existir, tiver um StartDate, e o dia de hoje for anterior
                                             bool isStageBlocked = activeTimeline != null &&
                                                                   activeTimeline.StartDate.HasValue &&
                                                                   DateTime.Now.Date < activeTimeline.StartDate.Value.Date;
@@ -151,10 +153,10 @@
                                                     <span></span>
                                                 }
                                                 <small class="text-muted fw-bold">
-                                                    <i class="bi bi-clock-history me-1"></i> Data Limite da Fase: 
-                                                        <span class="text-dark">
+                                                    <i class="bi bi-clock-history me-1"></i> Data Limite da Fase:
+                                                    <span class="text-dark">
                                                         @(activeTimeline.EndDate.HasValue ? activeTimeline.EndDate.Value.ToString("dd/MM/yyyy") : "N/D")
-                                                        </span>
+                                                    </span>
                                                 </small>
                                             </div>
                                         }
@@ -166,7 +168,8 @@
 
                                         @foreach (var item in topLevelItems)
                                         {
-                                            var children = assessableComponents.Where(c => c.ParentComponentId == item.Id).ToList();
+                                            // Fetch children but immediately filter out the descriptive ones
+                                            var children = assessableComponents.Where(c => c.ParentComponentId == item.Id && c.Weight > 0).ToList();
 
                                             if (children.Any())
                                             {
@@ -195,7 +198,7 @@
                                                     }
                                                 </div>
                                             }
-                                            else
+                                            else if (item.Weight > 0) // Only render standalone task if it's not descriptive
                                             {
                                                 <div class="card border-0 bg-light mb-3" style="border-radius: 10px; @(isStageBlocked ? "opacity: 0.6;" : "")">
                                                     <div class="card-body p-3">
@@ -231,15 +234,20 @@
 
     private bool isLoading = true;
     private Dictionary<int, ModuleStage> activeTabs = new();
-    private Dictionary<int, ModuleStage> chronologicalTabs = new(); // NOVO: Guarda a semana cronológica real
+    private Dictionary<int, ModuleStage> chronologicalTabs = new();
     private HashSet<int> expandedModules = new();
+
+    // Batch save state variables
+    private Dictionary<int, EvaluationRequestDto> pendingEvaluations = new();
+    private bool isSaving = false;
+    private string successMessage = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadData();
+        await LoadDataAsync();
     }
 
-    private async Task LoadData()
+    private async Task LoadDataAsync()
     {
         try
         {
@@ -268,22 +276,18 @@
         foreach (var em in enrollmentModules)
         {
             var module = em.Module;
-
             if (module == null) continue;
 
             var practicalStages = GetValidPracticalStages(module);
 
             if (practicalStages.Any())
             {
-                // Por defeito assume a primeira
                 ModuleStage actualStage = practicalStages.First();
 
-                // NOVA LÓGICA: Procurar nas datas reais (StageTimelines)
                 if (module.StageTimelines != null && module.StageTimelines.Any())
                 {
                     var today = DateTime.Now.Date;
 
-                    // 1. Tenta encontrar a fase onde o 'hoje' encaixa
                     var currentTimeline = module.StageTimelines
                         .FirstOrDefault(t => t.StartDate.HasValue && t.EndDate.HasValue &&
                                              today >= t.StartDate.Value.Date &&
@@ -295,7 +299,6 @@
                     }
                     else
                     {
-                        // 2. Se já passou de todas as datas, tranca na última fase
                         var lastTimeline = module.StageTimelines
                             .Where(t => t.EndDate.HasValue)
                             .OrderBy(t => t.EndDate.Value)
@@ -308,13 +311,12 @@
                     }
                 }
 
-                activeTabs[module.Id] = actualStage;        // Aba que abre
-                chronologicalTabs[module.Id] = actualStage; // Crachá SEMANA ATUAL
+                activeTabs[module.Id] = actualStage;
+                chronologicalTabs[module.Id] = actualStage;
             }
 
-            // Abre o primeiro módulo que tenha fases práticas válidas
             var firstValidModule = enrollmentModules
-                .Select(em => em.Module)
+                .Select(e => e.Module)
                 .FirstOrDefault(m => m != null && GetValidPracticalStages(m).Any());
 
             if (firstValidModule != null)
@@ -324,29 +326,57 @@
         }
     }
 
-    // Helper para o texto dos botões (Transforma "PraticaSupervisionada" em "Prática Supervisionada")
     private string FormatStageName(ModuleStage stage)
     {
         return System.Text.RegularExpressions.Regex.Replace(stage.ToString(), "([A-Z])", " $1").Trim();
     }
 
-    private async Task EvaluateComponent(ModuleComponent component, ComponentStatus newStatus)
+    private void QueueEvaluation(ModuleComponent component, ComponentStatus newStatus)
     {
+        successMessage = string.Empty;
+
+        // Update local object to reflect the change visually right away
         component.Status = newStatus;
         RecalculateProgress();
 
-        var request = new
+        // Add to batch dictionary
+        if (pendingEvaluations.ContainsKey(component.Id))
         {
-            EnrollmentId = this.EnrollmentId,
-            ModuleComponentId = component.Id,
-            Status = newStatus
-        };
-
-        var response = await Http.PostAsJsonAsync("api/Evaluation", request);
-        if (!response.IsSuccessStatusCode)
-        {
-            Console.WriteLine("Erro ao guardar avaliação.");
+            pendingEvaluations[component.Id].Status = newStatus;
         }
+        else
+        {
+            pendingEvaluations[component.Id] = new EvaluationRequestDto
+            {
+                EnrollmentId = this.EnrollmentId,
+                ModuleComponentId = component.Id,
+                Status = newStatus
+            };
+        }
+    }
+
+    private async Task SaveEvaluationsAsync()
+    {
+        if (!pendingEvaluations.Any()) return;
+
+        isSaving = true;
+        successMessage = string.Empty;
+
+        var payload = pendingEvaluations.Values.ToList();
+
+        var response = await Http.PostAsJsonAsync("api/Evaluation", payload);
+
+        if (response.IsSuccessStatusCode)
+        {
+            pendingEvaluations.Clear();
+            successMessage = "Avaliações guardadas com sucesso!";
+        }
+        else
+        {
+            successMessage = "Erro ao guardar avaliações.";
+        }
+
+        isSaving = false;
     }
 
     private void GoBack()
@@ -359,6 +389,27 @@
         {
             Nav.NavigateTo("/dashboard");
         }
+    }
+
+    private int CalculateStageProgress(Module module, ModuleStage stage)
+    {
+        if (module.Components == null) return 0;
+
+        var parentIds = module.Components
+            .Where(c => c.ParentComponentId.HasValue)
+            .Select(c => c.ParentComponentId.Value)
+            .ToHashSet();
+
+        var assessableComponents = module.Components
+            .Where(c => c.Stage == stage)
+            .Where(c => !parentIds.Contains(c.Id))
+            .Where(c => c.Weight > 0)
+            .ToList();
+
+        if (!assessableComponents.Any()) return 0;
+
+        int completed = assessableComponents.Count(c => IsTaskCompleted(c));
+        return (int)Math.Clamp(((double)completed / assessableComponents.Count) * 100, 0, 100);
     }
 
     private void RecalculateProgress()
@@ -374,10 +425,15 @@
 
             if (module?.Components != null)
             {
+                var parentIds = module.Components
+                    .Where(c => c.ParentComponentId.HasValue)
+                    .Select(c => c.ParentComponentId.Value)
+                    .ToHashSet();
 
                 var assessableComponents = module.Components
-                    .Where(c => c.Stage == ModuleStage.PraticaSupervisionada)
-                    .Where(c => !module.Components.Any(child => child.ParentComponentId == c.Id))
+                    .Where(c => c.Stage == ModuleStage.PraticaSupervisionada || c.Stage == ModuleStage.PraticaAssistida)
+                    .Where(c => !parentIds.Contains(c.Id))
+                    .Where(c => c.Weight > 0)
                     .ToList();
 
                 totalComponents += assessableComponents.Count;
@@ -390,49 +446,37 @@
 
         if (firstEnrollment != null)
         {
-            if (totalComponents > 0)
-            {
-                firstEnrollment.ProgressPercentage = (int)((double)completedComponents / totalComponents * 100);
-            }
-            else
-            {
-                firstEnrollment.ProgressPercentage = 0;
-            }
+            firstEnrollment.ProgressPercentage = totalComponents > 0
+                ? (int)((double)completedComponents / totalComponents * 100)
+                : 0;
         }
     }
 
     private bool IsTaskCompleted(ModuleComponent comp)
     {
-        // A checklist aparece ligada se a avaliação for Consistente ou Acima da Média
         return comp.Status == ComponentStatus.Consistente || comp.Status == ComponentStatus.AcimaDaMedia;
     }
 
-    private async Task ToggleChecklist(ModuleComponent comp, object? isChecked)
+    private void ToggleChecklist(ModuleComponent comp, object? isChecked)
     {
         bool isCompleted = (bool)(isChecked ?? false);
+        var newStatus = isCompleted ? ComponentStatus.Consistente : (ComponentStatus)0;
 
-        // Se marcou como feito, atribuímos a nota Consistente. 
-        // Se desmarcou, voltamos ao estado 0 (assumindo que o 0 do teu Enum é o Pendente/Vazio).
-        var newStatus = isCompleted ? ComponentStatus.Consistente : (ComponentStatus)0; 
-        
-        // Reutilizamos o teu método de gravação que já calcula o progresso e envia para a API
-        await EvaluateComponent(comp, newStatus);
+        QueueEvaluation(comp, newStatus);
     }
 
     private string GetStageColor(ModuleStage stage)
     {
         return stage switch
         {
-            ModuleStage.ObservacaoPassiva => "#6A96A6", // O teu Azul (Fase inicial)
-            ModuleStage.ObservacaoParticipada => "#F4A261", // Laranja Suave (Transição)
-            ModuleStage.PraticaAssistida => "#E76F51", // Laranja Escuro (Ação)
-            ModuleStage.PraticaSupervisionada => "#2A9D8F", // Verde Teal (Avaliação Final)
+            ModuleStage.ObservacaoPassiva => "#6A96A6",
+            ModuleStage.ObservacaoParticipada => "#F4A261",
+            ModuleStage.PraticaAssistida => "#E76F51",
+            ModuleStage.PraticaSupervisionada => "#2A9D8F",
             _ => "#6c757d"
         };
     }
 
-    // --- HELPER PARA RENDERIZAR OS BOTÕES SEM REPETIR CÓDIGO ---
-    // --- HELPER PARA RENDERIZAR OS BOTÕES SEM REPETIR CÓDIGO ---
     private RenderFragment RenderAssessmentButtons(ModuleComponent comp, bool isBlocked) => __builder =>
     {
         @if (comp.Stage == ModuleStage.ObservacaoPassiva || comp.Stage == ModuleStage.ObservacaoParticipada)
@@ -450,26 +494,26 @@
             <div class="d-flex flex-wrap gap-2">
                 <button class="btn btn-sm flex-grow-1 @(comp.Status == ComponentStatus.Inconsistente ? "btn-danger" : "btn-outline-danger")"
                         disabled="@isBlocked"
-                        @onclick="() => EvaluateComponent(comp, ComponentStatus.Inconsistente)">
+                        @onclick="() => QueueEvaluation(comp, ComponentStatus.Inconsistente)">
                     Inconsistente
                 </button>
 
                 <button class="btn btn-sm flex-grow-1 @(comp.Status == ComponentStatus.AbaixoDaMedia ? "btn-warning text-dark" : "btn-outline-warning text-dark")"
                         disabled="@isBlocked"
-                        @onclick="() => EvaluateComponent(comp, ComponentStatus.AbaixoDaMedia)">
+                        @onclick="() => QueueEvaluation(comp, ComponentStatus.AbaixoDaMedia)">
                     Abaixo da Média
                 </button>
 
                 <button class="btn btn-sm flex-grow-1 @(comp.Status == ComponentStatus.AcimaDaMedia ? "btn-warning bg-opacity-50 text-dark border-warning" : "btn-outline-secondary")"
                         style="@(comp.Status == ComponentStatus.AcimaDaMedia ? "background-color: #ffda6a;" : "")"
                         disabled="@isBlocked"
-                        @onclick="() => EvaluateComponent(comp, ComponentStatus.AcimaDaMedia)">
+                        @onclick="() => QueueEvaluation(comp, ComponentStatus.AcimaDaMedia)">
                     Acima da Média
                 </button>
 
                 <button class="btn btn-sm flex-grow-1 @(comp.Status == ComponentStatus.Consistente ? "btn-success shadow-sm fw-bold" : "btn-outline-success opacity-75")"
                         disabled="@isBlocked"
-                        @onclick="() => EvaluateComponent(comp, ComponentStatus.Consistente)">
+                        @onclick="() => QueueEvaluation(comp, ComponentStatus.Consistente)">
                     @if (comp.Status == ComponentStatus.Consistente)
                     {
                         <i class="bi bi-check2-circle me-1"></i>
@@ -480,33 +524,12 @@
         }
     };
 
-    // --- LÓGICA DO PROGRESSO INDIVIDUAL DA FASE E SEMÁFORO ---
-
-    private int CalculateStageProgress(Module module, ModuleStage stage)
-    {
-        if (module.Components == null) return 0;
-
-        // Vai buscar apenas as componentes avaliáveis DESTA FASE (ignorando as tarefas "Pai" que são só títulos)
-        var assessableComponents = module.Components
-            .Where(c => c.Stage == stage)
-            .Where(c => !module.Components.Any(child => child.ParentComponentId == c.Id))
-            .ToList();
-
-        if (!assessableComponents.Any()) return 0;
-
-        // Usa a tua própria lógica de verificar se a tarefa está concluída
-        int completed = assessableComponents.Count(c => IsTaskCompleted(c));
-
-        // Calcula a percentagem e garante que fica entre 0 e 100
-        return (int)Math.Clamp(((double)completed / assessableComponents.Count) * 100, 0, 100);
-    }
-
     private string GetTrafficLightColor(int progress)
     {
-        if (progress <= 49) return "#dc3545"; // Vermelho (Perigo)
-        if (progress <= 79) return "#ffc107"; // Amarelo (Atenção)
-        if (progress < 100) return "#20c997"; // Verde Claro (Quase lá)
-        return "#198754";                     // Verde Escuro (Concluído)
+        if (progress <= 49) return "#dc3545";
+        if (progress <= 79) return "#ffc107";
+        if (progress < 100) return "#20c997";
+        return "#198754";
     }
 
     private List<ModuleStage> GetValidPracticalStages(Module module)
@@ -525,8 +548,8 @@
     private void ToggleAccordion(int moduleId)
     {
         if (expandedModules.Contains(moduleId))
-            expandedModules.Remove(moduleId); // Fecha
+            expandedModules.Remove(moduleId);
         else
-            expandedModules.Add(moduleId);    // Abre
+            expandedModules.Add(moduleId);
     }
 }

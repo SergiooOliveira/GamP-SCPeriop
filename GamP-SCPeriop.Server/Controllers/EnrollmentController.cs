@@ -192,7 +192,8 @@ namespace GamP_SCPeriop.Server.Controllers
                     Title = baseModule.Title,
                     Weight = baseModule.Weight,
                     PathwayId = null,
-                    IsFromTemplate = true
+                    IsFromTemplate = true,
+                    OriginalModuleId = baseModule.Id
                 };
 
                 _context.Modules.Add(clonedModule);

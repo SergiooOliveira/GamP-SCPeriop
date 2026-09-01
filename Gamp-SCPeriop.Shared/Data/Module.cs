@@ -7,6 +7,7 @@ namespace GamP_SCPeriop.Shared.Data
     public class Module
     {
         public int Id { get; set; }
+        public int? OriginalModuleId { get; set; }
         public string Title { get; set; } = string.Empty;
         public List<ModuleComponent> Components { get; set; } = new();
         public int? PathwayId { get; set; }

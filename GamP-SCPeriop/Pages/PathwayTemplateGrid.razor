@@ -302,7 +302,7 @@
         }
     }
 
-    private async Task CreateAdvancedModuleFromBuilder((string Title, float Weight, List<PathwayBuilderComponent.DraftParent> Drafts) data)
+    private async Task CreateAdvancedModuleFromBuilder((string Title, float Weight, int OrderIndex, List<PathwayBuilderComponent.DraftParent> Drafts) data)
     {
         if (string.IsNullOrWhiteSpace(data.Title) || activeTemplate == null) return;
 
@@ -311,7 +311,8 @@
         {
             Title = data.Title,
             PathwayTemplateId = activeTemplate.Id,
-            Weight = data.Weight
+            Weight = data.Weight,
+            OrderIndex = data.OrderIndex
         };
 
         var moduleResponse = await Http.PostAsJsonAsync("api/ModuleTemplate", newMod);
@@ -333,7 +334,8 @@
                             ModuleTemplateId = savedMod.Id,
                             Title = parentDraft.Text,
                             Stage = stage,
-                            Weight = parentDraft.Weight
+                            Weight = parentDraft.Weight ?? 0f,
+                            OrderIndex = parentDraft.OrderIndex
                         };
 
                         var responseParent = await Http.PostAsJsonAsync("api/ComponentTemplate", dtoParent);
@@ -351,7 +353,8 @@
                                         Title = childDraft.Text,
                                         Stage = stage,
                                         ParentComponentTemplateId = savedParent.Id,
-                                        Weight = childDraft.Weight
+                                        Weight = childDraft.Weight ?? 0f,
+                                        OrderIndex = childDraft.OrderIndex
                                     };
                                     await Http.PostAsJsonAsync("api/ComponentTemplate", dtoChild);
                                 }

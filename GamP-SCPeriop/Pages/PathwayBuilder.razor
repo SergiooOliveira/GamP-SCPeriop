@@ -256,7 +256,7 @@
 
     #region [ Módulos, Pesos e Timeline (Comunicação com a API) ]
 
-    private async Task CreateAdvancedModuleFromBuilder((string Title, float Weight, List<PathwayBuilderComponent.DraftParent> Drafts) data)
+    private async Task CreateAdvancedModuleFromBuilder((string Title, float Weight, int OrderIndex, List<PathwayBuilderComponent.DraftParent> Drafts) data)
     {
         if (string.IsNullOrWhiteSpace(data.Title) || activePathway == null) return;
 
@@ -266,7 +266,8 @@
             Title = data.Title,
             Weight = data.Weight,
             PathwayId = activePathway.Id,
-            EnrollmentId = IsStudentMode ? EnrollmentIdToLoad : null
+            EnrollmentId = IsStudentMode ? EnrollmentIdToLoad : null,
+            OrderIndex = data.OrderIndex
         };
 
         var moduleResponse = await Http.PostAsJsonAsync("api/Module", moduleDto);
@@ -295,8 +296,9 @@
                             ModuleId = savedMod.Id,
                             Title = parentDraft.Text,
                             Stage = stage,
-                            Weight = parentDraft.Weight,
-                            IsFromTemplate = !IsStudentMode
+                            Weight = parentDraft.Weight ?? 0f,
+                            IsFromTemplate = !IsStudentMode,
+                            OrderIndex = parentDraft.OrderIndex
                         };
 
                         var responseParent = await Http.PostAsJsonAsync("api/ModuleComponent", dtoParent);
@@ -314,8 +316,9 @@
                                         Title = childDraft.Text,
                                         Stage = stage,
                                         ParentComponentId = savedParent.Id,
-                                        Weight = childDraft.Weight,
-                                        IsFromTemplate = !IsStudentMode
+                                        Weight = childDraft.Weight ?? 0f,
+                                        IsFromTemplate = !IsStudentMode,
+                                        OrderIndex = childDraft.OrderIndex
                                     };
                                     await Http.PostAsJsonAsync("api/ModuleComponent", dtoChild);
                                 }

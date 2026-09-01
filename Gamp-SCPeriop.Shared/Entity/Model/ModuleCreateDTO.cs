@@ -10,5 +10,6 @@ namespace GamP_SCPeriop.Shared.Entity.Model
         public int? PathwayId { get; set; }
         public int? EnrollmentId { get; set; }
         public float Weight { get; set; }
+        public int OrderIndex { get; set; } = 0;
     }
 }
