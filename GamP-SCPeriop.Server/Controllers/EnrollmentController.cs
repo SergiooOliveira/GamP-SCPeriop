@@ -139,7 +139,8 @@ namespace GamP_SCPeriop.Server.Controllers
                     {
                         PathwayId = e.Pathway.Id,
                         Title = e.Pathway.Title,
-                        Status = e.ProgressPercentage >= 100 ? "Concluido" : "Em curso"
+                        Status = e.ProgressPercentage >= 100 ? "Concluido" : "Em curso", // TODO: Adjust this logic based on your actual status criteria
+                        EnrollmentId = e.Id
                     }).ToList(),
 
                     // 2. Safely calculate the average progress (prevents divide-by-zero errors)

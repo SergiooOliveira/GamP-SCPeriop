@@ -8,7 +8,7 @@ namespace GamP_SCPeriop.Shared.Entity.Model
     {
         public int StudentId { get; set; }
         public string FullName { get; set; } = string.Empty;
-        public string Email { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;        
 
         // For the progress bar column
         public int OverallProgress { get; set; }

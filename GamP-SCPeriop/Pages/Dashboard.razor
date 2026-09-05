@@ -78,47 +78,32 @@
                 </div>
 
                 <div class="modal-body px-4 pb-4">
-                    <hr class="text-muted opacity-25">
-                    
-                    <h6 class="fw-bold mb-3 text-dark">Atribuir Novo Percurso</h6>
-                    <div class="d-flex gap-2">
-                        <select class="form-select border-0 bg-light shadow-sm" style="border-radius: 10px;" @bind="selectedPathwayId">
-                            <option value="0" selected disabled>Selecione um percurso...</option>
-                            @foreach (var pathway in unassignedPathways)
-                            {
-                                <option value="@pathway.PathwayId">@pathway.Title</option>
-                            }
-                        </select>
-
-                        <button class="btn btn-primary px-4 shadow-sm" style="border-radius: 10px; background-color: #1a73e8; border: none;"
-                                @onclick="AssignPathway" disabled="@isSubmitting">
-                            @if (isSubmitting)
-                            {
-                                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                            }
-                            else
-                            {
-                                <span>Adicionar</span>
-                            }
-                        </button>
-                    </div>
-
-                    <div class="mt-4">
-                        <h6 class="fw-bold mb-2 text-dark">Percursos Atuais</h6>
-                        <ul class="list-group list-group-flush small">
+                    <div class="mt-2">
+                        <h6 class="fw-bold mb-3 text-dark">Percursos Atuais do Aluno</h6>
+                        <ul class="list-group list-group-flush small border rounded shadow-sm">
                             @if (selectedStudent?.ActivePathways == null || !selectedStudent.ActivePathways.Any())
                             {
-                                <li class="list-group-item px-0 text-muted border-0 bg-transparent">
-                                    <i class="bi bi-info-circle me-2"></i> Nenhum percurso atribuído.
+                                <li class="list-group-item p-4 text-center text-muted border-0 bg-light">
+                                    <i class="bi bi-inbox fs-4 d-block mb-2 text-secondary"></i>
+                                    Nenhum percurso atribuído a este aluno.
                                 </li>
                             }
                             else
                             {
                                 @foreach (var pathway in selectedStudent.ActivePathways)
                                 {
-                                    <li class="list-group-item px-0 d-flex justify-content-between align-items-center border-0 bg-transparent">
-                                        <span><i class="bi bi-journal-text me-2 text-primary"></i> @pathway.Title</span>
-                                        <span class="badge @(pathway.Status == "Concluído" ? "bg-success text-white" : "bg-light text-dark border")">
+                                    <li class="list-group-item px-3 py-3 d-flex justify-content-between align-items-center border-bottom transition-all hover-bg-light"
+                                        style="cursor: pointer;"
+                                        @onclick='() => Nav.NavigateTo($"/supervisor/pathway-builder/student/{pathway.EnrollmentId}")'>
+
+                                        <div class="d-flex align-items-center">
+                                            <div class="rounded bg-primary bg-opacity-10 p-2 me-3">
+                                                <i class="bi bi-journal-text text-primary"></i>
+                                            </div>
+                                            <span class="fw-semibold text-dark fs-6">@pathway.Title</span>
+                                        </div>
+
+                                        <span class="badge rounded-pill @GetStatusColor(pathway.Status) px-3 py-2 fw-normal shadow-sm">
                                             @pathway.Status
                                         </span>
                                     </li>
@@ -126,7 +111,6 @@
                             }
                         </ul>
                     </div>
-
                 </div>
             </div>
         </div>
@@ -393,5 +377,16 @@
             pathwaySummaries.RemoveAll(p => p.Id == pathwayId);
             StateHasChanged();
         }
+    }
+
+    private string GetStatusColor(string status)
+    {
+        return status?.Trim().ToLower() switch
+        {
+            "concluído" => "bg-success text-white",
+            "pendente" => "bg-warning text-dark",
+            "em curso" => "bg-primary text-white",
+            _ => "bg-secondary text-white"
+        };
     }
 }

@@ -65,9 +65,22 @@
                                         else
                                         {
                                             <div class="d-flex flex-wrap gap-1">
-                                                @foreach (var tag in student.ActivePathways)
+                                                @foreach (var tag in student.ActivePathways.Take(2))
                                                 {
-                                                    <span class="badge rounded-pill bg-primary bg-opacity-10 text-primary fw-normal px-2 py-1 border border-primary border-opacity-25">@tag.Title</span>
+                                                    <span class="badge rounded-pill bg-primary bg-opacity-10 text-primary fw-normal px-2 py-1 border border-primary border-opacity-25 text-truncate" style="max-width: 150px;" title="@tag.Title">
+                                                        @tag.Title
+                                                    </span>
+                                                }
+
+                                                @if (student.ActivePathways.Count > 2)
+                                                {
+                                                    var remainingCount = student.ActivePathways.Count - 2;
+                                                    var remainingTitles = string.Join(", ", student.ActivePathways.Skip(2).Select(p => p.Title));
+
+                                                    <span class="badge rounded-pill bg-secondary bg-opacity-10 text-secondary fw-normal px-2 py-1 border border-secondary border-opacity-25"
+                                                          title="@remainingTitles" style="cursor: help;">
+                                                        +@remainingCount
+                                                    </span>
                                                 }
                                             </div>
                                         }
