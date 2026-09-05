@@ -56,8 +56,13 @@
                                                 </span>
 
                                                 <!-- Edit button -->
-                                                <button class="btn btn-sm btn-outline-secondary" title="Editar Badge" @onclick="() => EditBadge(badge)">
+                                                <button class="btn btn-sm btn-outline-secondary me-2" title="Editar Badge" @onclick="() => EditBadge(badge)">
                                                     <i class="bi bi-pencil"></i>
+                                                </button>
+
+                                                <!-- Delete button -->
+                                                <button class="btn btn-sm btn-outline-danger" title="Apagar Badge" @onclick="() => DeleteBadge(badge.Id)">
+                                                    <i class="bi bi-trash"></i>
                                                 </button>
 
                                             </div>
@@ -437,6 +442,33 @@
         catch (Exception ex)
         {
             Console.WriteLine($"Erro crítico: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Deletes a badge by its ID, calling the API and refreshing the list upon success.
+    /// </summary>
+    private async Task DeleteBadge(int badgeId)
+    {
+        try
+        {
+            var response = await Http.DeleteAsync($"api/badgetemplate/{badgeId}");
+
+            if (response.IsSuccessStatusCode)
+            {
+                Console.WriteLine("Badge apagada com sucesso!");
+                await LoadBadges();
+            }
+            else
+            {
+                var errorMessage = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"Erro ao apagar a badge. Status: {response.StatusCode}");
+                Console.WriteLine($"Detalhes: {errorMessage}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Erro crítico ao apagar: {ex.Message}");
         }
     }
 

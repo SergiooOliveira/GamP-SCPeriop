@@ -79,5 +79,29 @@ namespace GamP_SCPeriop.Server.Controllers
                 return StatusCode(500, $"Erro interno ao atualizar a badge: {ex.Message}");
             }
         }
+
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteBadgeTemplate(int id)
+        {
+            try
+            {
+                var badge = await _context.BadgeTemplates.FindAsync(id);
+
+                if (badge == null)
+                {
+                    return NotFound("Badge não encontrada.");
+                }
+
+                _context.BadgeTemplates.Remove(badge);
+                await _context.SaveChangesAsync();
+
+                return Ok(); // ou NoContent()
+            }
+            catch (Exception ex)
+            {
+                // Se houver problemas (ex: chaves forasteiras, constrangimentos da DB)
+                return StatusCode(500, $"Erro interno ao apagar a badge: {ex.Message}");
+            }
+        }
     }
 }
