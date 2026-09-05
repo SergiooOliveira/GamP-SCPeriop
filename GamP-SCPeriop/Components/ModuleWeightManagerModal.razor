@@ -20,7 +20,7 @@
                             <span class="fw-semibold text-dark text-truncate me-3" title="@mod.Title">@mod.Title</span>
 
                             <div class="input-group input-group-sm flex-shrink-0" style="width: 100px;">
-                                <input type="text" class="form-control text-center fw-bold" @bind="mod.Weight" @bind:event="oninput" />
+                                <input type="ttext" class="form-control text-center fw-bold" @bind="mod.Weight" @bind:event="oninput" min="0" max="100" />
                                 <span class="input-group-text">%</span>
                             </div>
                         </div>
@@ -76,7 +76,83 @@
 
     private void SaveChanges()
     {
-        // Envia a lista alterada de volta para o componente pai
+        float currentTotal = editableModules.Sum(m => m.Weight);
+
+        // Se o total não for 100%, verifica se é preciso distribuir balanço restante
+        if (Math.Abs(currentTotal - 100f) > 0.001f)
+        {
+            // Encontra apenas os módulos que o utilizador deixou a 0
+            var emptyModules = editableModules.Where(m => m.Weight == 0).ToList();
+
+            if (emptyModules.Any() && currentTotal < 100)
+            {
+                float remaining = 100f - currentTotal;
+                float share = (float)Math.Round(remaining / emptyModules.Count, 2);
+
+                foreach (var m in emptyModules)
+                {
+                    m.Weight = share;
+                }
+
+                // Corrige dízimas (ex: 33.33 + 33.33 + 33.34) no último módulo vazio
+                float newTotal = editableModules.Sum(m => m.Weight);
+                if (Math.Abs(newTotal - 100f) > 0.001f)
+                {
+                    emptyModules.Last().Weight = (float)Math.Round(emptyModules.Last().Weight + (100f - newTotal), 2);
+                }
+            }
+            else
+            {
+                // Se a soma passar de 100% ou não houver módulos a zeros para absorver o resto,
+                // aborta a gravação para o aviso de erro (vermelho) do HTML aparecer.
+                return;
+            }
+        }
+
+        // Se chegou aqui, a soma é exatamente 100. Grava e envia.
         OnSave.InvokeAsync(editableModules);
+    }
+
+    private void OnWeightChanged(BuilderModuleDto changedMod, string? newValueStr)
+    {
+        if (!float.TryParse(newValueStr, out float newVal)) newVal = 0;
+        if (newVal < 0) newVal = 0;
+        if (newVal > 100) newVal = 100;
+
+        changedMod.Weight = (float)Math.Round(newVal, 2); // Usa arredondamento a 2 casas (ou 0 se preferires inteiros)
+
+        // Isola todos os outros módulos que não foram tocados neste clique
+        var otherModules = editableModules.Where(m => m != changedMod).ToList();
+        if (!otherModules.Any())
+        {
+            changedMod.Weight = 100;
+            return;
+        }
+
+        float remainingToDistribute = 100f - changedMod.Weight;
+        float currentOtherTotal = otherModules.Sum(m => m.Weight);
+
+        if (currentOtherTotal == 0)
+        {
+            // Se os outros módulos estiverem a zeros, divide o restante de forma perfeitamente igual
+            float equalShare = (float)Math.Round(remainingToDistribute / otherModules.Count, 2);
+            foreach (var m in otherModules) m.Weight = equalShare;
+        }
+        else
+        {
+            // Se os outros módulos já tiverem valores, distribui o restante mantendo a proporção entre eles!
+            foreach (var m in otherModules)
+            {
+                m.Weight = (float)Math.Round((m.Weight / currentOtherTotal) * remainingToDistribute, 2);
+            }
+        }
+
+        // Corrige falhas microscópicas de dízimas (ex: 33.33 + 33.33 + 33.34) no último elemento
+        float newTotal = editableModules.Sum(m => m.Weight);
+        if (Math.Abs(newTotal - 100f) > 0.001f && otherModules.Any())
+        {
+            float diff = 100f - newTotal;
+            otherModules.Last().Weight = (float)Math.Round(otherModules.Last().Weight + diff, 2);
+        }
     }
 }

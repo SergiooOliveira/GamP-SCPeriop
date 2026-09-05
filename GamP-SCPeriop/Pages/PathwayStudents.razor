@@ -1,5 +1,6 @@
 ﻿@page "/pathway/{PathwayId:int}/students"
 @using GamP_SCPeriop.Shared.Data
+@using GamP_SCPeriop.Shared.Entity.Model
 @layout TopNavBarLayout
 @inject HttpClient Http
 @inject NavigationManager Nav
@@ -49,7 +50,148 @@
                     </div>
                 </div>
 
-                <h5 class="fw-bold mb-3 text-secondary">Supervisionados Inscritos</h5>
+                <div class="d-flex justify-content-between align-items-center mb-3 mt-4">
+                    <h5 class="fw-bold text-secondary mb-0">Supervisionados Inscritos</h5>
+                    <button class="btn btn-primary btn-sm rounded-pill px-3 shadow-sm" style="background-color: #1a73e8; border: none;" @onclick="OpenAddStudentModal">
+                        <i class="bi bi-person-plus me-1"></i> Adicionar Aluno
+                    </button>
+                </div>
+
+                <!-- MODAL: Adicionar Aluno -->
+                @if (showAddStudentModal)
+                {
+                    <div class="modal-backdrop fade show" style="background-color: rgba(0,0,0,0.5);"></div>
+
+                    <div class="modal fade show d-block" tabindex="-1">
+
+                        <!-- Fundo invisível para fechar o modal. Como é irmão do dialog, os cliques que "fogem" ao apagar alunos não chegam aqui! -->
+                        <div class="position-fixed top-0 start-0 w-100 h-100" style="z-index: 0;" @onclick="CloseAddStudentModal"></div>
+
+                        <div class="modal-dialog modal-dialog-centered" style="max-width: 500px; z-index: 1;">
+
+                            <!-- Painel Principal (position-relative para ancorar o painel lateral perfeitamente à sua altura) -->
+                            <div class="modal-content border-0 shadow w-100 position-relative" style="border-radius: 20px; z-index: 2;">
+                                <div class="modal-header border-bottom-0 pb-0 mt-2">
+                                    <h5 class="modal-title fw-bold text-dark">Inscrever Aluno</h5>
+                                    <button type="button" class="btn-close shadow-none" @onclick="CloseAddStudentModal"></button>
+                                </div>
+
+                                <div class="modal-body px-4 pb-4">
+                                    <p class="text-muted small mb-4">Selecione um aluno da sua lista de supervisionados para o adicionar a este percurso.</p>
+
+                                    @if (availableStudents != null && !availableStudents.Any())
+                                    {
+                                        <div class="alert alert-light text-center border text-muted small">
+                                            <i class="bi bi-info-circle d-block mb-1 fs-5"></i>
+                                            Todos os seus alunos já estão inscritos neste percurso.
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <div class="input-group shadow-sm mb-3" style="border-radius: 10px; overflow: hidden;">
+                                            <span class="input-group-text bg-light border-0"><i class="bi bi-search text-muted"></i></span>
+                                            <input type="text" class="form-control border-0 bg-light shadow-none"
+                                                   placeholder="Pesquisar por nome ou email..."
+                                                   @bind="studentSearchQuery" @bind:event="oninput" />
+                                        </div>
+
+                                        <div class="list-group shadow-sm border-0 mb-4" style="max-height: 250px; overflow-y: auto; border-radius: 10px;">
+                                            @if (!FilteredAvailableStudents.Any())
+                                            {
+                                                <div class="list-group-item text-center text-muted py-4 border-0 bg-light">
+                                                    Nenhum aluno encontrado na pesquisa.
+                                                </div>
+                                            }
+                                            else
+                                            {
+                                                @foreach (var student in FilteredAvailableStudents)
+                                                {
+                                                    <button type="button"
+                                                            class="list-group-item border-0 border-bottom text-start py-3 transition-all @(selectedStudentsToAdd.Contains(student.StudentId) ? "bg-primary" : "bg-white")"
+                                                            style="cursor: pointer;"
+                                                            @onclick="() => ToggleStudentSelection(student.StudentId)">
+                                                        <div class="d-flex align-items-center gap-3">
+                                                            <div class="rounded-circle d-flex justify-content-center align-items-center flex-shrink-0 text-white shadow-sm"
+                                                                 style="width: 40px; height: 40px; background-color: @(selectedStudentsToAdd.Contains(student.StudentId) ? "rgba(255,255,255,0.2)" : "#1a73e8");">
+                                                                <i class="bi bi-person"></i>
+                                                            </div>
+                                                            <div class="overflow-hidden">
+                                                                <h6 class="mb-0 fw-semibold text-truncate @(selectedStudentsToAdd.Contains(student.StudentId) ? "text-white" : "text-dark")">@student.FullName</h6>
+                                                                <small class="text-truncate d-block @(selectedStudentsToAdd.Contains(student.StudentId) ? "text-white-50" : "text-muted")">@student.Email</small>
+                                                            </div>
+
+                                                            @if (selectedStudentsToAdd.Contains(student.StudentId))
+                                                            {
+                                                                <div class="ms-auto text-white"><i class="bi bi-check-circle-fill fs-5"></i></div>
+                                                            }
+                                                        </div>
+                                                    </button>
+                                                }
+                                            }
+                                        </div>
+                                    }
+
+                                    <!-- Aviso Mobile (Intacto, fica dentro do body) -->
+                                    @if (selectedStudentsToAdd.Count >= 2)
+                                    {
+                                        <div class="alert alert-info border-0 shadow-sm mb-4 small d-block d-md-none" style="background-color: #E2ECEF; color: #6A96A6;">
+                                            <strong><i class="bi bi-people-fill me-1"></i> A adicionar @selectedStudentsToAdd.Count alunos.</strong>
+                                        </div>
+                                    }
+
+                                    <div class="d-flex justify-content-end gap-2 mt-2">
+                                        <button class="btn btn-light rounded-pill px-4" @onclick="CloseAddStudentModal">Cancelar</button>
+                                        <button class="btn btn-primary rounded-pill px-4 shadow-sm" style="background-color: #1a73e8; border: none;"
+                                                @onclick="AssignStudents" disabled="@(isSubmitting || !selectedStudentsToAdd.Any())">
+                                            @if (isSubmitting)
+                                            {
+                                                <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                            }
+                                            Inscrever @(selectedStudentsToAdd.Count > 0 ? $"({selectedStudentsToAdd.Count})" : "")
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Painel Flutuante Lateral (Apenas Desktop - Agarrado ao modal-content com h-100 para herdar altura exata) -->
+                                @if (selectedStudentsToAdd.Count >= 2)
+                                {
+                                    <div class="bg-white shadow border-0 d-none d-md-flex flex-column position-absolute start-100 h-100 ms-3"
+                                         style="width: 240px; border-radius: 15px; top: 0; z-index: 1;">
+
+                                        <!-- Cabeçalho Mais Pequeno -->
+                                        <div class="bg-light p-2 border-bottom text-center flex-shrink-0" style="border-radius: 15px 15px 0 0;">
+                                            <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">
+                                                <i class="bi bi-people-fill text-primary me-1"></i>
+                                                @selectedStudentsToAdd.Count Selecionados
+                                            </h6>
+                                        </div>
+
+                                        <!-- Lista Compacta -->
+                                        <div class="overflow-auto p-2 d-flex flex-column gap-1 flex-grow-1" style="border-radius: 0 0 15px 15px;">
+                                            @foreach (var sId in selectedStudentsToAdd.ToList())
+                                            {
+                                                var stu = availableStudents.FirstOrDefault(x => x.StudentId == sId);
+                                                if (stu != null)
+                                                {
+                                                    <div class="d-flex justify-content-between align-items-center bg-light rounded p-2 shadow-sm border border-white transition-all"
+                                                         style="cursor: pointer;"
+                                                         @onclick="() => ToggleStudentSelection(sId)">
+
+                                                        <span class="text-truncate fw-semibold text-secondary" style="font-size: 0.75rem;" title="@stu.FullName">
+                                                            @stu.FullName
+                                                        </span>
+
+                                                        <i class="bi bi-x-circle-fill text-danger opacity-50 ms-2" style="font-size: 0.9rem;"></i>
+                                                    </div>
+                                                }
+                                            }
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                }
 
                 @if (!FilteredEnrollments.Any())
                 {
@@ -106,20 +248,43 @@
     private bool isLoading = true;
     private string searchQuery = string.Empty;
 
+    private bool showAddStudentModal = false;
+    private List<int> selectedStudentsToAdd = new();
+    private bool isSubmitting = false;
+    private List<StudentManagementDto> allMyStudents = new();
+    private string studentSearchQuery = string.Empty;
+
+    private IEnumerable<StudentManagementDto> availableStudents =>
+        allMyStudents.Where(s => !enrollments.Any(e => e.StudentId == s.StudentId));
+
+    private IEnumerable<StudentManagementDto> FilteredAvailableStudents =>
+        availableStudents.Where(s =>
+            string.IsNullOrWhiteSpace(studentSearchQuery) ||
+            (s.FullName?.Contains(studentSearchQuery, StringComparison.OrdinalIgnoreCase) ?? false) ||
+            (s.Email?.Contains(studentSearchQuery, StringComparison.OrdinalIgnoreCase) ?? false)
+        );
+
     protected override async Task OnInitializedAsync()
     {
         try
         {
             isLoading = true;
 
-            // 1. Vai buscar o percurso (para o título) usando o teu endpoint normal
+            // 1. Vai buscar o percurso
             pathway = await Http.GetFromJsonAsync<Pathway>($"api/Pathway/{PathwayId}");
 
-            // 2. Vai buscar as inscrições usando o novo endpoint que criámos acima
+            // 2. Vai buscar as inscrições atuais
             var response = await Http.GetFromJsonAsync<List<Enrollment>>($"api/Pathway/{PathwayId}/enrollments");
             if (response != null)
             {
                 enrollments = response;
+            }
+
+            // 3. NOVO: Vai buscar todos os alunos do supervisor para popular a dropdown
+            var studentsResponse = await Http.GetFromJsonAsync<List<StudentManagementDto>>("api/Enrollment/management");
+            if (studentsResponse != null)
+            {
+                allMyStudents = studentsResponse;
             }
         }
         catch (Exception ex)
@@ -141,4 +306,59 @@
 
     private void GoToDashboard() => Nav.NavigateTo("/dashboard");
     private void GoToBuilder() => Nav.NavigateTo($"/supervisor/pathway-builder/{PathwayId}?from=dashboard");
+
+    private void ToggleStudentSelection(int studentId)
+    {
+        if (selectedStudentsToAdd.Contains(studentId))
+        {
+            selectedStudentsToAdd.Remove(studentId);
+        }
+        else
+        {
+            selectedStudentsToAdd.Add(studentId);
+        }
+    }
+
+    // Métodos de Controlo do Modal
+    private void OpenAddStudentModal()
+    {
+        selectedStudentsToAdd.Clear();
+        studentSearchQuery = string.Empty;
+        showAddStudentModal = true;
+    }
+
+    private void CloseAddStudentModal()
+    {
+        showAddStudentModal = false;
+        selectedStudentsToAdd.Clear();
+        studentSearchQuery = string.Empty;
+    }
+
+    private async Task AssignStudents()
+    {
+        if (!selectedStudentsToAdd.Any()) return;
+
+        isSubmitting = true;
+
+        // Faz um POST para cada aluno selecionado
+        foreach (var studentId in selectedStudentsToAdd)
+        {
+            var payload = new EnrollmentDto
+            {
+                StudentId = studentId,
+                PathwayId = PathwayId
+            };
+            await Http.PostAsJsonAsync("api/Enrollment", payload);
+        }
+
+        // Recarrega as inscrições
+        var newEnrollments = await Http.GetFromJsonAsync<List<Enrollment>>($"api/Pathway/{PathwayId}/enrollments");
+        if (newEnrollments != null)
+        {
+            enrollments = newEnrollments;
+        }
+
+        CloseAddStudentModal();
+        isSubmitting = false;
+    }
 }

@@ -383,10 +383,10 @@
     {
         return status?.Trim().ToLower() switch
         {
-            "concluído" => "bg-success text-white",
-            "pendente" => "bg-warning text-dark",
-            "em curso" => "bg-primary text-white",
-            _ => "bg-secondary text-white"
+            "concluído" or "concluido" => "bg-success bg-opacity-10 text-success border border-success border-opacity-25",
+            "pendente" => "bg-warning bg-opacity-10 text-dark border border-warning border-opacity-50",
+            "em curso" => "bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25",
+            _ => "bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25"
         };
     }
 }
