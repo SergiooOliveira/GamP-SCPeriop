@@ -55,7 +55,12 @@ namespace GamP_SCPeriop.Server.Controllers
                         Icon = b.Icon ?? "bi-trophy",
                         Tier = b.Tier,
                         IsUnlocked = isUnlocked,
-                        UnlockedAt = isUnlocked ? unlockData!.EarnedAt : null
+                        UnlockedAt = isUnlocked ? unlockData!.EarnedAt : null,
+                        TriggerType = b.TriggerType,
+                        TriggerValue = b.TriggerValue ?? "",
+                        ModuleName = b.TriggerType == BadgeTriggerType.ModuleCompletion && int.TryParse(b.TriggerValue, out int moduleId)
+                            ? _context.Modules.FirstOrDefault(m => m.Id == moduleId)?.Title
+                            : null
                     };
                 }).ToList();
 

@@ -1,16 +1,55 @@
 /* CSS for Badges component */
-/*.badge-card-heavy {
-    transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1), box-shadow 0.3s ease;
-    transform: perspective(800px) rotateX(0deg) rotateY(0deg) scale(1);
-    box-shadow: 0 8px 15px rgba(0,0,0,0.05) !important;
-}*/
-
-/*.badge-card-heavy:hover {
-    transform: perspective(800px) rotateX(15deg) rotateY(-10deg) scale(0.96);
-    box-shadow: 10px 20px 20px rgba(0,0,0,0.1) !important;
-}*/
-
 .badge-card-heavy {
-    box-shadow: 0 8px 15px rgba(0,0,0,0.05);
-    /* Retiramos a transição daqui para não entrar em conflito com o JS */
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+    border: 1px solid rgba(0, 0, 0, 0.12) !important;    
+}
+
+/* Sidebar de Percursos */
+.pathway-list {
+    max-height: 650px;
+    overflow-y: auto;
+    padding-right: 0.5rem;
+}
+
+/* Grelha Horizontal (2 Linhas) */
+.badge-horizontal-container {
+    display: grid;
+    grid-template-rows: 1fr 1fr; /* Força exatamente 2 linhas de tamanho igual */
+    grid-auto-flow: column; /* Os itens preenchem as colunas para a direita */
+    grid-auto-columns: 280px; /* Tamanho exato e fixo de cada cartão */
+    gap: 1.5rem;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 1rem;
+    min-height: 650px; /* Altura suficiente para os 2 cartões + gap */
+    scroll-snap-type: x mandatory;
+}
+
+.badge-item {
+    scroll-snap-align: start;
+    height: 100%;
+}
+
+.clean-markup, .clean-markup * {
+    background-color: transparent !important;
+}
+
+/* Estilo discreto para a barra de scroll horizontal */
+.badge-horizontal-container::-webkit-scrollbar {
+    height: 8px;
+}
+
+.badge-horizontal-container::-webkit-scrollbar-thumb {
+    background-color: #cbd5e1;
+    border-radius: 4px;
+}
+
+/* --- Seletor Mobile --- */
+.mobile-pathway-scroll {
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
+}
+
+.mobile-pathway-scroll::-webkit-scrollbar {
+    display: none; /* Chrome, Safari and Opera */
 }

@@ -1,12 +1,13 @@
 ﻿@page "/badges"
 @layout TopNavBarLayout
 @attribute [Authorize(Roles = "Supervisionado")]
+@using System.Text.Json
 @using GamP_SCPeriop.Shared.Data
 @using GamP_SCPeriop.Shared.Entity.Model
 @using GamP_SCPeriop.Shared.Enum
 @inject HttpClient Http
 @inject NavigationManager Nav
-@inject IJSRuntime JsRuntime
+@inject IJSRuntime JS
 @implements IAsyncDisposable
 
 <div class="max-width-container mt-4 px-4 pb-5">
@@ -42,63 +43,229 @@
     }
     else
     {
-        <!-- Grelha de Badges Agrupada por Percurso -->
-        <div class="mt-2">
-            @foreach (var grupo in studentBadges.GroupBy(b => b.PathwayTitle))
-            {
-                <div class="mb-5">
-                    <!-- Cabeçalho do Percurso -->
-                    <h5 class="fw-bold mb-3 border-bottom pb-2" style="color: #6A96A6;">
-                        <i class="bi bi-signpost-split me-2"></i>@grupo.Key
-                    </h5>
+        <div class="row mt-4">
 
-                    <div class="row row-cols-2 row-cols-md-4 g-4">
-                        @foreach (var badge in grupo)
+            <!-- MOBILE: Roda Horizontal Minimalista -->
+            <div class="col-12 d-block d-md-none mb-3">
+                <div id="mobile-wheel" class="d-flex align-items-center overflow-auto pb-2 mobile-pathway-scroll"
+                     style="scroll-snap-type: x mandatory; height: 60px;">
+
+                    <!-- Espaçador Esquerdo (permite que o primeiro item vá para o centro) -->
+                    <div style="min-width: 40vw; flex-shrink: 0;"></div>
+
+                    @foreach (var pathway in studentBadges.Select(b => b.PathwayTitle).Distinct())
+                    {
+                        <div class="mobile-pathway-item text-center px-3"
+                             data-pathway="@pathway"
+                             style="scroll-snap-align: center; flex-shrink: 0; transition: all 0.3s;"
+                             @onclick="() => SelectPathway(pathway)">
+                            <span class="@(activePathway == pathway ? "fw-bold text-dark" : "text-muted opacity-50")"
+                                  style="font-size: @(activePathway == pathway ? "1rem" : "0.85rem"); transition: all 0.3s;">
+                                @pathway
+                            </span>
+                        </div>
+                    }
+
+                    <!-- Espaçador Direito (permite que o último item vá para o centro) -->
+                    <div style="min-width: 40vw; flex-shrink: 0;"></div>
+                </div>
+            </div>
+
+            <!-- DESKTOP: Roda Vertical (Escondida no Mobile) -->
+            <div id="pathway-wheel" class="col-md-4 col-lg-3 position-relative d-none d-md-block">
+                <div class="position-absolute top-50 start-50 translate-middle w-100 rounded-3"
+                     style="height: 100px; background-color: rgba(0,0,0,0.05); z-index: 0; pointer-events: none;"></div>
+
+                <div class="d-flex flex-column text-center overflow-auto position-relative"
+                     style="height: 680px; scroll-snap-type: y mandatory; -ms-overflow-style: none; scrollbar-width: none; z-index: 1;">
+
+                    <div style="height: 290px; flex-shrink: 0;"></div>
+
+                    @foreach (var pathway in studentBadges.Select(b => b.PathwayTitle).Distinct())
+                    {
+                        <div class="pathway-item d-flex align-items-center justify-content-center"
+                             data-pathway="@pathway"
+                             style="height: 100px; flex-shrink: 0; scroll-snap-align: center; cursor: pointer; transition: all 0.2s;"
+                             @onclick="() => SelectPathway(pathway)">
+                            <span class="@(activePathway == pathway ? "fw-bold text-dark fs-5" : "text-muted opacity-50 fs-6")"
+                                  style="transition: all 0.3s;">
+                                @pathway
+                            </span>
+                        </div>
+                    }
+
+                    <div style="height: 290px; flex-shrink: 0;"></div>
+                </div>
+            </div>
+
+            <!-- Grelha Horizontal de Badges (Inalterada) -->
+            <div class="col-12 col-md-8 col-lg-9">
+                @if (!string.IsNullOrEmpty(activePathway))
+                {
+                    <div id="badge-grid" class="d-flex flex-column flex-wrap pb-3"
+                         style="height: 680px; align-content: flex-start; gap: 1.5rem; overflow-y: hidden; user-select: none; @(selectedBadge != null ? "overflow-x: hidden !important; pointer-events: none;" : "overflow-x: auto;")">
+
+                        @foreach (var badge in studentBadges.Where(b => b.PathwayTitle == activePathway))
                         {
-                            var tierColor = GetTierColor(badge.Tier);
+                            <div style="width: 280px; height: 320px;">
+                                @if (badge.IsUnlocked)
+                                {
+                                    <!-- CARTÃO DESBLOQUEADO -->
+                                    <div class="card h-100 border-0 badge-card-heavy text-center p-4 d-flex flex-column"
+                                         style="border-radius: 20px; background-color: #ffffff; cursor: pointer;"
+                                         @onclick="() => OpenBadgeDetails(badge)">
 
-                            <div class="col">
-                                <div class="card h-100 border-0 badge-card-heavy text-center p-4"
-                                     style="border-radius: 20px; background-color: @(badge.IsUnlocked ? "#ffffff" : "#f1f4f6"); border: 1px solid rgba(0,0,0,0.05);">
-
-                                    <!-- Ícone Dinâmico -->
-                                    <div class="rounded-circle mx-auto d-flex justify-content-center align-items-center shadow-sm mb-3"
-                                         style="width: 80px; height: 80px; background-color: @(badge.IsUnlocked ? tierColor : "#e9ecef");">
-                                        <i class="bi @badge.Icon text-white" style="font-size: 2.5rem; opacity: @(badge.IsUnlocked ? "1" : "0.4");"></i>
-                                    </div>
-
-                                    <!-- Título -->
-                                    <h6 class="fw-bold @(badge.IsUnlocked ? "text-dark" : "text-muted") mb-2">@badge.Name</h6>
-
-                                    <!-- Descrição -->
-                                    <p class="small @(badge.IsUnlocked ? "text-secondary" : "text-muted opacity-50") mb-0" style="line-height: 1.4;">
-                                        @badge.Description
-                                    </p>
-
-                                    <!-- Estado (Bloqueado/Desbloqueado) -->
-                                    @if (!badge.IsUnlocked)
-                                    {
-                                        <div class="mt-3 pt-2 border-top border-secondary border-opacity-10">
-                                            <small class="text-muted fw-bold"><i class="bi bi-lock-fill me-1"></i>Bloqueado</small>
+                                        <div class="rounded-circle mx-auto d-flex justify-content-center align-items-center mb-3 flex-shrink-0"
+                                             style="width: 80px; height: 80px; background-color: @GetTierColor(badge.Tier);">
+                                            <i class="bi @badge.Icon text-white" style="font-size: 2.5rem;"></i>
                                         </div>
-                                    }
-                                    else if (badge.UnlockedAt.HasValue)
-                                    {
-                                        <div class="mt-3 pt-2 border-top border-secondary border-opacity-10">
-                                            <small class="fw-bold" style="color: @tierColor;">
-                                                <i class="bi bi-calendar-check me-1"></i> @badge.UnlockedAt.Value.ToString("dd MMM yyyy")
+
+                                        <h6 class="clean-markup fw-bold text-dark mb-2">
+                                            @((MarkupString)(string.IsNullOrWhiteSpace(badge.Name) ? "&nbsp;" : badge.Name))
+                                        </h6>
+
+                                        <p class="clean-markup small text-secondary mb-0"
+                                           style="line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;">
+                                            @((MarkupString)(string.IsNullOrWhiteSpace(badge.Description) ? "&nbsp;" : badge.Description))
+                                        </p>
+
+                                        <div class="mt-auto pt-3 border-top border-secondary border-opacity-10">
+                                            <small class="fw-bold" style="color: @GetTierColor(badge.Tier);">
+                                                <i class="bi bi-calendar-check me-1"></i> @badge.UnlockedAt?.ToString("dd MMM yyyy")
                                             </small>
                                         </div>
-                                    }
-                                </div>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <!-- CARTÃO BLOQUEADO (CONTEÚDO ESBATIDO + ETIQUETA CENTRADA) -->
+                                    <div class="card h-100 badge-card-heavy text-center position-relative"
+                                         style="border-radius: 20px; cursor: pointer; border: 4px solid @GetTierColor(badge.Tier) !important; background-color: #ffffff;"
+                                         @onclick="() => OpenBadgeDetails(badge)">
+
+                                        <!-- Camada Inferior: Conteúdo real da medalha com efeito fantasma -->
+                                        <div class="p-4 d-flex flex-column h-100" style="opacity: 0.35; filter: grayscale(100%);">
+                                            <div class="rounded-circle mx-auto d-flex justify-content-center align-items-center mb-3 flex-shrink-0"
+                                                 style="width: 80px; height: 80px; background-color: @GetTierColor(badge.Tier);">
+                                                <i class="bi @badge.Icon text-white" style="font-size: 2.5rem;"></i>
+                                            </div>
+
+                                            <h6 class="clean-markup fw-bold text-dark mb-2">
+                                                @((MarkupString)(string.IsNullOrWhiteSpace(badge.Name) ? "&nbsp;" : badge.Name))
+                                            </h6>
+
+                                            <p class="clean-markup small text-secondary mb-0"
+                                               style="line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;">
+                                                @((MarkupString)(string.IsNullOrWhiteSpace(badge.Description) ? "&nbsp;" : badge.Description))
+                                            </p>
+                                        </div>
+
+                                        <!-- Camada Superior: Overlay transparente e Etiqueta -->
+                                        <div class="position-absolute top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center" style="background-color: rgba(255, 255, 255, 0.4);">
+                                            <div class="bg-dark text-white fw-bold rounded-pill shadow-sm" style="padding: 0.5rem 1.2rem; font-size: 0.9rem; letter-spacing: 0.5px;">
+                                                <i class="bi bi-lock-fill me-2"></i>Bloqueado
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
                             </div>
                         }
                     </div>
-                </div>
-            }
+                }
+            </div>
         </div>
     }
 </div>
+
+<!-- BADGE DETAILS OVERLAY -->
+@if (selectedBadge != null)
+{
+    <div class="modal-backdrop fade show" style="background-color: rgba(0,0,0,0.6); position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1040;"></div>
+
+    <div class="modal fade show d-block" tabindex="-1" style="z-index: 1055; overscroll-behavior: none;" @onclick="CloseBadgeDetails">
+        <div class="modal-dialog modal-dialog-centered mx-auto" style="max-width: 380px;">
+            <div class="modal-content shadow-lg position-relative"
+                 style="border-radius: 20px; overflow: hidden; background-color: #ffffff; border: none;"
+                 @onclick:stopPropagation="true">
+
+                <div class="modal-header bg-light border-bottom p-3 d-flex justify-content-between align-items-center" style="z-index: 2;">
+                    <!-- Mantém o header limpo -->
+                    <div class="text-start">
+                        <small class="text-muted fw-bold text-uppercase d-block mb-1" style="font-size: 0.7rem; letter-spacing: 0.5px;">Percurso</small>
+                        <div class="fw-semibold text-dark mb-0"><i class="bi bi-signpost-split text-primary me-2"></i>@selectedBadge.PathwayTitle</div>
+                    </div>
+                    <button type="button" class="btn-close shadow-none m-0" @onclick="CloseBadgeDetails"></button>
+                </div>
+
+                @if (selectedBadge.IsUnlocked)
+                {
+                    <div class="modal-body text-center p-5 position-relative" style="z-index: 1;">
+                        <span class="badge shadow-sm position-absolute" style="top: 1.5rem; right: 1.5rem; background-color: @(GetTierColor(selectedBadge.Tier) + "15"); color: @GetTierColor(selectedBadge.Tier); border: 1px solid @(GetTierColor(selectedBadge.Tier) + "50"); z-index: 2;">
+                            <i class="bi bi-stars me-1"></i>@selectedBadge.Tier.ToString()
+                        </span>
+
+                        <div class="rounded-circle mx-auto d-flex justify-content-center align-items-center mb-4"
+                             style="width: 100px; height: 100px; background-color: @GetTierColor(selectedBadge.Tier);">
+                            <i class="bi @selectedBadge.Icon text-white" style="font-size: 3rem;"></i>
+                        </div>
+
+                        <h4 class="clean-markup fw-bold text-dark mb-1">
+                            @((MarkupString)(string.IsNullOrWhiteSpace(selectedBadge.Name) ? "&nbsp;" : selectedBadge.Name))
+                        </h4>
+
+                        <p class="clean-markup text-secondary mb-4" style="line-height: 1.5;">
+                            @((MarkupString)(string.IsNullOrWhiteSpace(selectedBadge.Description) ? "&nbsp;" : selectedBadge.Description))
+                        </p>
+
+                        <div class="pt-3 border-top">
+                            <span class="fw-bold fs-6" style="color: @GetTierColor(selectedBadge.Tier);">
+                                <i class="bi bi-calendar-check me-2"></i>Desbloqueada a @selectedBadge.UnlockedAt?.ToString("dd 'de' MMMM, yyyy")
+                            </span>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="modal-body p-0 position-relative" style="z-index: 1;">
+                        <span class="badge shadow-sm position-absolute" style="top: 1.5rem; right: 1.5rem; background-color: @(GetTierColor(selectedBadge.Tier) + "15"); color: @GetTierColor(selectedBadge.Tier); border: 1px solid @(GetTierColor(selectedBadge.Tier) + "50"); z-index: 10;">
+                            <i class="bi bi-stars me-1"></i>@selectedBadge.Tier.ToString()
+                        </span>
+
+                        <div class="position-relative d-flex flex-column justify-content-center align-items-center p-5">
+                            <div class="text-center w-100" style="opacity: 0.35; filter: grayscale(100%);">
+                                <div class="rounded-circle mx-auto d-flex justify-content-center align-items-center mb-4"
+                                     style="width: 100px; height: 100px; background-color: @GetTierColor(selectedBadge.Tier);">
+                                    <i class="bi @selectedBadge.Icon text-white" style="font-size: 3rem;"></i>
+                                </div>
+
+                                <h4 class="clean-markup fw-bold text-dark mb-1">
+                                    @((MarkupString)(string.IsNullOrWhiteSpace(selectedBadge.Name) ? "&nbsp;" : selectedBadge.Name))
+                                </h4>
+
+                                <p class="clean-markup text-secondary mb-0" style="line-height: 1.5;">
+                                    @((MarkupString)(string.IsNullOrWhiteSpace(selectedBadge.Description) ? "&nbsp;" : selectedBadge.Description))
+                                </p>
+                            </div>
+
+                            <div class="position-absolute top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center" style="background-color: rgba(255, 255, 255, 0.4);">
+                                <div class="bg-dark text-white fw-bold rounded-pill shadow-sm" style="padding: 0.5rem 1.2rem; font-size: 0.9rem; letter-spacing: 0.5px;">
+                                    <i class="bi bi-lock-fill me-2"></i>Bloqueado
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-light border-top p-4 text-center">
+                            <small class="text-muted fw-bold d-block mb-2"><i class="bi bi-key-fill me-2"></i>Como Desbloquear:</small>
+                            <div class="text-secondary" style="font-size: 0.9rem; line-height: 1.4;">
+                                @GetUnlockHint(selectedBadge)
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+}
 
 @code {
     [CascadingParameter]
@@ -107,6 +274,11 @@
     private IJSObjectReference? jsModule;
     private List<StudentBadgeDto> studentBadges = new();
     private bool isLoading = true;
+
+    private StudentBadgeDto? selectedBadge;
+    private string activePathway = string.Empty;
+
+    private DotNetObjectReference<Badges>? objRef;
 
     protected override async Task OnParametersSetAsync()
     {
@@ -129,10 +301,15 @@
                     }
                     else
                     {
-                        studentBadges = System.Text.Json.JsonSerializer.Deserialize<List<StudentBadgeDto>>(
+                        studentBadges = JsonSerializer.Deserialize<List<StudentBadgeDto>>(
                             content,
-                            new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true }
+                            new JsonSerializerOptions { PropertyNameCaseInsensitive = true }
                         ) ?? new();
+                    }
+
+                    if (studentBadges.Any())
+                    {
+                        activePathway = studentBadges.Select(b => b.PathwayTitle).FirstOrDefault() ?? string.Empty;
                     }
                 }
                 else
@@ -142,6 +319,8 @@
                     Console.WriteLine($"[ERRO API] {response.StatusCode} - {errorContent}");
                     studentBadges = new();
                 }
+
+                
             }
             catch (Exception ex)
             {
@@ -159,25 +338,14 @@
     {
         if (firstRender)
         {
-            // 1. Carrega o ficheiro JS isolado
-            jsModule = await JsRuntime.InvokeAsync<IJSObjectReference>("import", "./Pages/Badges.razor.js");
-
-            // (Nota: o efeito só será ativado depois de a lista carregar, logo se os dados demorarem,
-            // podes ter de chamar isto novamente ou usar MutationObserver no JS)
-            await Apply3DEffect();
+            objRef = DotNetObjectReference.Create(this);
+            jsModule = await JS.InvokeAsync<IJSObjectReference>("import", $"./Pages/Badges.razor.js?v={DateTime.Now.Ticks}");
         }
-        else if (!isLoading && studentBadges.Any())
-        {
-            // Garante que o efeito JS é aplicado aos cartões DEPOIS de o HTML os desenhar
-            await Apply3DEffect();
-        }
-    }
 
-    private async Task Apply3DEffect()
-    {
-        if (jsModule != null)
+        if (jsModule != null && studentBadges.Any() && !string.IsNullOrEmpty(activePathway))
         {
-            await jsModule.InvokeVoidAsync("initBadge3DEffect");
+            await jsModule.InvokeVoidAsync("initBadgeInteractions", objRef);
+            await jsModule.InvokeVoidAsync("initMobileWheelObserver", objRef);
         }
     }
 
@@ -196,9 +364,66 @@
 
     public async ValueTask DisposeAsync()
     {
+        objRef?.Dispose();
+
         if (jsModule is not null)
         {
             await jsModule.DisposeAsync();
+        }
+    }
+
+    private async Task OpenBadgeDetails(StudentBadgeDto badge)
+    {
+        selectedBadge = badge;
+
+        if (jsModule != null)
+        {
+            await jsModule.InvokeVoidAsync("toggleBodyScroll", true);
+        }
+    }
+
+    private async Task CloseBadgeDetails()
+    {
+        selectedBadge = null;
+        if (jsModule != null)
+        {
+            await jsModule.InvokeVoidAsync("toggleBodyScroll", false);
+        }
+    }
+
+    // Generates the instructional text for locked badges
+    private string GetUnlockHint(StudentBadgeDto badge)
+    {
+        // Fallback: If you don't have a ModuleName property yet, it will display the TriggerValue.
+        string moduleIdentifier = !string.IsNullOrEmpty(badge.ModuleName) ? badge.ModuleName : "específico";
+
+        return badge.TriggerType switch
+        {
+            BadgeTriggerType.ModuleCompletion => $"Conclui o módulo '{moduleIdentifier}' com sucesso para ganhares esta medalha.",
+            BadgeTriggerType.ExcellenceGrade => $"Atinge uma avaliação final de Excelência ({badge.TriggerValue}%) ou superior.",
+            BadgeTriggerType.SpeedFocus => $"Completa as tuas tarefas num prazo de {badge.TriggerValue} dias.",
+            BadgeTriggerType.PathwayMilestone => "Chega ao fim de todo o teu percurso de aprendizagem.",
+            _ => "Continua a progredir no teu percurso para descobrires como desbloquear."
+        };
+    }
+
+    private async Task SelectPathway(string pathway)
+    {
+        activePathway = pathway;
+
+        if (jsModule != null)
+        {
+            await jsModule.InvokeVoidAsync("scrollToPathway", pathway);
+        }
+    }
+
+    [JSInvokable]
+    public async Task ChangePathwayFromJS(string pathway)
+    {
+        if (activePathway != pathway)
+        {
+            activePathway = pathway;
+            StateHasChanged();
         }
     }
 }

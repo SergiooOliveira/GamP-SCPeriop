@@ -12,5 +12,8 @@ namespace GamP_SCPeriop.Shared.Entity.Model
         public BadgeTier Tier { get; set; } // Para desenharmos as cores certas
         public bool IsUnlocked { get; set; }
         public DateTime? UnlockedAt { get; set; }
+        public BadgeTriggerType TriggerType { get; set; }
+        public string TriggerValue { get; set; }
+        public string? ModuleName { get; set; }
     }
 }
