@@ -6,38 +6,34 @@
 @inject HttpClient Http
 @inject NavigationManager Nav
 
-<div class="container mt-4">
+<div class="container mt-4 mb-5">
     <div class="row justify-content-center">
-        <div class="col-12 col-xl-11 mt-3 px-2">
+        <div class="col-12 col-xl-11 px-2">
 
+            <!-- Top Bar -->
             <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
-                <h4 class="fw-bold mb-0" style="color: #2c3e50;">Os Meus Percursos</h4>
+                <h3 class="fw-bold text-dark mb-0">Os Meus Percursos</h3>
 
-                <div class="d-flex flex-column flex-md-row gap-2 align-items-md-center">
+                <div class="d-flex flex-wrap gap-2 align-items-center">
 
-                    <div class="input-group input-group-sm shadow-sm" style="max-width: 250px;">
-                        <span class="input-group-text bg-white border-end-0 text-muted">
-                            <i class="bi bi-search"></i>
-                        </span>
-                        <input type="text" class="form-control border-start-0 ps-0"
-                               placeholder="Procurar por nome..."
-                               @bind="searchTerm"
-                               @bind:event="oninput" />
+                    <!-- Pesquisa -->
+                    <div class="input-group shadow-sm" style="width: 250px; border-radius: 10px; overflow: hidden;">
+                        <span class="input-group-text bg-white border-0"><i class="bi bi-search text-muted"></i></span>
+                        <input type="text" class="form-control border-0 bg-white shadow-none" placeholder="Procurar por nome..." @bind="searchTerm" @bind:event="oninput">
                     </div>
 
+                    <!-- Filtro Dropdown (Mantido o teu original mas com novo estilo) -->
                     <div class="dropdown position-relative">
-                        <button class="btn btn-sm shadow-sm w-100 text-start d-flex justify-content-between align-items-center"
+                        <button class="btn bg-white shadow-sm d-flex justify-content-between align-items-center text-muted"
                                 type="button" @onclick="ToggleDropdown"
-                                style="min-width: 160px; background-color: white; border: 1px solid #dee2e6; color: #495057;">
+                                style="min-width: 160px; border: 0; border-radius: 10px;">
                             <span><i class="bi bi-funnel me-1"></i> @currentTab</span>
                         </button>
 
                         @if (isDropdownOpen)
                         {
-                            <!-- Um fundo invisível para fechar o dropdown se clicares fora -->
                             <div class="position-fixed top-0 start-0 w-100 h-100" style="z-index: 1040;" @onclick="ToggleDropdown"></div>
-
-                            <ul class="dropdown-menu dropdown-menu-end shadow border-0 show" style="font-size: 0.9rem; position: absolute; right: 0; top: 100%; z-index: 1050;">
+                            <ul class="dropdown-menu dropdown-menu-end shadow border-0 show" style="font-size: 0.9rem; position: absolute; right: 0; top: 100%; z-index: 1050; border-radius: 10px;">
                                 <li><button class="dropdown-item @(currentTab == "Todas" ? "active" : "")" @onclick='() => SelectTab("Todas")'>Todas</button></li>
                                 <li><hr class="dropdown-divider"></li>
                                 <li><button class="dropdown-item @(currentTab == "A decorrer" ? "active" : "")" @onclick='() => SelectTab("A decorrer")'>A decorrer</button></li>
@@ -46,23 +42,24 @@
                                 <li><hr class="dropdown-divider"></li>
                                 <li>
                                     <button class="dropdown-item @(currentTab == "Com estrela" ? "active" : "")" @onclick='() => SelectTab("Com estrela")'>
-                                        <i class="bi bi-star-fill text-warning me-2"></i>Com estrela
+                                        <i class="bi bi-star-fill" style="color: var(--star);"></i> Com estrela
                                     </button>
                                 </li>
                                 <li><hr class="dropdown-divider"></li>
                                 <li>
                                     <button class="dropdown-item text-danger @(currentTab == "Removidos" ? "active" : "")" @onclick='() => SelectTab("Removidos")'>
-                                        <i class="bi bi-eye-slash me-2"></i>Removidos
+                                        <i class="bi bi-eye-slash me-2"></i> Removidos
                                     </button>
                                 </li>
                             </ul>
                         }
                     </div>
 
+                    <!-- Exportar -->
                     @if (enrollments != null && enrollments.Any() && currentUser != null)
                     {
-                        <a href="api/Evaluation/student/@currentUser.Id/pdf" target="_blank" class="btn btn-sm text-white fw-bold shadow-sm" style="background-color: #6A96A6; white-space: nowrap;">
-                            <i class="bi bi-filetype-pdf me-2 fs-6 align-middle"></i>Exportar Relatório
+                        <a href="api/Evaluation/student/@currentUser.Id/pdf" target="_blank" class="btn text-white fw-semibold shadow-sm px-3" style="background-color: var(--brand); border-radius: 10px;">
+                            <i class="bi bi-file-earmark-pdf me-1"></i> Exportar Relatório
                         </a>
                     }
                 </div>
@@ -76,107 +73,76 @@
             }
             else if (!FilteredEnrollments.Any())
             {
-                <div class="text-center mt-5 p-5 bg-light rounded-4 border-dashed">
+                <div class="text-center mt-5 p-5 bg-white rounded-4 border-0 shadow-sm">
                     <i class="bi bi-search text-muted mb-3" style="font-size: 3rem;"></i>
-                    <h5 class="fw-bold text-secondary">Nenhum percurso encontrado</h5>
+                    <h5 class="fw-bold text-dark">Nenhum percurso encontrado</h5>
                     <p class="text-muted small">Não existem percursos que correspondam à pesquisa ou filtros selecionados.</p>
                 </div>
             }
             else
-            {
-                <div class="row g-4 mb-5">
+            {                
+                <!-- Grid de Cartões -->
+                <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4 mb-5">
                     @foreach (var enrollment in FilteredEnrollments)
                     {
-                        var approvalScore = enrollment.ProgressPercentage;
+                        string status = GetStatusString(enrollment);
+                        var theme = GetStatusTheme(status);
 
-                        // 2. Está concluído? (Sim, se tudo estiver avaliado OU a data tiver passado)
-                        var isCompleted = enrollment.IsFullyEvaluated || enrollment.LimitDate < DateTime.UtcNow;
+                        // Lógica de Urgência (Faltam menos de 7 dias)
+                        bool isCompleted = status.Contains("Concluído");
+                        bool isUrgent = !isCompleted && enrollment.LimitDate.HasValue && (enrollment.LimitDate.Value - DateTime.UtcNow).TotalDays is <= 7 and >= 0;
 
-                        // 3. Foi aprovado? (Usa o score mínimo do percurso, ou 65 por defeito)
-                        var minScore = enrollment.MinimumApprovalScore > 0 ? enrollment.MinimumApprovalScore : 65;
-                        var isApproved = approvalScore >= minScore;
+                        <div class="col">
+                            <!-- Adicionada a borda esquerda com a variável da cor do tema -->
+                            <div class="pcard card h-100" style="border-left: 5px solid var(--@theme.ColorVar);" @onclick='() => Nav.NavigateTo($"/pathway/{enrollment.PathwayId}")'>
+                                <div class="card-body p-4 d-flex flex-column bg-white">
 
-                        <div class="col-12 col-md-6 col-lg-4">
-                            <div class="card shadow-sm border-0 h-100"
-                                 style="border-radius: 16px; transition: transform 0.2s, box-shadow 0.2s; cursor: pointer;"
-                                 onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 10px 20px rgba(0,0,0,0.1)';"
-                                 onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 0.125rem 0.25rem rgba(0,0,0,0.075)';"
-                                 @onclick='() => Nav.NavigateTo($"/pathway/{enrollment.PathwayId}")'>
-
-                                <div class="card-body p-4 d-flex flex-column bg-white" style="border-radius: 16px;">
-
-                                    <!-- Cabeçalho (Título e Botões) -->
+                                    <!-- Cabeçalho do Cartão -->
                                     <div class="d-flex justify-content-between align-items-start mb-3">
-                                        <h5 class="fw-bold text-dark mb-0 pe-2" style="font-size: 1.1rem; border-left: 4px solid #6A96A6; padding-left: 8px;">
+                                        <!-- Removido o 'card-title-bordered' e adicionado cor de texto manual -->
+                                        <h5 class="fw-bold mb-0 pe-2 line-clamp-2" style="font-size: 1.1rem; color: var(--ink);">
                                             @enrollment.PathwayTitle
                                         </h5>
-                                        <div class="d-flex gap-2">
-                                            <button class="btn btn-sm btn-link p-0 border-0 text-warning" @onclick:stopPropagation="true" @onclick="() => ToggleStar(enrollment)">
-                                                <i class="bi @(enrollment.IsStarred ? "bi-star-fill" : "bi-star") fs-5"></i>
+                                        <div class="d-flex gap-2 flex-shrink-0">
+                                            <button class="btn btn-sm btn-link p-0 border-0" @onclick:stopPropagation="true" @onclick="() => ToggleStar(enrollment)">
+                                                <i class="bi @(enrollment.IsStarred ? "bi-star-fill" : "bi-star") fs-5 transition-all hover-icon" style="color: @(enrollment.IsStarred ? "var(--star)" : "var(--ink-soft)");" title="Destacar"></i>
                                             </button>
-                                            <button class="btn btn-sm btn-link p-0 border-0 text-secondary" @onclick:stopPropagation="true" @onclick="() => ToggleHidden(enrollment)" title="@(enrollment.IsHidden ? "Restaurar" : "Ocultar")">
-                                                <i class="bi @(enrollment.IsHidden ? "bi-eye" : "bi-eye-slash") fs-5"></i>
+                                            <button class="btn btn-sm btn-link p-0 border-0" @onclick:stopPropagation="true" @onclick="() => ToggleHidden(enrollment)">
+                                                <i class="bi @(enrollment.IsHidden ? "bi-eye" : "bi-eye-slash") fs-5 transition-all hover-icon" style="color: var(--ink-soft);" title="@(enrollment.IsHidden ? "Restaurar" : "Ocultar")"></i>
                                             </button>
                                         </div>
                                     </div>
 
-                                    <!-- Datas e Supervisor -->
-                                    <div class="mb-4">
-                                        <div class="text-muted small mb-1">
-                                            <i class="bi bi-person-badge me-2"></i>Supervisor: @(enrollment.ProfessorName ?? "Atribuído")
+                                    <!-- Metadados (Supervisor e Data) -->
+                                    <div class="mb-3 d-flex flex-column gap-1">
+                                        <div class="small fw-medium" style="color: var(--ink-soft);">
+                                            <i class="bi bi-person-badge me-2"></i>Supervisor: <span style="color: var(--ink);">@(enrollment.ProfessorName ?? "Atribuído")</span>
                                         </div>
-                                        <div class="text-muted small">
-                                            <i class="bi bi-calendar-event me-2"></i>Limite: @(enrollment.LimitDate?.ToString("dd MMM yyyy") ?? "A definir")
+                                        <div class="small fw-medium @(isUrgent ? "text-danger fw-bold" : "")" style="color: var(--ink-soft);">
+                                            <i class="bi bi-calendar-event me-2"></i>Limite: <span style="color: @(isUrgent ? "var(--reproved)" : "var(--ink)");">@(enrollment.LimitDate?.ToString("dd MMM yyyy") ?? "A definir")</span>
                                         </div>
                                     </div>
 
-                                    <!-- Zona de Estatísticas e Progresso -->
+                                    <!-- Status e Progresso -->
                                     <div class="mt-auto">
-                                        <div class="d-flex justify-content-between align-items-center gap-2 mb-1">
-
-                                            @if (isCompleted)
-                                            {
-                                                <!-- Se terminou (por data ou preenchimento total), diz se Aprovou ou Reprovou -->
-                                                <small class="fw-bold" style="color: @(isApproved ? "#198754" : "#dc3545");">
-                                                    <i class="bi @(isApproved ? "bi-check-circle-fill" : "bi-x-circle-fill") me-1"></i>
-                                                    @(isApproved ? "Concluído (Aprovado)" : "Concluído (Reprovado)")
-                                                </small>
-                                            }
-                                            else if (!enrollment.StartDate.HasValue)
-                                            {
-                                                <!-- Se ainda falta preencher e está dentro do prazo -->
-                                                <small class="fw-bold text-warning">
-                                                    <i class="bi bi-clock-history me-1"></i>Pendente
-                                                </small>
-                                            }
-                                            else if (enrollment.StartDate > DateTime.UtcNow)
-                                            {
-                                                <small class="fw-bold text-secondary">
-                                                    <i class="bi bi-clock me-1"></i>Por iniciar
-                                                </small>
-                                            }
-                                            else
-                                            {
-                                                <small class="fw-bold" style="color: #6A96A6;">
-                                                    <i class="bi bi-clock-history me-1"></i>Em curso
-                                                </small>
-                                            }
-
-                                            <small class="text-muted fw-bold">@(approvalScore)% Aprovação</small>
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <span class="badge-status @theme.BadgeClass">
+                                                <i class="bi @theme.Icon me-1"></i> @status
+                                            </span>
+                                            <small class="fw-semibold font-monospace" style="color: var(--ink-soft);">@enrollment.ProgressPercentage% Aprovação</small>
                                         </div>
 
-                                        <!-- A barra visual pintada conforme o estado -->
-                                        <div class="bg-light shadow-inner mb-3" style="height: 8px; border-radius: 10px; overflow: hidden;">
-                                            <div class="h-100" style="width: @(approvalScore)%;
-                                                background-color: @(isCompleted ? (isApproved ? "#198754" : "#dc3545") : "#6A96A6");
-                                                transition: width 0.5s ease-in-out;">
-                                            </div>
+                                        <!-- Barra de Progresso -->
+                                        <div class="bar-track mb-3 shadow-sm">
+                                            <div class="@theme.BarClass" style="height: 100%; width: @enrollment.ProgressPercentage%; transition: width 0.4s ease;"></div>
                                         </div>
 
-                                        <div class="text-end text-primary small fw-semibold">
-                                            Ver Detalhes <i class="bi bi-arrow-right"></i>
+                                        <!-- Ver detalhes -->
+                                        <div class="text-end small fw-bold" style="color: var(--brand-dark);">
+                                            Ver Detalhes <i class="bi bi-arrow-right ms-1"></i>
                                         </div>
                                     </div>
+
                                 </div>
                             </div>
                         </div>
@@ -224,18 +190,48 @@
                                     e.PathwayTitle.Contains(searchTerm, StringComparison.OrdinalIgnoreCase));
             }
 
-            // ATENÇÃO: Substituímos o CalculateGlobalProgress == 100 pelo IsFullyEvaluated
+            // A lógica das datas foi corrigida para garantir que não rebenta se a data for NULL
             return currentTab switch
             {
                 "Todas" => query.Where(e => !e.IsHidden),
-                "Por iniciar" => query.Where(e =>  !e.IsHidden && e.StartDate > now),
-                "A decorrer" => query.Where(e => !e.IsHidden && e.StartDate <= now && e.LimitDate >= now && !e.IsFullyEvaluated),
-                "Histórico" => query.Where(e => e.LimitDate < now || e.IsFullyEvaluated || e.IsArchived),
+                "Por iniciar" => query.Where(e => !e.IsHidden && e.StartDate > now),
+                "A decorrer" => query.Where(e => !e.IsHidden && (!e.StartDate.HasValue || e.StartDate <= now) && (!e.LimitDate.HasValue || e.LimitDate >= now) && !e.IsFullyEvaluated),
+                "Histórico" => query.Where(e => (e.LimitDate.HasValue && e.LimitDate < now) || e.IsFullyEvaluated || e.IsArchived),
                 "Com estrela" => query.Where(e => !e.IsHidden && e.IsStarred),
                 "Removidos" => query.Where(e => e.IsHidden),
                 _ => query.Where(e => !e.IsHidden)
             };
         }
+    }
+
+    // Calcula o Estado dinamicamente baseado nos dados reais
+    private string GetStatusString(StudentDashboardCardDto e)
+    {
+        bool isCompleted = e.IsFullyEvaluated || (e.LimitDate.HasValue && e.LimitDate < DateTime.UtcNow);
+        if (isCompleted)
+        {
+            var minScore = e.MinimumApprovalScore > 0 ? e.MinimumApprovalScore : 65;
+            return e.ProgressPercentage >= minScore ? "Concluído (Aprovado)" : "Concluído (Reprovado)";
+        }
+
+        if (!e.StartDate.HasValue) return "Pendente";
+        if (e.StartDate > DateTime.UtcNow) return "Por iniciar";
+
+        return "Em curso";
+    }
+
+    // Mapeia o Estado para as classes do app.css
+    private (string BadgeClass, string BarClass, string ColorVar, string Icon) GetStatusTheme(string status)
+    {
+        return status?.Trim().ToLower() switch
+        {
+            "concluído (aprovado)" => ("status-approved", "bg-bar-approved", "approved", "bi-check-circle-fill"),
+            "concluído (reprovado)" => ("status-reproved", "bg-bar-reproved", "reproved", "bi-x-circle-fill"),
+            "pendente" => ("status-pendente", "bg-bar-pendente", "pendente", "bi-exclamation-circle-fill"),
+            "em curso" => ("status-em-curso", "bg-bar-em-curso", "brand", "bi-clock-history"),
+            "por iniciar" => ("status-por-iniciar", "bg-bar-por-iniciar", "por-iniciar", "bi-circle"),
+            _ => ("status-por-iniciar", "bg-bar-por-iniciar", "por-iniciar", "bi-info-circle")
+        };
     }
 
     private async Task ToggleStar(StudentDashboardCardDto e)
@@ -258,6 +254,6 @@
     private void SelectTab(string tab)
     {
         currentTab = tab;
-        isDropdownOpen = false; // Fecha o dropdown ao selecionar
+        isDropdownOpen = false;
     }
 }

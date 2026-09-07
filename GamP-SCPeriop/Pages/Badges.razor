@@ -53,7 +53,7 @@
                     <!-- Espaçador Esquerdo (permite que o primeiro item vá para o centro) -->
                     <div style="min-width: 40vw; flex-shrink: 0;"></div>
 
-                    @foreach (var pathway in studentBadges.Select(b => b.PathwayTitle).Distinct())
+                    @foreach (var pathway in studentBadges.Select(b => b.PathwayTitle).Distinct().OrderBy(p => p))
                     {
                         <div class="mobile-pathway-item text-center px-3"
                              data-pathway="@pathway"
@@ -81,7 +81,7 @@
 
                     <div style="height: 290px; flex-shrink: 0;"></div>
 
-                    @foreach (var pathway in studentBadges.Select(b => b.PathwayTitle).Distinct())
+                    @foreach (var pathway in studentBadges.Select(b => b.PathwayTitle).Distinct().OrderBy(p => p))
                     {
                         <div class="pathway-item d-flex align-items-center justify-content-center"
                              data-pathway="@pathway"
