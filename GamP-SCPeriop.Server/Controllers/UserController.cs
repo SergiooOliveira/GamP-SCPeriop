@@ -3,11 +3,13 @@ using Microsoft.EntityFrameworkCore;
 using GamP_SCPeriop.Server.Data;
 using GamP_SCPeriop.Shared.Data;
 using GamP_SCPeriop.Shared.Enum;
+using Microsoft.AspNetCore.Authorization;
 
 namespace GamP_SCPeriop.Server.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class UserController : Controller
     {
         private readonly AppDbContext _context;

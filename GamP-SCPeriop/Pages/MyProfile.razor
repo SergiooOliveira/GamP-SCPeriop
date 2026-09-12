@@ -58,7 +58,7 @@
                     <!-- Exportar -->
                     @if (enrollments != null && enrollments.Any() && currentUser != null)
                     {
-                        <a href="api/Evaluation/student/@currentUser.Id/pdf" target="_blank" class="btn text-white fw-semibold shadow-sm px-3" style="background-color: var(--brand); border-radius: 10px;">
+                        <a href="api/Evaluation/student/@currentUser.Id/pdf" target="_blank" class="btn btn-outline-secondary fw-semibold shadow-sm px-3" style="border-radius: 10px;">
                             <i class="bi bi-file-earmark-pdf me-1"></i> Exportar Relatório
                         </a>
                     }
@@ -94,7 +94,7 @@
 
                         <div class="col">
                             <!-- Adicionada a borda esquerda com a variável da cor do tema -->
-                            <div class="pcard card h-100" style="border-left: 5px solid var(--@theme.ColorVar);" @onclick='() => Nav.NavigateTo($"/pathway/{enrollment.PathwayId}")'>
+                            <div class="pcard card h-100" style="border-left: 5px solid var(--@theme.ColorVar) !important;" @onclick='() => Nav.NavigateTo($"/pathway/{enrollment.PathwayId}")'>
                                 <div class="card-body p-4 d-flex flex-column bg-white">
 
                                     <!-- Cabeçalho do Cartão -->
@@ -190,15 +190,39 @@
                                     e.PathwayTitle.Contains(searchTerm, StringComparison.OrdinalIgnoreCase));
             }
 
-            // A lógica das datas foi corrigida para garantir que não rebenta se a data for NULL
+            // TODO: Strange things happening
             return currentTab switch
             {
-                "Todas" => query.Where(e => !e.IsHidden),
-                "Por iniciar" => query.Where(e => !e.IsHidden && e.StartDate > now),
-                "A decorrer" => query.Where(e => !e.IsHidden && (!e.StartDate.HasValue || e.StartDate <= now) && (!e.LimitDate.HasValue || e.LimitDate >= now) && !e.IsFullyEvaluated),
-                "Histórico" => query.Where(e => (e.LimitDate.HasValue && e.LimitDate < now) || e.IsFullyEvaluated || e.IsArchived),
-                "Com estrela" => query.Where(e => !e.IsHidden && e.IsStarred),
-                "Removidos" => query.Where(e => e.IsHidden),
+                "Todas" => query
+                    .Where(e => !e.IsHidden)
+                    .OrderBy(e => e.LimitDate),
+
+                "Por iniciar" => query
+                    .Where(e => !e.IsHidden && 
+                                !e.IsArchived &&
+                                (!e.StartDate.HasValue || e.StartDate > now))
+                    .OrderBy(e => e.LimitDate),
+
+                "A decorrer" => query
+                    .Where(e => !e.IsHidden &&
+                                !e.IsArchived &&
+                                e.StartDate.HasValue && e.StartDate <= now &&
+                                (!e.LimitDate.HasValue || e.LimitDate >= now || !e.AllModulesScheduled))
+                    .OrderBy(e => e.LimitDate),
+
+                "Histórico" => query
+                    .Where(e => !e.IsHidden && 
+                                (e.IsArchived || (e.AllModulesScheduled && e.LimitDate.HasValue && e.LimitDate < now)))
+                    .OrderBy(e => e.LimitDate),
+
+                "Com estrela" => query
+                    .Where(e => !e.IsHidden && e.IsStarred)
+                    .OrderBy(e => e.LimitDate),
+
+                "Removidos" => query
+                    .Where(e => e.IsHidden)
+                    .OrderBy(e => e.LimitDate),
+
                 _ => query.Where(e => !e.IsHidden)
             };
         }
@@ -207,7 +231,8 @@
     // Calcula o Estado dinamicamente baseado nos dados reais
     private string GetStatusString(StudentDashboardCardDto e)
     {
-        bool isCompleted = e.IsFullyEvaluated || (e.LimitDate.HasValue && e.LimitDate < DateTime.UtcNow);
+        bool isCompleted = e.IsArchived || e.IsFullyEvaluated || (e.LimitDate.HasValue && e.LimitDate < DateTime.UtcNow);
+        
         if (isCompleted)
         {
             var minScore = e.MinimumApprovalScore > 0 ? e.MinimumApprovalScore : 65;

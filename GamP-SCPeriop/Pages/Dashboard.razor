@@ -359,7 +359,7 @@
         {
             Console.WriteLine("Erro ao criar percurso.");
         }
-        
+
         isCreatingPathway = false;
     }
 
@@ -373,8 +373,8 @@
         if (response.IsSuccessStatusCode)
         {
             Console.WriteLine("Percurso apagado com sucesso.");
-            // Remove da lista em memória e atualiza o ecrã instantaneamente
-            pathwaySummaries.RemoveAll(p => p.Id == pathwayId);
+            
+            await LoadDashboardData();
             StateHasChanged();
         }
     }
@@ -383,10 +383,12 @@
     {
         return status?.Trim().ToLower() switch
         {
-            "concluído" or "concluido" => "bg-success bg-opacity-10 text-success border border-success border-opacity-25",
-            "pendente" => "bg-warning bg-opacity-10 text-dark border border-warning border-opacity-50",
-            "em curso" => "bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25",
-            _ => "bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25"
+            var s when s.Contains("aprovado") => "status-approved border border-success border-opacity-25",
+            var s when s.Contains("reprovado") => "status-reproved border border-danger border-opacity-25",
+            var s when s.Contains("em curso") => "status-em-curso border border-primary border-opacity-25",
+            var s when s.Contains("pendente") => "status-pendente border border-warning border-opacity-25",
+            var s when s.Contains("por iniciar") => "status-por-iniciar border border-secondary border-opacity-25",
+            _ => "bg-light text-muted border border-secondary border-opacity-25"
         };
     }
 }

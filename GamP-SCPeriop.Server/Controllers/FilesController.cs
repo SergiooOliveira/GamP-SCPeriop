@@ -5,6 +5,7 @@ namespace GamP_SCPeriop.Server.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class FilesController : ControllerBase
     {
         private readonly IWebHostEnvironment _env;

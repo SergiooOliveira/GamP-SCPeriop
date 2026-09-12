@@ -3,6 +3,7 @@ using GamP_SCPeriop.Server.Data;
 using GamP_SCPeriop.Shared.Data;
 using GamP_SCPeriop.Shared.Entity.Model;
 using GamP_SCPeriop.Shared.Enum;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -10,6 +11,7 @@ namespace GamP_SCPeriop.Server.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class PathwayController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -253,6 +255,20 @@ namespace GamP_SCPeriop.Server.Controllers
             pathway.IsArchived = true;
 
             await _context.SaveChangesAsync();
+            return Ok();
+        }
+
+        [HttpPut("{id}/title")]
+        public async Task<IActionResult> UpdatePathwayTitle(int id, [FromBody] string newTitle)
+        {
+            if (string.IsNullOrWhiteSpace(newTitle)) return BadRequest("O título não pode estar vazio.");
+
+            var pathway = await _context.Pathways.FindAsync(id);
+            if (pathway == null) return NotFound();
+
+            pathway.Title = newTitle.Trim();
+            await _context.SaveChangesAsync();
+
             return Ok();
         }
     }

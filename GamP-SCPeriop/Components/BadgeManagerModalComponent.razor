@@ -3,7 +3,7 @@
 @using GamP_SCPeriop.Shared.Enum
 @inject HttpClient Http
 
-<div class="modal fade show" style="display:block; background-color: rgba(0,0,0,0.5);" tabindex="-1">
+<div class="modal fade show" style="display:block;" tabindex="-1">
     <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content shadow" style="height: 650px; overflow: hidden;">
 
@@ -100,9 +100,9 @@
                                         <button type="button"
                                                 class="btn border-0 shadow-sm d-flex align-items-center justify-content-center transition-all"
                                                 style="width: 45px; height: 45px; border-radius: 12px;
-                                                background-color: @(newBadge.Icon == icon ? GetTierColor(newBadge.Tier) + "20" : "#f8f9fa");
-                                                color: @(newBadge.Icon == icon ? GetTierColor(newBadge.Tier) : "#6c757d");
-                                                transform: @(newBadge.Icon == icon ? "scale(1.1)" : "scale(1)");"
+                                                    background-color: @(newBadge.Icon == icon ? GetTierColor(newBadge.Tier) + "20" : "var(--paper)");
+                                                    color: @(newBadge.Icon == icon ? GetTierColor(newBadge.Tier) : "var(--ink-soft)");
+                                                    transform: @(newBadge.Icon == icon ? "scale(1.1)" : "scale(1)");"
                                                 @onclick="() => newBadge.Icon = icon">
                                             <i class="bi @icon fs-5"></i>
                                         </button>
@@ -191,21 +191,31 @@
                         </div>
 
                         <!-- Coluna da Direita: Pré-visualização -->
-                        <div class="col-md-5 bg-light p-4 d-flex flex-column align-items-center justify-content-center" style="height: 100%; border-radius: 0 0 15px 0;">
-                            <span class="text-muted small mb-4 text-uppercase fw-bold" style="letter-spacing: 1px;">Pré-visualização</span>
+                        <div class="col-md-5 p-4 d-flex flex-column align-items-center justify-content-center"
+                             style="height: 100%; border-radius: 0 0 15px 0; background-color: var(--paper);">
+
+                            <span class="small mb-4 text-uppercase fw-bold" style="letter-spacing: 1px; color: var(--ink-soft);">
+                                Pré-visualização
+                            </span>
 
                             <!-- Cartão de Badge com Fundo Dinâmico baseado na Raridade -->
                             <div class="card border-0 shadow text-center p-4 position-relative"
                                  style="width: 260px; border-radius: 20px; transition: all 0.3s ease; background: @GetTierBackground(newBadge.Tier); border-top: 6px solid @GetTierColor(newBadge.Tier) !important;">
 
-                                <span class="badge position-absolute top-0 end-0 m-3 shadow-sm" style="background-color: @GetTierColor(newBadge.Tier);">@newBadge.Tier.ToString()</span>
+                                <span class="badge position-absolute top-0 end-0 m-3 shadow-sm" style="background-color: @GetTierColor(newBadge.Tier);">
+                                    @newBadge.Tier.ToString()
+                                </span>
 
-                                <div class="mx-auto mb-3 mt-2 d-flex align-items-center justify-content-center shadow-sm bg-white" style="@PreviewCircleStyle">
+                                <div class="mx-auto mb-3 mt-2 d-flex align-items-center justify-content-center shadow-sm"
+                                     style="@PreviewCircleStyle background-color: var(--card-bg);">
                                     <i class="bi @PreviewIconClass" style="@PreviewIconStyle"></i>
                                 </div>
 
                                 <h5 class="fw-bold text-dark mb-2">@PreviewTitle</h5>
-                                <p class="text-muted small mb-0" style="line-height: 1.4;">@PreviewDescription</p>
+
+                                <p class="small mb-0" style="line-height: 1.4; color: var(--ink-soft);">
+                                    @PreviewDescription
+                                </p>
                             </div>
                         </div>
                     </div>
@@ -271,12 +281,12 @@
     /// </summary>
     private string GetTierBackground(BadgeTier tier) => tier switch
     {
-        BadgeTier.Common => "linear-gradient(135deg, #ffffff 0%, #f1f2f6 100%)",
-        BadgeTier.Uncommon => "linear-gradient(135deg, #ffffff 0%, #e8f8f5 100%)",
-        BadgeTier.Rare => "linear-gradient(135deg, #ffffff 0%, #ebf5fb 100%)",
-        BadgeTier.Epic => "linear-gradient(135deg, #ffffff 0%, #f4ecf8 100%)",
-        BadgeTier.Legendary => "linear-gradient(135deg, #ffffff 0%, #fef9e7 100%)",
-        _ => "#ffffff"
+        BadgeTier.Common => "linear-gradient(135deg, var(--card-bg) 40%, rgba(127, 140, 141, 0.15) 100%)",
+        BadgeTier.Uncommon => "linear-gradient(135deg, var(--card-bg) 40%, rgba(46, 204, 113, 0.15) 100%)",
+        BadgeTier.Rare => "linear-gradient(135deg, var(--card-bg) 40%, rgba(52, 152, 219, 0.15) 100%)",
+        BadgeTier.Epic => "linear-gradient(135deg, var(--card-bg) 40%, rgba(155, 89, 182, 0.15) 100%)",
+        BadgeTier.Legendary => "linear-gradient(135deg, var(--card-bg) 40%, rgba(241, 196, 15, 0.15) 100%)",
+        _ => "var(--card-bg)"
     };
 
     /// <summary>

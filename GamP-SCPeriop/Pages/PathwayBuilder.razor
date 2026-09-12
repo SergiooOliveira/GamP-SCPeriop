@@ -33,8 +33,8 @@
         <!-- BANNER DE CONTEXTO: Aluno ou Base -->
         @if (IsStudentMode && currentStudentName != null)
         {
-            <div class="alert alert-success d-flex justify-content-between align-items-center shadow-sm mb-4"
-                 style="border-radius: 10px; border-left: 5px solid #198754; background-color: #d1e7dd;">
+            <div class="alert d-flex justify-content-between align-items-center shadow-sm mb-4 bg-light"
+                 style="border-radius: 10px; border-left: 5px solid var(--approved) !important;">
                 <div class="d-flex align-items-center gap-2">
                     <i class="bi bi-person-badge fs-4 text-success"></i>
                     <div>
@@ -49,16 +49,37 @@
         }
         else
         {
-            <div class="alert alert-secondary d-flex justify-content-between align-items-center shadow-sm mb-4" style="border-radius: 10px; border-left: 5px solid #6c757d;">
+            <div class="alert alert-secondary d-flex justify-content-between align-items-center shadow-sm mb-4 bg-light" style="border-radius: 10px; border-left: 5px solid #6c757d;">
                 <div>
                     <span class="text-muted small">A editar molde base:</span><br />
-                    <strong class="fs-5">@activePathway.Title</strong>
+
+                    <div class="d-flex align-items-center gap-2 mt-1">
+                        <!-- Retiradas as classes que o tornavam invisível e adicionado padding (px-2 py-1) -->
+                        <input type="text"
+                               class="form-control fw-bold fs-5 text-dark px-2 py-1"
+                               @bind="editTitle"
+                               @bind:event="oninput"
+                               placeholder="Nome do Percurso"
+                               style="min-width: 300px;" />
+
+                        @if (editTitle?.Trim() != originalTitle)
+                        {
+                            <button class="btn btn-success btn-sm rounded-circle p-1 lh-1 shadow-sm" @onclick="SaveTitleAsync" title="Guardar">
+                                <i class="bi bi-check-lg"></i>
+                            </button>
+                            <button class="btn btn-light btn-sm rounded-circle p-1 lh-1 shadow-sm text-muted" @onclick="CancelTitleEdit" title="Cancelar">
+                                <i class="bi bi-x-lg"></i>
+                            </button>
+                        }
+                    </div>
                 </div>
-                <button class="btn btn-sm btn-outline-secondary" @onclick="CloseActivePathway"><i class="bi bi-x-lg"></i></button>
+                <button class="btn btn-sm btn-outline-secondary" @onclick="CloseActivePathway" title="Fechar">
+                    <i class="bi bi-x-lg"></i>
+                </button>
             </div>
         }
 
-        <div class="mt-4 card shadow-sm p-4 border-0" style="border-radius: 15px;">
+        @* <div class="mt-4 card shadow-sm p-4 border-0" style="border-radius: 15px;"> *@
             <PathwayBuilderComponent 
                 PathwayTemplateId="@activePathway.Id"
                 CurrentMode="@((IsStudentMode) ? BuilderMode.Individual : BuilderMode.Geral)"
@@ -71,7 +92,7 @@
                 OnSaveTheoreticalEvent="SaveTheoreticalFromBuilder"
                 OnDeleteComponent="DeleteComponentFromBuilder"
                 OnSaveBulkEditEvent="SaveBulkEditFromBuilder" />
-        </div>
+        @* </div> *@
     }
 </div>
 
@@ -121,6 +142,9 @@
     private bool isCloseWarningModalOpen = false;
 
     private string? currentStudentName;
+
+    private string originalTitle = string.Empty;
+    private string editTitle = string.Empty;
 
     /// <summary>
     /// Traduz os modelos base de dados para o DTO que o Componente visual espera
@@ -184,6 +208,9 @@
             {
                 activePathway = await response.Content.ReadFromJsonAsync<Pathway>();
                 if (activePathway != null) savedModules = activePathway.Modules ?? new List<Module>();
+
+                originalTitle = activePathway.Title;
+                editTitle = activePathway.Title;
             }
         }
         finally { isLoading = false; }
@@ -250,6 +277,24 @@
             activePathway = await response.Content.ReadFromJsonAsync<Pathway>();
             existingPathways = await Http.GetFromJsonAsync<List<PathwayTagDto>>("api/Pathway/available-options") ?? new();
         }
+    }
+
+    private async Task SaveTitleAsync()
+    {
+        if (string.IsNullOrWhiteSpace(editTitle)) return;
+
+        var response = await Http.PutAsJsonAsync($"api/pathway/{activePathway.Id}/title", editTitle);
+
+        if (response.IsSuccessStatusCode)
+        {
+            originalTitle = editTitle.Trim();
+            activePathway.Title = originalTitle;
+        }
+    }
+
+    private void CancelTitleEdit()
+    {
+        editTitle = originalTitle;
     }
 
     #endregion

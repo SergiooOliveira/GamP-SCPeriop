@@ -8,6 +8,7 @@
 @inject AuthenticationStateProvider AuthStateProvider
 @inject NavigationManager Nav
 @inject HttpClient Http
+@inject IJSRuntime JS
 @implements IDisposable
 
 <AuthorizeView>
@@ -22,6 +23,12 @@
                             <small class="text-muted fw-bold">do minho</small>
                         </div>
                         <div class="d-flex align-items-center gap-3">
+                            
+                            <!-- Botão Dark Mode (Apenas na sessão atual) -->
+                            <button class="btn btn-link position-relative p-0 shadow-none border-0 transition-all hover-icon" @onclick="ToggleTheme" title="Alternar Tema">
+                                <i class="bi @(isDarkMode ? "bi-sun-fill" : "bi-moon-stars-fill") fs-4" style="color: var(--brand);"></i>
+                            </button>
+
                             <div class="position-relative">
                                 <button class="btn btn-link text-dark position-relative p-0 shadow-none border-0" @onclick="ToggleNotificationDropdown">
                                     <i class="bi bi-bell fs-4" style="color: #6A96A6;"></i>
@@ -138,6 +145,8 @@
     // Dados das Notificações
     private List<NotificationDto>? notifications;
     private int unreadCount => notifications?.Count(n => !n.IsRead) ?? 0;
+
+    private bool isDarkMode = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -257,5 +266,14 @@
     public void Dispose()
     {
         Nav.LocationChanged -= HandleLocationChanged;
+    }
+
+    private async Task ToggleTheme()
+    {
+        isDarkMode = !isDarkMode;
+        var theme = isDarkMode ? "dark" : "light";
+
+        // Injeta a mudança diretamente na tag <html> apenas para a sessão atual
+        await JS.InvokeVoidAsync("document.documentElement.setAttribute", "data-bs-theme", theme);
     }
 }

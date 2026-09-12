@@ -14,5 +14,6 @@
         public bool IsHidden { get; set; }
         public bool IsArchived { get; set; }
         public bool IsFullyEvaluated { get; set; }
+        public bool AllModulesScheduled { get; set; }
     }
 }

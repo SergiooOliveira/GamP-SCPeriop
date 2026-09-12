@@ -2,6 +2,7 @@
 @using GamP_SCPeriop.Shared.Data
 @using GamP_SCPeriop.Shared.Enum
 @using static GamP_SCPeriop.Helpers.UIHelpers
+@using static GamP_SCPeriop.Helpers.ModuleDateHelper
 @layout TopNavBarLayout
 @inject HttpClient Http
 @inject NavigationManager Nav
@@ -33,20 +34,26 @@
             {
                 <!-- CABEÇALHO DO MÓDULO -->
                 <div class="card detail-header-card shadow-sm mb-5">
-                    <div class="p-4 pb-3 bg-white">
+                    <div class="p-4 pb-3">
                         <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
-                            <h4 class="fw-bold mb-0" style="color: #2c3e50;">@module.Title</h4>
+                            <h4 class="fw-bold mb-0 text-wrap">@module.Title</h4>
+                            @{ var status = GetModuleStatus(); }
                             <div class="d-flex align-items-center gap-2" style="min-width: 200px;">
-                                <small class="text-muted fw-semibold">@(moduleProgress == 100 ? "Concluído" : "Em Curso")</small>
-                                <div class="bg-light flex-grow-1 shadow-inner" style="height: 10px; border-radius: 10px; overflow: hidden;">
-                                    <div class="h-100" style="width: @(moduleProgress)%; background-color: @(moduleProgress == 100 ? "#198754" : "#6A96A6"); transition: width 0.5s ease-in-out;"></div>
+                                <!-- Texto com a cor correspondente ao estado -->
+                                <small class="fw-semibold" style="color: @status.ColorVar;">@status.Text</small>
+
+                                <!-- Fundo da barra com a tua variável --line -->
+                                <div class="flex-grow-1 shadow-inner" style="height: 10px; border-radius: 10px; overflow: hidden; background-color: var(--line);">
+                                    <!-- Barra preenchida com a cor do estado atual -->
+                                    <div class="h-100" style="width: @(moduleProgress)%; background-color: @status.ColorVar; transition: width 0.5s ease-in-out;"></div>
                                 </div>
-                                <small class="text-muted fw-bold">@(moduleProgress)%</small>
+
+                                <small class="fw-bold" style="color: @status.ColorVar;">@(moduleProgress)%</small>
                             </div>
                         </div>
                     </div>
 
-                    <div class="detail-header-bottom border-top px-4 py-3 bg-light" style="border-radius: 0 0 10px 10px;">
+                    <div class="detail-header-bottom border-top px-4 py-3" style="border-radius: 0 0 10px 10px;">
                         <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2">
                             <div>
                                 <h6 class="fw-bold mb-0 text-dark">@parentPathway?.Title</h6>
@@ -134,7 +141,7 @@
                                                                 }
                                                                 @if (!string.IsNullOrWhiteSpace(comp.PdfFilePath))
                                                                 {
-                                                                    <a href="@comp.PdfFilePath" target="_blank" class="btn btn-sm text-white fw-semibold bg-primary border-0 px-4 py-2" style="border-radius: 8px;">
+                                                                    <a href="@comp.PdfFilePath" target="_blank" class="btn btn-sm btn-outline-theme fw-semibold px-4 py-2" style="border-radius: 8px;">
                                                                         <i class="bi bi-file-earmark-pdf me-2 fs-6 align-middle"></i>Abrir Documento
                                                                     </a>
                                                                 }
@@ -157,17 +164,18 @@
 
                                             @if (topLevelItems.Any())
                                             {
-                                                @foreach (var item in topLevelItems)
+                                                foreach (var item in topLevelItems)
                                                 {
                                                     var children = assessableComponents.Where(c => c.ParentComponentId == item.Id).ToList();
                                                     bool isItemCompleted = IsCompleted(item.Status);
 
-                                                    @if (children.Any())
+                                                    if (children.Any())
                                                     {
-                                                        <div class="mb-3 mt-4">
-                                                            <div class="d-flex align-items-center mb-2">
-                                                                <div style="width: 5px; height: 22px; background-color: #6A96A6; border-radius: 4px;" class="me-3 flex-shrink-0"></div>
-                                                                <h5 class="fw-bold mb-0 text-wrap" style="color: #1c4c5e;">@item.Title</h5>
+                                                        <!-- PAI COM FILHOS: Linha divisória neutra -->
+                                                        <div class="mb-3 mt-4 pb-2 border-bottom">
+                                                            <div class="d-flex align-items-center px-3">
+                                                                <!-- Sem o style de cor fixa, o texto inverte naturalmente -->
+                                                                <h5 class="fw-bold mb-0 text-wrap">@item.Title</h5>
                                                             </div>
                                                         </div>
 
@@ -175,17 +183,20 @@
                                                             @foreach (var child in children)
                                                             {
                                                                 bool isChildCompleted = IsCompleted(child.Status);
+                                                                string borderStyle = GetItemBorderClass(child.Status);
 
-                                                                <div class="card border-0 @(isCheckboxStage && isChildCompleted ? "bg-success bg-opacity-10" : "bg-light")" style="border-radius: 10px; transition: background-color 0.3s;">
-                                                                    <div class="card-body p-3 ms-4">
+                                                                <!-- Removido o 'bg-light' -->
+                                                                <div class="card @borderStyle @(isCheckboxStage && isChildCompleted ? "bg-success bg-opacity-10" : "")" style="border-radius: 10px; transition: all 0.3s;">
+                                                                    <div class="card-body p-3 px-4">
                                                                         <div class="row align-items-center">
                                                                             <div class="col-md-9 mb-2 mb-md-0 d-flex align-items-center">
-                                                                                <h6 class="fw-semibold mb-0 @(isCheckboxStage && isChildCompleted ? "text-success" : "text-dark") text-wrap" style="font-size: 0.95rem;">@child.Title</h6>
+                                                                                <!-- Removido o 'text-dark' -->
+                                                                                <h6 class="fw-semibold mb-0 @(isCheckboxStage && isChildCompleted ? "text-success" : "") text-wrap" style="font-size: 0.95rem;">@child.Title</h6>
                                                                             </div>
                                                                             <div class="col-md-3 text-md-end">
                                                                                 @if (!isCheckboxStage)
                                                                                 {
-                                                                                    <span class="badge rounded-pill @GetBadgeCss(child.Status) px-3 py-2 border shadow-sm" style="font-size: 0.75rem;">@GetBadgeText(child.Status)</span>
+                                                                                    <span class="badge rounded-pill @GetBadgeCss(child.Status) px-3 py-2 border shadow-sm" style="font-size: 0.75rem;">@GetItemBadgeText(child.Status)</span>
                                                                                 }
                                                                                 else if (isChildCompleted)
                                                                                 {
@@ -200,17 +211,21 @@
                                                     }
                                                     else
                                                     {
-                                                        <div class="card border-0 @(isCheckboxStage && isItemCompleted ? "bg-success bg-opacity-10" : "bg-light") mb-3" style="border-radius: 10px; transition: background-color 0.3s;">
-                                                            <div class="card-body p-3">
+                                                        <!-- ITEM SOLTO (SEM FILHOS) -->
+                                                        string borderStyle = GetItemBorderClass(item.Status);
+
+                                                        <!-- Removido o 'bg-light' -->
+                                                        <div class="card @borderStyle @(isCheckboxStage && isItemCompleted ? "bg-success bg-opacity-10" : "") mb-3" style="border-radius: 10px; transition: all 0.3s;">
+                                                            <div class="card-body p-3 px-4">
                                                                 <div class="row align-items-center">
                                                                     <div class="col-md-9 mb-2 mb-md-0 d-flex align-items-center">
-                                                                        <div style="width: 5px; height: 22px; background-color: @(isCheckboxStage && isItemCompleted ? "#198754" : "#adb5bd"); border-radius: 4px;" class="me-3 flex-shrink-0"></div>
-                                                                        <h6 class="fw-bold mb-0 @(isCheckboxStage && isItemCompleted ? "text-success" : "text-dark") text-wrap">@item.Title</h6>
+                                                                        <!-- Removido o 'text-dark' -->
+                                                                        <h6 class="fw-bold mb-0 @(isCheckboxStage && isItemCompleted ? "text-success" : "") text-wrap">@item.Title</h6>
                                                                     </div>
                                                                     <div class="col-md-3 text-md-end">
                                                                         @if (!isCheckboxStage)
                                                                         {
-                                                                            <span class="badge rounded-pill @GetBadgeCss(item.Status) px-3 py-2 border shadow-sm" style="font-size: 0.75rem;">@GetBadgeText(item.Status)</span>
+                                                                            <span class="badge rounded-pill @GetBadgeCss(item.Status) px-3 py-2 border shadow-sm" style="font-size: 0.75rem;">@GetItemBadgeText(item.Status)</span>
                                                                         }
                                                                         else if (isItemCompleted)
                                                                         {
@@ -257,6 +272,10 @@
     private int moduleProgress = 0;
     private int globalProgress = 0;
 
+    private DateTime? moduleActualEndDate;
+    private DateTime? moduleActualStartDate;
+    private bool isModuleLocked;
+
     protected override async Task OnInitializedAsync()
     {
         try
@@ -270,15 +289,23 @@
                 if (module != null && module.PathwayId > 0)
                 {
                     moduleProgress = CalculateModuleProgress(module);
+                    moduleActualStartDate = GetActualStartDate(module);
+                    moduleActualEndDate = GetActualEndDate(module);
 
-                    var enrollments = await Http.GetFromJsonAsync<List<Enrollment>>($"api/Enrollment/student/{currentUser.Id}");
-                    var enrollment = enrollments?.FirstOrDefault(e => e.PathwayId == module.PathwayId);
+                    var enrollmentDetails = await Http.GetFromJsonAsync<List<EnrollmentModule>>(
+                        $"api/Enrollment/student/{currentUser.Id}/pathway/{module.PathwayId}");
+
+                    var enrollment = enrollmentDetails?.FirstOrDefault()?.Enrollment;
 
                     if (enrollment != null)
                     {
                         parentPathway = enrollment.Pathway;
                         globalProgress = CalculateGlobalProgress(enrollment);
                     }
+
+                    // Computed once — reused by the header status AND every component badge below
+                    isModuleLocked = (parentPathway?.IsArchived ?? false)
+                        || (moduleActualEndDate.HasValue && moduleActualEndDate.Value < DateTime.UtcNow);
                 }
             }
         }
@@ -327,7 +354,6 @@
     {
         if (mod.Components == null) return 0;
 
-        // Adicionada a Prática Assistida ao filtro, tal como combinámos
         var assessable = mod.Components
                     .Where(c => c.Stage == ModuleStage.PraticaSupervisionada || c.Stage == ModuleStage.PraticaAssistida)
                     .Where(c => !mod.Components.Any(child => child.ParentComponentId == c.Id))
@@ -342,5 +368,57 @@
     private int CalculateGlobalProgress(Enrollment enrollment)
     {
         return enrollment?.ProgressPercentage ?? 0;
+    }
+
+    private (string Text, string ColorVar) GetModuleStatus()
+    {
+        var minScore = parentPathway?.MinimumApprovalScore > 0 ? parentPathway.MinimumApprovalScore : 100;
+
+        if (moduleProgress >= minScore)
+            return ("Aprovado", "var(--approved)");
+
+        if (isModuleLocked)
+            return ("Reprovado", "var(--reproved)");
+
+        var now = DateTime.UtcNow;
+
+        if (moduleActualStartDate.HasValue && moduleActualStartDate.Value <= now)
+            return ("Em Curso", "var(--brand)");
+
+        if (!moduleActualStartDate.HasValue)
+            return ("Por Agendar", "var(--por-iniciar)");
+
+        return ("Pendente", "var(--pendente)");
+    }
+
+    private string GetItemBorderClass(ComponentStatus status)
+    {
+        if (status == ComponentStatus.AcimaDaMedia)
+            return "border border-status-warning";
+
+        if (status == ComponentStatus.Consistente)
+            return "border border-status-success";
+
+        if (isModuleLocked)
+            return "border border-status-danger";
+
+        return "border shadow-sm";
+    }
+
+    private string GetItemBadgeText(ComponentStatus status)
+    {
+        if (status != ComponentStatus.Pending)
+            return GetBadgeText(status);
+     
+        return isModuleLocked ? "Não Avaliado" : GetBadgeText(status);
+    }
+
+    private string GetItemBadgeCss(ComponentStatus status)
+    {
+        // Se não for Pendente, devolve a cor normal
+        if (status != ComponentStatus.Pending)
+            return GetBadgeCss(status);
+
+        return isModuleLocked ? "status-reproved" : GetBadgeCss(status);
     }
 }

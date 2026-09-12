@@ -10,6 +10,7 @@ namespace GamP_SCPeriop.Server.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize]
     public class ModuleController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -73,6 +74,8 @@ namespace GamP_SCPeriop.Server.Controllers
                 .Include(em => em.Enrollment)
                     .ThenInclude(e => e.Pathway)
                 .Include(em => em.Module)
+                    .ThenInclude(m => m.StageTimelines)
+                .Include(em => em.Module)
                     .ThenInclude(m => m.Components)
                 .FirstOrDefaultAsync(em => em.ModuleId == moduleId && em.Enrollment.StudentId == studentId);
 
@@ -80,7 +83,7 @@ namespace GamP_SCPeriop.Server.Controllers
 
             var module = enrollmentModule.Module;
 
-            // [TRUQUE MAGICO]: Preenchemos o PathwayId em memória para o Frontend não quebrar!
+            // Preenchemos o PathwayId em memória para o Frontend não quebrar!
             module.PathwayId = enrollmentModule.Enrollment.PathwayId;
 
             // 2. Vamos buscar as notas específicas deste aluno
@@ -146,43 +149,26 @@ namespace GamP_SCPeriop.Server.Controllers
             // Grava as alterações do Módulo primeiro
             await _context.SaveChangesAsync();
 
-            // --- 🕒 INÍCIO DA PROPAGAÇÃO (PATHWAY E ENROLLMENTS) ---
-
-            var allTimelinesInPathway = await _context.Modules
-                .Where(m => m.PathwayId == existingModule.PathwayId)
-                .SelectMany(m => m.StageTimelines)
-                .ToListAsync();
-
-            if (allTimelinesInPathway.Any())
+            // --- Propagação corrigida: escopada a ESTE módulo apenas ---
+            if (existingModule.PathwayId.HasValue)
             {
-                var realStartDate = allTimelinesInPathway.Min(t => t.StartDate);
-                var realEndDate = allTimelinesInPathway.Max(t => t.EndDate);
+                var allTimelinesInPathway = await _context.Modules
+                    .Where(m => m.PathwayId == existingModule.PathwayId)
+                    .SelectMany(m => m.StageTimelines)
+                    .Where(t => t.StartDate.HasValue || t.EndDate.HasValue)
+                    .ToListAsync();
 
-                var pathway = await _context.Pathways.FindAsync(existingModule.PathwayId);
-
-                // Verifica se houve realmente uma mudança nos limites
-                if (pathway != null && (pathway.StartDate != realStartDate || pathway.EndDate != realEndDate))
+                if (allTimelinesInPathway.Any())
                 {
-                    // A. Atualiza a Pathway
-                    pathway.StartDate = realStartDate;
-                    pathway.EndDate = realEndDate;
-
-                    // B. Atualiza TODOS os alunos inscritos
-                    var enrollments = await _context.EnrollmentModules
-                        .Where(e => e.Enrollment.PathwayId == existingModule.PathwayId)
-                        .ToListAsync();
-
-                    foreach (var enrollment in enrollments)
+                    var pathway = await _context.Pathways.FindAsync(existingModule.PathwayId);
+                    if (pathway != null)
                     {
-                        enrollment.StartDate = realStartDate;
-                        enrollment.EndDate = realEndDate;
+                        pathway.StartDate = allTimelinesInPathway.Where(t => t.StartDate.HasValue).Select(t => t.StartDate).Min();
+                        pathway.EndDate = allTimelinesInPathway.Where(t => t.EndDate.HasValue).Select(t => t.EndDate).Max();
+                        await _context.SaveChangesAsync();
                     }
-
-                    // Grava o efeito cascata de uma só vez
-                    await _context.SaveChangesAsync();
                 }
             }
-            // --- FIM DA PROPAGAÇÃO ---
 
             return NoContent();
         }
@@ -198,16 +184,11 @@ namespace GamP_SCPeriop.Server.Controllers
 
             if (existingModule == null) return NotFound();
 
-            // Atualiza APENAS as datas na tabela ModuleStageTimelines
             if (updatedModule.StageTimelines != null)
             {
                 foreach (var updatedTimeline in updatedModule.StageTimelines)
                 {
                     var existingTimeline = existingModule.StageTimelines?.FirstOrDefault(t => t.Stage == updatedTimeline.Stage);
-
-                    DateTime? safeStartDate = updatedTimeline.StartDate == default(DateTime) ? null : updatedTimeline.StartDate;
-                    DateTime? safeEndDate = updatedTimeline.EndDate == default(DateTime) ? null : updatedTimeline.EndDate;
-
                     if (existingTimeline != null)
                     {
                         existingTimeline.StartDate = updatedTimeline.StartDate;
@@ -215,7 +196,7 @@ namespace GamP_SCPeriop.Server.Controllers
                     }
                     else
                     {
-                        existingModule.StageTimelines = new List<ModuleStageTimelineDto>();
+                        existingModule.StageTimelines ??= new List<ModuleStageTimelineDto>();
                         existingModule.StageTimelines.Add(new ModuleStageTimelineDto
                         {
                             Stage = updatedTimeline.Stage,
@@ -228,6 +209,20 @@ namespace GamP_SCPeriop.Server.Controllers
             }
 
             await _context.SaveChangesAsync();
+
+            // Sincroniza SÓ o EnrollmentModule deste clone — nunca a Pathway
+            var datedTimelines = existingModule.StageTimelines?.Where(t => t.StartDate.HasValue || t.EndDate.HasValue).ToList();
+            if (datedTimelines != null && datedTimelines.Any())
+            {
+                var linkedEnrollmentModule = await _context.EnrollmentModules.FirstOrDefaultAsync(em => em.ModuleId == id);
+                if (linkedEnrollmentModule != null)
+                {
+                    linkedEnrollmentModule.StartDate = datedTimelines.Where(t => t.StartDate.HasValue).Select(t => t.StartDate).Min();
+                    linkedEnrollmentModule.EndDate = datedTimelines.Where(t => t.EndDate.HasValue).Select(t => t.EndDate).Max();
+                }
+                await _context.SaveChangesAsync();
+            }
+
             return NoContent();
         }
 

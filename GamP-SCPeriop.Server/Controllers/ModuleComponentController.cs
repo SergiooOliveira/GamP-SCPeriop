@@ -10,6 +10,7 @@ namespace GamP_SCPeriop.Server.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize]
     public class ModuleComponentController : ControllerBase
     {
         private readonly AppDbContext _context;

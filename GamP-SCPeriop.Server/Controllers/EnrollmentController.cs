@@ -2,6 +2,7 @@
 using GamP_SCPeriop.Shared.Data;
 using GamP_SCPeriop.Shared.Entity.Model;
 using GamP_SCPeriop.Shared.Enum;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -9,6 +10,7 @@ namespace GamP_SCPeriop.Server.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class EnrollmentController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -51,13 +53,26 @@ namespace GamP_SCPeriop.Server.Controllers
                 {
                     var line = group.First();
 
-                    // Extrai todas as datas de todas as fases dos módulos deste aluno de forma segura
-                    var todasAsTimelines = group
-                        .SelectMany(em => em.Module?.StageTimelines ?? new List<ModuleStageTimelineDto>())
+                    // Extrai as datas tanto do EnrollmentModule como das StageTimelines associadas
+                    var datasInicio = group.Where(em => em.StartDate.HasValue).Select(em => em.StartDate!.Value)
+                        .Concat(group.Where(em => em.Module?.StageTimelines != null)
+                                     .SelectMany(em => em.Module!.StageTimelines)
+                                     .Where(t => t.StartDate.HasValue)
+                                     .Select(t => t.StartDate!.Value))
                         .ToList();
 
-                    var datasInicio = todasAsTimelines.Where(t => t.StartDate != default).Select(t => t.StartDate).ToList();
-                    var datasFim = todasAsTimelines.Where(t => t.EndDate != default).Select(t => t.EndDate).ToList();
+                    var datasFim = group.Where(em => em.EndDate.HasValue).Select(em => em.EndDate!.Value)
+                        .Concat(group.Where(em => em.Module?.StageTimelines != null)
+                                     .SelectMany(em => em.Module!.StageTimelines)
+                                     .Where(t => t.EndDate.HasValue)
+                                     .Select(t => t.EndDate!.Value))
+                        .ToList();
+
+                    // Scheduled = EnrollmentModule has both dates AND its Module's StageTimelines are fully filled
+                    bool allModulesScheduled = group.Any() && group.All(em =>
+                        em.StartDate.HasValue && em.EndDate.HasValue &&
+                        em.Module?.StageTimelines != null && em.Module.StageTimelines.Any() &&
+                        em.Module.StageTimelines.All(t => t.StartDate.HasValue && t.EndDate.HasValue));
 
                     return new StudentDashboardCardDto
                     {
@@ -65,8 +80,9 @@ namespace GamP_SCPeriop.Server.Controllers
                         PathwayId = line.Enrollment?.PathwayId ?? 0,
                         PathwayTitle = line.Enrollment?.Pathway?.Title ?? "Sem título",
                         ProfessorName = line.Enrollment?.Pathway?.Professor?.DisplayShortName ?? "Sem supervisor",
-                        StartDate = datasInicio.Any() ? datasInicio.Min() : null,
-                        LimitDate = datasFim.Any() ? datasFim.Max() : null,
+                        StartDate = datasInicio.Any() ? datasInicio.Min() : (DateTime?)null,
+                        LimitDate = datasFim.Any() ? datasFim.Max() : (DateTime?)null,
+                        AllModulesScheduled = allModulesScheduled,
                         ProgressPercentage = line.Enrollment?.ProgressPercentage ?? 0,
                         MinimumApprovalScore = line.Enrollment?.Pathway?.MinimumApprovalScore ?? 65,
                         IsStarred = line.Enrollment?.IsStarred ?? false,
@@ -74,8 +90,7 @@ namespace GamP_SCPeriop.Server.Controllers
                         IsArchived = line.Enrollment?.Pathway?.IsArchived ?? false,
                         IsFullyEvaluated = (line.Enrollment?.ProgressPercentage ?? 0) == 100
                     };
-                })
-                .ToList();
+                }).ToList();
 
             return Ok(dashboardCards);
         }
@@ -89,6 +104,8 @@ namespace GamP_SCPeriop.Server.Controllers
                         .ThenInclude(p => p.Professor)
                 .Include(em => em.Module)
                     .ThenInclude(m => m.Components)
+                .Include(em => em.Module)                                // <-- 1. INCLUIR AS DATAS AQUI
+                    .ThenInclude(m => m.StageTimelines)
                 .Where(em => em.Enrollment != null
                         && em.Enrollment.StudentId == studentId
                         && em.Enrollment.PathwayId == pathwayId)
@@ -96,17 +113,23 @@ namespace GamP_SCPeriop.Server.Controllers
 
             if (!enrollmentDetails.Any()) return NotFound();
 
-            // 1. Descobrir o ID da Inscrição (EnrollmentId)
             var enrollmentId = enrollmentDetails.First().EnrollmentId;
 
-            // 2. Ir buscar as avaliações deste aluno na tabela ComponentEvaluations
             var evaluations = await _context.ComponentEvaluations
                 .Where(ce => ce.EnrollmentId == enrollmentId)
                 .ToListAsync();
 
-            // 3. Injetar as notas nas componentes antes de enviar o JSON para o Front-end
             foreach (var em in enrollmentDetails)
             {
+                // 2. HIGIENE DE SEGURANÇA: Apagar dados sensíveis antes de enviar
+                if (em.Enrollment?.Pathway?.Professor != null)
+                {
+                    var prof = em.Enrollment.Pathway.Professor;
+                    prof.Password = string.Empty; // Impede que a hash vá para a net
+                    prof.Email = string.Empty;
+                }
+
+                // 3. Injetar notas (O teu código original)
                 if (em.Module?.Components != null)
                 {
                     foreach (var comp in em.Module.Components)
@@ -120,38 +143,121 @@ namespace GamP_SCPeriop.Server.Controllers
             return Ok(enrollmentDetails);
         }
 
+        [Authorize(Roles = "Supervisor,Admin")]
         [HttpGet("management")]
         public async Task<ActionResult<List<StudentManagementDto>>> GetAllStudentsForManagement()
         {
-            var studentsQuery = await _context.Users
-                .Where(u => u.Role == UserRole.Supervisionado) // Ensure we only grab actual students
-                .Select(student => new StudentManagementDto
+            // 1. Extração SQL: Inclui sub-consultas para as datas e para as avaliações reais
+            var rawData = await _context.Users
+                .Where(u => u.Role == UserRole.Supervisionado)
+                .Select(student => new
                 {
-                    StudentId = student.Id,
-                    FullName = student.FullName,
-                    Email = student.Email,
-
-                    // If you track logins in your DB, map it here. Otherwise, leave null.
-                    LastAccess = null,
-
-                    // 1. Grab their active pathways and format them as tags
-                    ActivePathways = student.Enrollments.Select(e => new PathwayTagDto
+                    student.Id,
+                    student.FullName,
+                    student.Email,
+                    Enrollments = student.Enrollments.Select(e => new
                     {
+                        EnrollmentId = e.Id,
                         PathwayId = e.Pathway.Id,
-                        Title = e.Pathway.Title,
-                        Status = e.ProgressPercentage >= 100 ? "Concluido" : "Em curso", // TODO: Adjust this logic based on your actual status criteria
-                        EnrollmentId = e.Id
-                    }).ToList(),
+                        PathwayTitle = e.Pathway.Title,
+                        e.ProgressPercentage,
+                        e.Pathway.IsArchived,
+                        e.Pathway.MinimumApprovalScore,
 
-                    // 2. Safely calculate the average progress (prevents divide-by-zero errors)
-                    OverallProgress = student.Enrollments.Any()
-                        ? (int)student.Enrollments.Average(e => e.ProgressPercentage)
-                        : 0
+                        // FIX 1: count from this enrollment's actual modules, not the live template
+                        TotalModules = _context.EnrollmentModules.Count(em => em.EnrollmentId == e.Id),
+                        ScheduledModules = _context.EnrollmentModules.Count(em =>
+                            em.EnrollmentId == e.Id &&
+                            em.StartDate != null && em.EndDate != null &&
+                            em.Module.StageTimelines.Any() &&
+                            em.Module.StageTimelines.All(t => t.StartDate != null && t.EndDate != null)),
+                        MinStartDate = _context.EnrollmentModules.Where(em => em.EnrollmentId == e.Id).Min(em => em.StartDate),
+                        MaxEndDate = _context.EnrollmentModules.Where(em => em.EnrollmentId == e.Id).Max(em => em.EndDate),
+
+                        // FIX 2: total = every component that belongs to this enrollment's actual modules, not just the ones with a row already
+                        TotalEvaluations = _context.EnrollmentModules
+                            .Where(em => em.EnrollmentId == e.Id)
+                            .SelectMany(em => em.Module.Components)
+                            .Count(),
+                        CompletedEvaluations = _context.ComponentEvaluations
+                            .Count(ce => ce.EnrollmentId == e.Id && ce.Status != ComponentStatus.Pending)
+                    }).ToList()
                 })
                 .ToListAsync();
 
-            return Ok(studentsQuery);
+            var now = DateTime.UtcNow;
+
+            // 2. Processamento em Memória: Árvore de Decisão rigorosa com prioridades
+            var studentsResult = rawData.Select(student => new StudentManagementDto
+            {
+                StudentId = student.Id,
+                FullName = student.FullName,
+                Email = student.Email,
+                LastAccess = null,
+
+                OverallProgress = student.Enrollments.Any()
+                    ? (int)student.Enrollments.Average(e => e.ProgressPercentage)
+                    : 0,
+
+                ActivePathways = student.Enrollments.Select(e =>
+                {
+                    string status;
+                    bool hasModules = e.TotalModules > 0;
+                    bool isFullyScheduled = hasModules && e.TotalModules == e.ScheduledModules;
+
+                    bool hasStartedEvaluations = e.CompletedEvaluations > 0;
+                    bool isFullyEvaluated = (e.TotalEvaluations > 0 && e.CompletedEvaluations == e.TotalEvaluations) || e.ProgressPercentage >= 100;
+
+                    // REGRA 1 — dates are authoritative, but only once every module is actually scheduled
+                    if (isFullyEvaluated
+                        || e.IsArchived
+                        || (isFullyScheduled && e.MaxEndDate.HasValue && e.MaxEndDate < now))
+                    {
+                        var minScore = e.MinimumApprovalScore > 0 ? e.MinimumApprovalScore : 65;
+                        status = e.ProgressPercentage >= minScore ? "Concluído (Aprovado)" : "Concluído (Reprovado)";
+                    }
+                    // REGRA 2 — not fully scheduled, but work has started
+                    else if (hasStartedEvaluations)
+                    {
+                        status = "Em curso";
+                    }
+                    // REGRA 3 — not fully scheduled, nothing started
+                    else if (!hasModules || !isFullyScheduled)
+                    {
+                        status = "Pendente";
+                    }
+                    else if (e.MinStartDate.HasValue && e.MinStartDate > now)
+                    {
+                        status = "Por iniciar";
+                    }
+                    else
+                    {
+                        status = "Em curso";
+                    }
+
+                    return new PathwayTagDto
+                    {
+                        PathwayId = e.PathwayId,
+                        Title = e.PathwayTitle,
+                        EnrollmentId = e.EnrollmentId,
+                        Status = status
+                    };
+                })
+                .OrderBy(p => p.Status switch
+                {
+                    "Em curso" => 1,
+                    "Por iniciar" => 2,
+                    "Pendente" => 3,
+                    "Concluído (Aprovado)" => 4,
+                    _ => 5 // Concluído (Reprovado) ou outros
+                })
+                .ThenBy(p => p.Title)
+                .ToList()
+            }).ToList();
+
+            return Ok(studentsResult);
         }
+
         #endregion
 
         #region HttpPost
@@ -200,17 +306,22 @@ namespace GamP_SCPeriop.Server.Controllers
                 _context.Modules.Add(clonedModule);
                 await _context.SaveChangesAsync();
 
+                var clonedTimelines = new List<ModuleStageTimelineDto>();
+
                 if (baseModule.StageTimelines != null)
                 {
                     foreach (var timeline in baseModule.StageTimelines)
                     {
-                        _context.ModuleStageTimelines.Add(new ModuleStageTimelineDto
+                        var newTimeline = new ModuleStageTimelineDto
                         {
-                            ModuleId = clonedModule.Id, // Aponta para o Clone!
+                            ModuleId = clonedModule.Id,
                             Stage = timeline.Stage,
                             StartDate = timeline.StartDate,
                             EndDate = timeline.EndDate
-                        });
+                        };
+
+                        _context.ModuleStageTimelines.Add(newTimeline);
+                        clonedTimelines.Add(newTimeline);
                     }
                 }
 
@@ -265,12 +376,15 @@ namespace GamP_SCPeriop.Server.Controllers
                 }
 
                 // 6. LIGAR O NOVO CLONE À INSCRIÇÃO
+                var inheritedStart = clonedTimelines.Where(t => t.StartDate.HasValue).Select(t => t.StartDate).Min();
+                var inheritedEnd = clonedTimelines.Where(t => t.EndDate.HasValue).Select(t => t.EndDate).Max();
+
                 var enrollmentModule = new EnrollmentModule
                 {
                     EnrollmentId = enrollment.Id,
                     ModuleId = clonedModule.Id, // Agora sim, atrelamos o clone independente!
-                    StartDate = null,
-                    EndDate = null,
+                    StartDate = inheritedStart,
+                    EndDate = inheritedEnd,
                 };
                 _context.EnrollmentModules.Add(enrollmentModule);
             }

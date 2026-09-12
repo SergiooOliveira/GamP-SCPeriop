@@ -1,8 +1,9 @@
 ﻿using GamP_SCPeriop.Server.Data;
-using GamP_SCPeriop.Shared.Data;
-using GamP_SCPeriop.Shared.Enum;
 using GamP_SCPeriop.Server.Services;
+using GamP_SCPeriop.Shared.Data;
 using GamP_SCPeriop.Shared.Entity.Model;
+using GamP_SCPeriop.Shared.Enum;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -10,6 +11,7 @@ namespace GamP_SCPeriop.Server.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class EvaluationController : ControllerBase
     {
         private readonly AppDbContext _context;

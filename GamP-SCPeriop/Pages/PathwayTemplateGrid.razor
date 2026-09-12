@@ -9,7 +9,7 @@
 @using GamP_SCPeriop.Shared.Enum
 @using GamP_SCPeriop.Helpers
 
-<div class="max-width-container container-fluid mt-4">
+<div class="container mt-4">
     
     @if (isLoading)
     {
@@ -53,7 +53,7 @@
             {
                 <div class="col">
                     <!-- Cartão Clicável -->
-                    <div class="card border-0 h-100 template-card shadow-sm" @onclick="() => LoadActiveTemplate(template.Id)">
+                    <div class="card border-0 h-100 template-card shadow-sm" style="background-color: var(--card-bg)" @onclick="() => LoadActiveTemplate(template.Id)">
                 
                         <div class="card-body p-4 position-relative d-flex flex-column">
                     
@@ -93,13 +93,13 @@
     else
     {
         <!-- ESTADO 2: O CONSTRUTOR ATIVO (Usando o Motor Partilhado) -->
-        <div class="alert alert-primary d-flex justify-content-between align-items-center shadow-sm border-0" style="border-radius: 10px; background-color: #e9f2f9;">
+        <div class="alert bg-light d-flex justify-content-between align-items-center shadow-sm border-0" style="border-radius: 10px;">
             <div>
                 <span class="text-muted small fw-bold text-uppercase">A Editar Molde Base:</span><br />
                 <strong class="fs-5 text-primary">@activeTemplate.Title</strong>
             </div>
             <div>
-                <button class="btn btn-sm btn-primary shadow-sm" @onclick="CloseActiveTemplate">
+                <button class="btn btn-sm btn-outline-primary shadow-sm" @onclick="CloseActiveTemplate">
                     <i class="bi bi-arrow-left me-1"></i> Voltar aos Moldes
                 </button>
             </div>

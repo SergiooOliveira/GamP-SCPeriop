@@ -2,6 +2,7 @@
 @attribute [Authorize(Roles = "Supervisionado")]
 @using GamP_SCPeriop.Shared.Enum
 @using GamP_SCPeriop.Shared.Data
+@using GamP_SCPeriop.Helpers
 @layout TopNavBarLayout
 @inject HttpClient Http
 @inject NavigationManager Nav
@@ -30,19 +31,15 @@
             {
                 var firstLine = pathwayModules.First();
                 var pathway = firstLine.Enrollment?.Pathway;
+    
+                // Calcula o fecho usando o novo método que varre todas as datas
+                var maxLimit = pathwayModules.Max(m => ModuleDateHelper.GetActualEndDate(m.Module));
+                bool isParentClosed = (pathway?.IsArchived ?? false) || (maxLimit.HasValue && maxLimit.Value < DateTime.UtcNow);
 
-                <!-- CABEÇALHO DO PERCURSO -->
-                <div class="mb-4">
-                    <h3 class="fw-bold mb-2" style="color: #2c3e50;">@pathway?.Title</h3>
-                    <p class="text-muted">
-                        <i class="bi bi-person-badge me-2"></i>Supervisor: @(pathway?.Professor?.DisplayShortName ?? "Atribuído")
-                    </p>
-                </div>
+                <!-- O teu cabeçalho mantém-se igual aqui -->
 
-                <!-- LISTA DE MÓDULOS (Design das setas) -->
                 <div class="card border-0 shadow-sm mb-5" style="border-radius: 16px; overflow: hidden;">
                     <div class="list-group list-group-flush">
-
                         @foreach (var m in pathwayModules)
                         {
                             var module = m.Module;
@@ -51,45 +48,39 @@
                             var modProgress = CalculateModuleProgress(module);
                             var minScore = pathway?.MinimumApprovalScore > 0 ? pathway.MinimumApprovalScore : 100;
 
+                            // Extrai as datas reais deste módulo
+                            var actualStart = ModuleDateHelper.GetActualStartDate(m.Module);
+                            var actualEnd = ModuleDateHelper.GetActualEndDate(m.Module);
+
                             <button class="list-group-item list-group-item-action p-4 d-flex justify-content-between align-items-center"
                                     style="border-bottom: 1px solid #f0f0f0; cursor: pointer; transition: background-color 0.2s;"
                                     @onclick='() => Nav.NavigateTo($"/module/{module.Id}")'>
 
-                                <!-- Esquerda: Informação do Módulo -->
                                 <div class="d-flex align-items-center me-3">
-                                    <div class="rounded-circle d-flex justify-content-center align-items-center me-4 shadow-sm"
-                                         style="width: 45px; height: 45px; background-color: #E2ECEF; color: #6A96A6;">
+                                    <div class="rounded-circle d-flex justify-content-center align-items-center me-4 shadow-sm bg-secondary bg-opacity-10 text-secondary"
+                                         style="width: 45px; height: 45px;">
                                         <i class="bi bi-journal-text fs-5"></i>
                                     </div>
 
                                     <div>
                                         <h5 class="fw-bold text-dark mb-1">@module.Title</h5>
+                            
+                                        <!-- Nova Linha de Datas usando as variáveis calculadas -->
+                                        <div class="text-muted mb-2" style="font-size: 0.85rem;">
+                                            <i class="bi bi-calendar-event me-1"></i>
+                                            @(actualStart.HasValue ? actualStart.Value.ToString("dd MMM yyyy") : "A definir") 
+                                            <i class="bi bi-arrow-right mx-1 text-secondary opacity-50"></i> 
+                                            @(actualEnd.HasValue ? actualEnd.Value.ToString("dd MMM yyyy") : "A definir")
+                                        </div>
 
-                                        <div class="d-flex align-items-center gap-2 mt-2">
-                                            @if (modProgress >= minScore)
-                                            {
-                                                <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 rounded-pill px-2 py-1">
-                                                    <i class="bi bi-check2-circle me-1"></i> Aprovado
-                                                </span>
-                                            }
-                                            else if (m.StartDate.HasValue && m.StartDate <= DateTime.UtcNow)
-                                            {
-                                                <!-- AQUI USAMOS AS DATAS DO NOVO MODELO PARA O ESTADO -->
-                                                <span class="badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25 rounded-pill px-2 py-1">
-                                                    Em Curso (@(modProgress)%)
-                                                </span>
-                                            }
-                                            else
-                                            {
-                                                <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 rounded-pill px-2 py-1">
-                                                    Pendente
-                                                </span>
-                                            }
+                                        <div class="d-flex align-items-center gap-2">
+                                            @{ var badge = GetModuleBadge(modProgress, minScore, isParentClosed, actualStart, actualEnd); }
+                                            <span class="badge @badge.CssClass rounded-pill px-2 py-1">
+                                                <i class="bi @badge.Icon me-1"></i> @badge.Text
+                                            </span>
                                         </div>
                                     </div>
                                 </div>
-
-                                <!-- Direita: A Seta Clássica -->
                                 <i class="bi bi-chevron-right text-secondary fs-4"></i>
                             </button>
                         }
@@ -108,7 +99,6 @@
     public User? currentUser { get; set; }
 
     private List<EnrollmentModule>? pathwayModules;
-
 
     protected override async Task OnInitializedAsync()
     {
@@ -140,5 +130,30 @@
 
         int completed = assessable.Count(c => c.Status == ComponentStatus.AcimaDaMedia || c.Status == ComponentStatus.Consistente);
         return (int)((double)completed / assessable.Count * 100);
+    }
+
+    private (string Text, string CssClass, string Icon) GetModuleBadge(int progress, int minScore, bool isParentClosed, DateTime? actualStart, DateTime? actualEnd)
+    {
+        // 1. Aprovado
+        if (progress >= minScore)
+            return ("Aprovado", "bg-transparent bg-opacity-10 text-success border border-success border-opacity-25", "bi-check2-circle");
+
+        var now = DateTime.UtcNow;
+        bool isModuleExpired = actualEnd.HasValue && actualEnd.Value < now;
+
+        // 2. Reprovado (O prazo deste módulo expirou OU o percurso pai fechou)
+        if (isParentClosed || isModuleExpired)
+            return ("Reprovado", "bg-transparent bg-opacity-10 text-danger border border-danger border-opacity-25", "bi-x-circle");
+
+        // 3. Em Curso (Já começou e está dentro do prazo)
+        if (actualStart.HasValue && actualStart.Value <= now)
+            return ($"Em Curso ({progress}%)", "bg-transparent text-primary border border-primary border-opacity-50", "bi-play-circle");
+
+        // 4. Por Agendar (O professor ainda não definiu a data de início)
+        if (!actualStart.HasValue)
+            return ("Por Agendar", "bg-outline-info text-secondary border border-secondary border-opacity-25", "bi-calendar-minus");
+
+        // 5. Pendente (Já tem datas, mas o dia de início ainda está no futuro)
+        return ("Pendente", "bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25", "bi-hourglass-split");
     }
 }
