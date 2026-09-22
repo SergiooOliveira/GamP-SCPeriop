@@ -275,7 +275,8 @@
         if (response.IsSuccessStatusCode)
         {
             activePathway = await response.Content.ReadFromJsonAsync<Pathway>();
-            existingPathways = await Http.GetFromJsonAsync<List<PathwayTagDto>>("api/Pathway/available-options") ?? new();
+            // Same list the page loads on start (this used to call api/Pathway/available-options, which doesn't exist)
+            existingPathways = await Http.GetFromJsonAsync<List<PathwayTagDto>>($"api/Pathway/supervisor/{currentUser?.Id}") ?? new();
         }
     }
 

@@ -92,6 +92,13 @@ namespace GamP_SCPeriop.Server.Controllers
 
             // Procurar e apagar todos os filhos primeiro (Cascata manual)
             var children = await _context.ModuleComponents.Where(c => c.ParentComponentId == id).ToListAsync();
+
+            // Grades given to this item or its sub-items (they used to block the delete with a database error)
+            var deletedIds = children.Select(c => c.Id).Append(id).ToList();
+            var evaluations = await _context.ComponentEvaluations.Where(ce => deletedIds.Contains(ce.ModuleComponentId)).ToListAsync();
+            var gradedEnrollmentIds = evaluations.Select(ce => ce.EnrollmentId).Distinct().ToList();
+            if (evaluations.Any()) _context.ComponentEvaluations.RemoveRange(evaluations);
+
             if (children.Any())
             {
                 _context.ModuleComponents.RemoveRange(children);
@@ -100,6 +107,11 @@ namespace GamP_SCPeriop.Server.Controllers
             // Apagar o Pai em segurança
             _context.ModuleComponents.Remove(component);
             await _context.SaveChangesAsync();
+
+            // The deleted grades no longer count towards those students' progress
+            foreach (var enrollmentId in gradedEnrollmentIds)
+                await EvaluationRules.RecalculateEnrollmentProgressAsync(_context, enrollmentId);
+            if (gradedEnrollmentIds.Any()) await _context.SaveChangesAsync();
 
             return Ok();
         }

@@ -8,35 +8,17 @@ namespace GamP_SCPeriop.Server.Services
     public class BadgeService
     {
         private readonly AppDbContext _context;
+        private readonly ILogger<BadgeService> _logger;
 
-        public BadgeService(AppDbContext context)
+        public BadgeService(AppDbContext context, ILogger<BadgeService> logger)
         {
             _context = context;
+            _logger = logger;
         }
 
         public async Task EvaluateModuleBadgeAsync(int studentId, int professorId, int moduleId, int pathwayId, float moduleProgress)
         {
-            Console.WriteLine($"Testing Module Badge Evaluation for\n" +
-                $"studentId: {studentId}\n" +
-                $"professorId: {professorId}\n" +
-                $"moduleId: {moduleId}\n" +
-                $"pathwayId: {pathwayId}\n" +
-                $"moduleProgress: {moduleProgress}");
-
             if (moduleProgress < 65) return;
-
-            //if (moduleProgress >= 85)
-            //{
-
-            //}
-
-            var allBadges = await _context.Badges.Where(b => b.PathwayId == pathwayId).ToListAsync();
-            Console.WriteLine($"--- DIAGNÓSTICO: Encontradas {allBadges.Count} badges para o Pathway {pathwayId} ---");
-            foreach (var b in allBadges)
-            {
-                Console.WriteLine($"- Nome: {b.Name} | Tipo: {(int)b.TriggerType} ({b.TriggerType}) | Valor: '{b.TriggerValue}'");
-            }
-            Console.WriteLine("--------------------------------------------------");
 
             var moduleBadge = await _context.Badges
                 .FirstOrDefaultAsync(b => 
@@ -44,16 +26,14 @@ namespace GamP_SCPeriop.Server.Services
                     b.TriggerType == BadgeTriggerType.ModuleCompletion &&
                     b.TriggerValue == moduleId.ToString());
 
-            Console.WriteLine($"Module Badge Query Result: {moduleBadge?.Name ?? "No Badge Found"}");
-
             if (moduleBadge == null) return;
 
             bool alreadyHasModuleBadge = await _context.UserBadges
                 .AnyAsync(ub => ub.UserId == studentId && ub.BadgeId == moduleBadge.Id);
 
-            Console.WriteLine($"Module Badge Found: {moduleBadge.Name}, Already Has Badge: {alreadyHasModuleBadge}");
-
             if (alreadyHasModuleBadge) return;
+
+            _logger.LogInformation("Badge {Badge} awarded to student {StudentId} (module {ModuleId}).", moduleBadge.Name, studentId, moduleId);
 
             _context.UserBadges.Add(new UserBadge
             {
@@ -91,6 +71,8 @@ namespace GamP_SCPeriop.Server.Services
                 .AnyAsync(ub => ub.UserId == studentId && ub.BadgeId == pathwayBadge.Id);
 
             if (alreadyHasPathwayBadge) return;
+
+            _logger.LogInformation("Badge {Badge} awarded to student {StudentId} (pathway {PathwayId}).", pathwayBadge.Name, studentId, pathwayId);
 
             _context.UserBadges.Add(new UserBadge
             {
