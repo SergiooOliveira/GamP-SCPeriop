@@ -4,6 +4,7 @@ using GamP_SCPeriop.Server.Data;
 using GamP_SCPeriop.Shared.Data;
 using GamP_SCPeriop.Shared.Enum;
 using Microsoft.AspNetCore.Authorization;
+using GamP_SCPeriop.Server.Services;
 
 namespace GamP_SCPeriop.Server.Controllers
 {
@@ -20,6 +21,7 @@ namespace GamP_SCPeriop.Server.Controllers
         }
 
         [HttpGet("students")]
+        [Authorize(Roles = Roles.Staff)]
         public async Task<ActionResult<List<User>>> GetStudents()
         {
             var students = await _context.Users
@@ -30,6 +32,7 @@ namespace GamP_SCPeriop.Server.Controllers
         }
 
         [HttpGet]
+        [Authorize(Roles = Roles.Admin)]
         public async Task<ActionResult<List<User>>> GetAllUsers()
         {
             var users = await _context.Users

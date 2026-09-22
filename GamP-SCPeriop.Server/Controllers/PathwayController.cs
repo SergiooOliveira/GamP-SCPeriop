@@ -1,5 +1,6 @@
 ﻿using GamP_SCPeriop.Helpers;
 using GamP_SCPeriop.Server.Data;
+using GamP_SCPeriop.Server.Services;
 using GamP_SCPeriop.Shared.Data;
 using GamP_SCPeriop.Shared.Entity.Model;
 using GamP_SCPeriop.Shared.Enum;
@@ -11,14 +12,16 @@ namespace GamP_SCPeriop.Server.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize]
+    [Authorize(Roles = Roles.Staff)]
     public class PathwayController : ControllerBase
     {
         private readonly AppDbContext _context;
+        private readonly AccessService _access;
 
-        public PathwayController(AppDbContext context)
+        public PathwayController(AppDbContext context, AccessService access)
         {
             _context = context;
+            _access = access;
         }
 
         #region Subject Management
@@ -26,6 +29,9 @@ namespace GamP_SCPeriop.Server.Controllers
         [HttpPost]
         public async Task<ActionResult<Pathway>> CreatePathway(PathwayCreateDto dto)
         {
+            // Supervisors always own the pathways they create; only admins may create one for someone else
+            if (!User.IsAdmin()) dto.ProfessorId = User.GetUserId();
+
             Dictionary<int, Module> moduleMap = new();
 
             // 1. Cria a base do novo Percurso
@@ -181,6 +187,8 @@ namespace GamP_SCPeriop.Server.Controllers
         [HttpGet("{id}")]
         public async Task<ActionResult<Pathway>> GetPathway(int id)
         {
+            if (!await _access.CanManagePathwayAsync(User, id)) return Forbid();
+
             var pathway = await _context.Pathways
                 .Include(p => p.Modules)
                     .ThenInclude(m => m.Components)
@@ -196,6 +204,8 @@ namespace GamP_SCPeriop.Server.Controllers
         [HttpGet("supervisor/{supervisorId}")]
         public async Task<ActionResult<List<PathwayTagDto>>> GetSupervisorPathways(int supervisorId)
         {
+            if (!User.IsAdmin() && supervisorId != User.GetUserId()) return Forbid();
+
             var pathways = await _context.Pathways
                 .Where(p => p.ProfessorId == supervisorId && !p.IsArchived)
                 .Select(p => new PathwayTagDto
@@ -213,6 +223,8 @@ namespace GamP_SCPeriop.Server.Controllers
         [HttpGet("{pathwayId}/enrollments")]
         public async Task<ActionResult<List<Enrollment>>> GetPathwayEnrollments(int pathwayId)
         {
+            if (!await _access.CanManagePathwayAsync(User, pathwayId)) return Forbid();
+
             var enrollments = await _context.Enrollments
                 .Include(e => e.Student)
                 .Where(e => e.PathwayId == pathwayId)
@@ -224,6 +236,8 @@ namespace GamP_SCPeriop.Server.Controllers
         [HttpGet("builder/{id}")]
         public async Task<ActionResult<IEnumerable<EnrollmentModule>>> GetStudentPathwayBuilder(int id)
         {
+            if (!await _access.CanManageEnrollmentAsync(User, id)) return Forbid();
+
             var studentModules = await _context.EnrollmentModules
                 .Include(em => em.Enrollment)
                     .ThenInclude(e => e.Student)
@@ -247,6 +261,8 @@ namespace GamP_SCPeriop.Server.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeletePathway(int id)
         {
+            if (!await _access.CanManagePathwayAsync(User, id)) return Forbid();
+
             var pathway = await _context.Pathways.FindAsync(id);
             if (pathway == null) return NotFound();
 
@@ -261,6 +277,8 @@ namespace GamP_SCPeriop.Server.Controllers
         [HttpPut("{id}/title")]
         public async Task<IActionResult> UpdatePathwayTitle(int id, [FromBody] string newTitle)
         {
+            if (!await _access.CanManagePathwayAsync(User, id)) return Forbid();
+
             if (string.IsNullOrWhiteSpace(newTitle)) return BadRequest("O título não pode estar vazio.");
 
             var pathway = await _context.Pathways.FindAsync(id);

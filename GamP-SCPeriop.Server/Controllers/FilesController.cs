@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
+using GamP_SCPeriop.Server.Services;
 
 namespace GamP_SCPeriop.Server.Controllers
 {
@@ -17,6 +18,7 @@ namespace GamP_SCPeriop.Server.Controllers
 
         // 1. THE UPLOAD DOOR (POST)
         [HttpPost("upload")]
+        [Authorize(Roles = Roles.Staff)]
         public async Task<IActionResult> UploadFile(IFormFile file)
         {
             if (file == null || file.Length == 0) return BadRequest("Nenhum ficheiro recebido.");

@@ -2,6 +2,7 @@
 using GamP_SCPeriop.Server.Services;
 using GamP_SCPeriop.Shared.Data;
 using GamP_SCPeriop.Shared.Entity.Model;
+using GamP_SCPeriop.Shared.Enum;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -22,7 +23,9 @@ namespace GamP_SCPeriop.Server.Controllers
             _tokenService = tokenService;
         }
 
+        // Só os Administradores criam contas (qualquer pessoa podia criar uma conta de Admin)
         [HttpPost("register")]
+        [Authorize(Roles = nameof(UserRole.Admin))]
         public async Task<ActionResult<User>> Register(UserRegisterDto request)
         {
             var emailExists = await _context.Users.AnyAsync(u => u.Email == request.Email);
@@ -96,7 +99,7 @@ namespace GamP_SCPeriop.Server.Controllers
         }
 
         [HttpPost("reset-password")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = nameof(UserRole.Admin))]
         public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto request)
         {
             var user = await _context.Users.FindAsync(request.UserId);

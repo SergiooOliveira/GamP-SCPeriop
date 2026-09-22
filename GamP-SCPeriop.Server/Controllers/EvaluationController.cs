@@ -16,17 +16,22 @@ namespace GamP_SCPeriop.Server.Controllers
     {
         private readonly AppDbContext _context;
         private readonly BadgeService _badgeService;
+        private readonly AccessService _access;
 
-        public EvaluationController(AppDbContext context, BadgeService badgeService)
+        public EvaluationController(AppDbContext context, BadgeService badgeService, AccessService access)
         {
             _context = context;
             _badgeService = badgeService;
+            _access = access;
         }
 
         // 1. CARREGAR A PÁGINA: Devolve o aluno, o percurso e as notas
         [HttpGet("enrollment/{id}")]
+        [Authorize(Roles = Roles.Staff)]
         public async Task<ActionResult<List<EnrollmentModule>>> GetEnrollmentForEvaluation(int id)
         {
+            if (!await _access.CanManageEnrollmentAsync(User, id)) return Forbid();
+
             // Vai buscar TODOS os módulos clonados que pertencem a esta inscrição
             var enrollmentModules = await _context.EnrollmentModules
                 .Include(em => em.Enrollment)
@@ -64,11 +69,23 @@ namespace GamP_SCPeriop.Server.Controllers
 
         // 2. GRAVAR AVALIAÇÃO: Quando o professor clica num botão colorido
         [HttpPost]
+        [Authorize(Roles = Roles.Staff)]
         public async Task<IActionResult> SaveEvaluations([FromBody] List<EvaluationRequestDto> requests)
         {
             if (requests == null || !requests.Any()) return BadRequest("Invalid evaluation requests.");
 
             int enrollmentId = requests.First().EnrollmentId;
+
+            // Só o supervisor do percurso (ou um admin) avalia, e só componentes desta inscrição
+            if (requests.Any(r => r.EnrollmentId != enrollmentId)) return BadRequest("Todas as avaliações têm de ser da mesma inscrição.");
+            if (!await _access.CanManageEnrollmentAsync(User, enrollmentId)) return Forbid();
+
+            var componentIds = requests.Select(r => r.ModuleComponentId).Distinct().ToList();
+            var ownedComponents = await _context.EnrollmentModules
+                .Where(em => em.EnrollmentId == enrollmentId)
+                .SelectMany(em => em.Module!.Components)
+                .CountAsync(c => componentIds.Contains(c.Id));
+            if (ownedComponents != componentIds.Count) return BadRequest("Há componentes que não pertencem a esta inscrição.");
 
             // 1. Load existing evaluations
             var existingEval = await _context.ComponentEvaluations
@@ -208,6 +225,8 @@ namespace GamP_SCPeriop.Server.Controllers
         [HttpGet("student/{studentId}/pdf")]
         public async Task<IActionResult> DownloadGlobalStudentPdf(int studentId)
         {
+            if (!await _access.CanViewStudentAsync(User, studentId)) return Forbid();
+
             // 1. Vai buscar a estrutura base (Grelha Limpa) e as Inscrições
             var enrollments = await _context.Enrollments
                 .Include(e => e.Student)

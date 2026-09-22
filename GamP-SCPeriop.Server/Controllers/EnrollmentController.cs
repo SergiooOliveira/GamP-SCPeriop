@@ -15,16 +15,21 @@ namespace GamP_SCPeriop.Server.Controllers
     public class EnrollmentController : ControllerBase
     {
         private readonly AppDbContext _context;
+        private readonly AccessService _access;
 
-        public EnrollmentController(AppDbContext context)
+        public EnrollmentController(AppDbContext context, AccessService access)
         {
             _context = context;
+            _access = access;
         }
 
         #region HttpGet
         [HttpGet("supervisor/{supervisorId}")]
+        [Authorize(Roles = Roles.Staff)]
         public async Task<ActionResult<List<Enrollment>>> GetSupervisorEnrollments(int supervisorId)
         {
+            if (!User.IsAdmin() && supervisorId != User.GetUserId()) return Forbid();
+
             var enrollments = await _context.Enrollments
                 .Include(e => e.Student)
                 .Include(e => e.Pathway)
@@ -37,6 +42,9 @@ namespace GamP_SCPeriop.Server.Controllers
         [HttpGet("student/{studentId}")]
         public async Task<ActionResult<List<StudentDashboardCardDto>>> GetStudentEnrollments(int studentId)
         {
+            // O painel do aluno: só o próprio (ou um admin)
+            if (!User.IsAdmin() && studentId != User.GetUserId()) return Forbid();
+
             var enrollmentsModules = await _context.EnrollmentModules
                 .Include(en => en.Enrollment)
                     .ThenInclude(e => e.Pathway)
@@ -115,6 +123,7 @@ namespace GamP_SCPeriop.Server.Controllers
             if (!enrollmentDetails.Any()) return NotFound();
 
             var enrollmentId = enrollmentDetails.First().EnrollmentId;
+            if (!await _access.CanViewEnrollmentAsync(User, enrollmentId)) return Forbid();
 
             var evaluations = await _context.ComponentEvaluations
                 .Where(ce => ce.EnrollmentId == enrollmentId)
@@ -144,10 +153,14 @@ namespace GamP_SCPeriop.Server.Controllers
             return Ok(enrollmentDetails);
         }
 
-        [Authorize(Roles = "Supervisor,Admin")]
+        [Authorize(Roles = Roles.Staff)]
         [HttpGet("management")]
         public async Task<ActionResult<List<StudentManagementDto>>> GetAllStudentsForManagement()
         {
+            // Supervisors see every student (to be able to enrol them) but only the progress in their own pathways
+            var isAdmin = User.IsAdmin();
+            var supervisorId = User.GetUserId();
+
             // 1. Extração SQL: Inclui sub-consultas para as datas e para as avaliações reais
             var rawData = await _context.Users
                 .Where(u => u.Role == UserRole.Supervisionado)
@@ -156,7 +169,9 @@ namespace GamP_SCPeriop.Server.Controllers
                     student.Id,
                     student.FullName,
                     student.Email,
-                    Enrollments = student.Enrollments.Select(e => new
+                    Enrollments = student.Enrollments
+                        .Where(e => isAdmin || e.Pathway.ProfessorId == supervisorId)
+                        .Select(e => new
                     {
                         EnrollmentId = e.Id,
                         PathwayId = e.Pathway.Id,
@@ -223,8 +238,14 @@ namespace GamP_SCPeriop.Server.Controllers
 
         #region HttpPost
         [HttpPost]
+        [Authorize(Roles = Roles.Staff)]
         public async Task<ActionResult<Enrollment>> CreateEnrollment(EnrollmentDto dto)
         {
+            if (!await _access.CanManagePathwayAsync(User, dto.PathwayId)) return Forbid();
+
+            if (!await _context.Users.AnyAsync(u => u.Id == dto.StudentId && u.Role == UserRole.Supervisionado))
+                return BadRequest("Só é possível inscrever alunos.");
+
             var pathway = await _context.Pathways.FindAsync(dto.PathwayId);
 
             if (pathway == null)
@@ -360,7 +381,9 @@ namespace GamP_SCPeriop.Server.Controllers
         [HttpPut("{id}/star")]
         public async Task<IActionResult> ToggleStar(int id, [FromBody] bool isStarred)
         {
-            var enrollment = await _context.Enrollments.FindAsync(id);
+            // Preferências do painel: só o próprio aluno
+            var studentId = User.GetUserId();
+            var enrollment = await _context.Enrollments.FirstOrDefaultAsync(e => e.Id == id && e.StudentId == studentId);
             if (enrollment == null)
             {
                 return NotFound("Inscrição não encontrada.");
@@ -375,7 +398,8 @@ namespace GamP_SCPeriop.Server.Controllers
         [HttpPut("{id}/hidden")]
         public async Task<IActionResult> ToggleHidden(int id, [FromBody] bool isHidden)
         {
-            var enrollment = await _context.Enrollments.FindAsync(id);
+            var studentId = User.GetUserId();
+            var enrollment = await _context.Enrollments.FirstOrDefaultAsync(e => e.Id == id && e.StudentId == studentId);
             if (enrollment == null)
             {
                 return NotFound("Inscrição não encontrada.");
