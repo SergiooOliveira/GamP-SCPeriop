@@ -20,7 +20,7 @@
                 <div class="d-flex align-items-center">
                     @if (!string.IsNullOrEmpty(successMessage))
                     {
-                        <span class="text-success fw-bold me-3">@successMessage</span>
+                        <span class="@(successMessage.StartsWith("Erro") ? "text-danger" : "text-success") fw-bold me-3">@successMessage</span>
                     }
                     <button class="btn btn-primary" @onclick="SaveEvaluationsAsync" disabled="@(isSaving || !pendingEvaluations.Any())">
                         @(isSaving ? "A guardar..." : "Guardar Avaliações")
@@ -568,6 +568,11 @@
             pendingEvaluations.Clear();
             successMessage = "Avaliações guardadas com sucesso!";
         }
+        else if (response.StatusCode == System.Net.HttpStatusCode.BadRequest)
+        {
+            // e.g. a grade from a previous week, or a stage that hasn't started
+            successMessage = $"Erro ao guardar avaliações: {(await response.Content.ReadAsStringAsync()).Trim('"')}";
+        }
         else
         {
             successMessage = "Erro ao guardar avaliações.";
@@ -590,8 +595,18 @@
     /// <summary>
     /// Dynamically generates the appropriate input controls (checkboxes or grading buttons) based on the stage and timeline block status.
     /// </summary>
-    private RenderFragment RenderAssessmentButtons(ModuleComponent comp, bool isBlocked) => __builder =>
+    private RenderFragment RenderAssessmentButtons(ModuleComponent comp, bool isStageBlocked) => __builder =>
     {
+        // A grade given in a previous week is final (the API refuses changes too)
+        bool isBlocked = isStageBlocked || comp.IsGradeLocked;
+
+        @if (comp.IsGradeLocked)
+        {
+            <div class="small text-muted mb-1 text-end" title="As avaliações só podem ser alteradas na semana em que foram dadas.">
+                <i class="bi bi-lock-fill me-1"></i>Avaliado a @(comp.EvaluatedAt?.ToLocalTime().ToString("dd/MM/yyyy")) · definitivo
+            </div>
+        }
+
         @if (comp.Stage == ModuleStage.ObservacaoPassiva || comp.Stage == ModuleStage.ObservacaoParticipada)
         {
             <div class="d-flex justify-content-end">

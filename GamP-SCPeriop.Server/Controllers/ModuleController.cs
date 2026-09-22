@@ -37,7 +37,7 @@ namespace GamP_SCPeriop.Server.Controllers
             {
                 Title = dto.Title,
                 PathwayId = dto.EnrollmentId.HasValue ? null : dto.PathwayId,
-                Weight = dto.Weight,
+                Weight = (float)Math.Round(dto.Weight, 2), // weights have at most 2 decimals
                 IsFromTemplate = false
             };
 
@@ -135,7 +135,7 @@ namespace GamP_SCPeriop.Server.Controllers
 
             // 2. Atualiza os dados do Módulo
             existingModule.Title = updatedModule.Title;
-            existingModule.Weight = updatedModule.Weight;
+            existingModule.Weight = (float)Math.Round(updatedModule.Weight, 2);
             existingModule.OrderIndex = updatedModule.OrderIndex;
 
             if (updatedModule.StageTimelines != null)

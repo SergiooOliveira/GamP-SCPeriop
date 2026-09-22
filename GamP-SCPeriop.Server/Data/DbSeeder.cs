@@ -132,12 +132,12 @@ namespace GamP_SCPeriop.Server.Data
                     EndDate = pathwayStart.AddDays(plan.ModuleIndexes.Length * ModuleLengthDays - 1)
                 };
 
-                float moduleWeight = 100f / plan.ModuleIndexes.Length;
+                var moduleWeights = SplitWeights(plan.ModuleIndexes.Length);
                 for (int order = 0; order < plan.ModuleIndexes.Length; order++)
                 {
                     var blueprint = ModuleCatalog[plan.ModuleIndexes[order]];
                     var moduleStart = pathwayStart.AddDays(order * ModuleLengthDays);
-                    pathway.Modules.Add(BuildBaseModule(blueprint, order, moduleWeight, moduleStart));
+                    pathway.Modules.Add(BuildBaseModule(blueprint, order, moduleWeights[order], moduleStart));
                 }
 
                 _context.Pathways.Add(pathway);
@@ -203,7 +203,7 @@ namespace GamP_SCPeriop.Server.Data
                     var evaluations = new List<ComponentEvaluation>();
                     foreach (var clone in clones)
                     {
-                        foreach (var component in LeafComponents(clone))
+                        foreach (var component in GradableComponents(clone))
                         {
                             var evaluation = Evaluate(component, clone, enrollment, skill, plan.IsArchived);
                             if (evaluation != null) evaluations.Add(evaluation);
@@ -291,35 +291,61 @@ namespace GamP_SCPeriop.Server.Data
                 stageStart = stageStart.AddDays(length);
             }
 
-            float componentWeight = 100f / blueprint.Components.Length;
-            for (int i = 0; i < blueprint.Components.Length; i++)
+            // Theory items are added one by one in the builder, with no weight (theory is never graded)
+            for (int i = 0; i < blueprint.Theory.Length; i++)
             {
-                var parentBlueprint = blueprint.Components[i];
-                var parent = NewComponent(parentBlueprint, i, componentWeight);
-                module.Components.Add(parent);
-
-                if (parentBlueprint.Children == null) continue;
-
-                float childWeight = 100f / parentBlueprint.Children.Length;
-                for (int j = 0; j < parentBlueprint.Children.Length; j++)
+                module.Components.Add(new ModuleComponent
                 {
-                    var child = NewComponent(parentBlueprint.Children[j], j, childWeight);
-                    child.ParentComponent = parent;
-                    module.Components.Add(child);
+                    Title = blueprint.Theory[i].Title,
+                    Description = blueprint.Theory[i].Description,
+                    Stage = ModuleStage.Teorica,
+                    Weight = 0,
+                    OrderIndex = i
+                });
+            }
+
+            // Like the "new module" form: the same parameters are copied into every practical stage,
+            // with weights that add up to 100 per stage (and per group of sub-parameters)
+            var parameterWeights = SplitWeights(blueprint.Parameters.Length);
+            foreach (var stage in stages)
+            {
+                for (int i = 0; i < blueprint.Parameters.Length; i++)
+                {
+                    var parameter = blueprint.Parameters[i];
+                    var parent = new ModuleComponent { Title = parameter.Title, Stage = stage, Weight = parameterWeights[i], OrderIndex = i };
+                    module.Components.Add(parent);
+
+                    if (parameter.Children == null) continue;
+
+                    var childWeights = SplitWeights(parameter.Children.Length);
+                    for (int j = 0; j < parameter.Children.Length; j++)
+                    {
+                        module.Components.Add(new ModuleComponent
+                        {
+                            Title = parameter.Children[j],
+                            Stage = stage,
+                            Weight = childWeights[j],
+                            OrderIndex = j,
+                            ParentComponent = parent
+                        });
+                    }
                 }
             }
 
             return module;
         }
 
-        private static ModuleComponent NewComponent(ComponentBlueprint blueprint, int order, float weight) => new()
+        /// <summary>
+        /// Splits 100 into <paramref name="count"/> weights with at most 2 decimals, the last one taking the remainder
+        /// (same rounding as the builder's auto-distribution, e.g. 33.33 / 33.33 / 33.34)
+        /// </summary>
+        private static float[] SplitWeights(int count)
         {
-            Title = blueprint.Title,
-            Description = blueprint.Description,
-            Stage = blueprint.Stage,
-            Weight = weight,
-            OrderIndex = order
-        };
+            var split = (float)Math.Round(100.0 / count, 2);
+            var weights = Enumerable.Repeat(split, count).ToArray();
+            weights[^1] = (float)Math.Round(100.0 - split * (count - 1), 2);
+            return weights;
+        }
 
         /// <summary>
         /// Mirrors EnrollmentController.CreateEnrollment: an independent copy of the module per student
@@ -372,47 +398,52 @@ namespace GamP_SCPeriop.Server.Data
             return clone;
         }
 
-        private static IEnumerable<ModuleComponent> LeafComponents(Module module) =>
-            module.Components.Where(c => !module.Components.Any(child => child.ParentComponent == c));
+        /// <summary>
+        /// What the evaluation page lets a supervisor grade: practical-stage items with a weight,
+        /// excluding group headers (their sub-parameters are graded instead). Theory is never graded.
+        /// </summary>
+        private static IEnumerable<ModuleComponent> GradableComponents(Module module) =>
+            module.Components.Where(c =>
+                c.Stage != ModuleStage.Teorica &&
+                c.Weight > 0 &&
+                !module.Components.Any(child => child.ParentComponent == c));
 
         /// <summary>
-        /// Finished stages get a final grade, the current stage is partly graded, future stages are left pending
+        /// Finished stages are graded, the current stage is partly graded, future stages are left pending.
+        /// Observation stages are a checklist (ticked = Consistente); practice stages get one of the four grades.
         /// </summary>
         private ComponentEvaluation? Evaluate(ModuleComponent component, Module module, Enrollment enrollment, SkillProfile skill, bool forceFinished)
         {
-            var timelines = module.StageTimelines!;
-            var moduleStart = timelines.Min(t => t.StartDate!.Value);
+            var timeline = module.StageTimelines!.First(t => t.Stage == component.Stage);
+            var stageStart = timeline.StartDate!.Value;
+            var stageEnd = timeline.EndDate!.Value;
 
-            // Theory has no timeline of its own: it is due by the end of the first stage
-            var (stageStart, stageEnd) = component.Stage == ModuleStage.Teorica
-                ? (moduleStart, timelines.OrderBy(t => t.StartDate).First().EndDate!.Value)
-                : (timelines.First(t => t.Stage == component.Stage).StartDate!.Value, timelines.First(t => t.Stage == component.Stage).EndDate!.Value);
+            bool isFinished = forceFinished || stageEnd < _today;
+            if (!isFinished && (stageStart > _today || _random.Next(2) == 0)) return null;
 
             ComponentStatus status;
-            if (forceFinished || stageEnd < _today)
+            if (component.Stage is ModuleStage.ObservacaoPassiva or ModuleStage.ObservacaoParticipada)
             {
-                status = skill.PickGrade(_random);
-            }
-            else if (stageStart <= _today)
-            {
-                if (_random.Next(2) == 0) return null;
-                status = _random.Next(3) == 0 ? skill.PickGrade(_random) : ComponentStatus.EmProgresso;
+                // Unticked items simply have no evaluation
+                if (_random.Next(100) >= skill.ObservationTicked) return null;
+                status = ComponentStatus.Consistente;
             }
             else
             {
-                return null;
+                status = skill.PickGrade(_random);
             }
 
             var lastDay = stageEnd < _today ? stageEnd : _today;
             var span = Math.Max(0, (lastDay - stageStart).Days);
             var evaluatedAt = stageStart.AddDays(_random.Next(span + 1)).AddHours(9 + _random.Next(9));
+            if (evaluatedAt > DateTime.Now) evaluatedAt = DateTime.Now.AddMinutes(-_random.Next(30, 240));
 
             return new ComponentEvaluation
             {
                 Enrollment = enrollment,
                 ModuleComponentId = component.Id,
                 Status = status,
-                EvaluatedAt = evaluatedAt
+                EvaluatedAt = evaluatedAt.ToUniversalTime() // the API stores UTC (DateTime.UtcNow)
             };
         }
 
@@ -511,71 +542,90 @@ namespace GamP_SCPeriop.Server.Data
             new("Estágio em Bloco Operatório — 2.º Semestre 2025/26", 0, new[] { 0, 2, 3 }, -200, true, new[] { 0, 4, 8, 12, 16 })
         };
 
+        /// <summary>
+        /// Each module: theory items, then the parameters that the builder copies into all 4 practical stages
+        /// </summary>
         private static readonly ModuleBlueprint[] ModuleCatalog =
         {
-            new("Acolhimento e Normas do Serviço", "Primeiros Passos", "bi-door-open-fill", BadgeTier.Common, new ComponentBlueprint[]
-            {
-                new("Manual de Acolhimento", ModuleStage.Teorica, "Leitura do manual de acolhimento do serviço."),
-                new("Normas de Prevenção e Controlo de Infeção", ModuleStage.Teorica),
-                new("Circuito do doente no bloco operatório", ModuleStage.ObservacaoPassiva),
-                new("Higienização cirúrgica das mãos", ModuleStage.PraticaAssistida),
-                new("Colocação de equipamento de proteção individual", ModuleStage.PraticaAssistida),
-                new("Preparação da sala operatória", ModuleStage.PraticaSupervisionada)
-            }),
-            new("Enfermagem de Anestesia", "Guardião da Anestesia", "bi-heart-pulse-fill", BadgeTier.Rare, new ComponentBlueprint[]
-            {
-                new("Farmacologia anestésica", ModuleStage.Teorica, "Fármacos de indução, manutenção e emergência."),
-                new("Preparação do posto de anestesia", ModuleStage.ObservacaoParticipada),
-                new("Verificação do ventilador e do aspirador", ModuleStage.PraticaAssistida),
-                new("Monitorização hemodinâmica", ModuleStage.PraticaAssistida),
-                new("Apoio à indução anestésica", ModuleStage.PraticaSupervisionada),
-                new("Registos clínicos (SClínico)", ModuleStage.PraticaSupervisionada, null, new ComponentBlueprint[]
+            new("Acolhimento e Normas do Serviço", "Primeiros Passos", "bi-door-open-fill", BadgeTier.Common,
+                new TheoryBlueprint[]
                 {
-                    new("Regista diagnósticos de enfermagem", ModuleStage.PraticaSupervisionada),
-                    new("Regista atitudes terapêuticas", ModuleStage.PraticaSupervisionada),
-                    new("Regista sinais vitais e glicemia capilar", ModuleStage.PraticaSupervisionada)
-                })
-            }),
-            new("Enfermagem de Instrumentação", "Mãos de Instrumentista", "bi-scissors", BadgeTier.Uncommon, new ComponentBlueprint[]
-            {
-                new("Instrumental cirúrgico básico", ModuleStage.Teorica),
-                new("Organização da mesa operatória", ModuleStage.ObservacaoPassiva),
-                new("Montagem da mesa operatória", ModuleStage.ObservacaoParticipada),
-                new("Contagem de compressas e instrumental", ModuleStage.PraticaAssistida),
-                new("Instrumentação em cirurgia de pequena complexidade", ModuleStage.PraticaSupervisionada),
-                new("Lista de verificação de segurança cirúrgica", ModuleStage.PraticaSupervisionada)
-            }),
-            new("Enfermagem de Circulação", "Circulante Exemplar", "bi-arrow-repeat", BadgeTier.Uncommon, new ComponentBlueprint[]
-            {
-                new("Posicionamento cirúrgico do doente", ModuleStage.Teorica),
-                new("Acolhimento do doente na sala", ModuleStage.ObservacaoPassiva),
-                new("Gestão de material e consumíveis (Ghaf)", ModuleStage.PraticaAssistida, null, new ComponentBlueprint[]
+                    new("Manual de Acolhimento", "Leitura do manual de acolhimento do serviço."),
+                    new("Normas de Prevenção e Controlo de Infeção", "Circular normativa do serviço sobre precauções básicas.")
+                },
+                new ParameterBlueprint[]
                 {
-                    new("Efetua débitos ao armazém", ModuleStage.PraticaAssistida),
-                    new("Efetua devoluções ao armazém", ModuleStage.PraticaAssistida)
+                    new("Higienização cirúrgica das mãos"),
+                    new("Utilização de equipamento de proteção individual"),
+                    new("Circuito do doente no bloco operatório")
                 }),
-                new("Colaboração no posicionamento do doente", ModuleStage.PraticaAssistida),
-                new("Circulação em cirurgia programada", ModuleStage.PraticaSupervisionada)
-            }),
-            new("Unidade de Cuidados Pós-Anestésicos (UCPA)", "Vigilante do Recobro", "bi-eye-fill", BadgeTier.Rare, new ComponentBlueprint[]
-            {
-                new("Escala de Aldrete e critérios de alta", ModuleStage.Teorica),
-                new("Transferência do doente para a UCPA", ModuleStage.ObservacaoPassiva),
-                new("Receção do doente no recobro", ModuleStage.PraticaAssistida),
-                new("Avaliação e controlo da dor pós-operatória", ModuleStage.PraticaSupervisionada),
-                new("Preparação da alta da UCPA", ModuleStage.PraticaSupervisionada)
-            })
+            new("Enfermagem de Anestesia", "Guardião da Anestesia", "bi-heart-pulse-fill", BadgeTier.Rare,
+                new TheoryBlueprint[]
+                {
+                    new("Farmacologia anestésica", "Fármacos de indução, manutenção e emergência.")
+                },
+                new ParameterBlueprint[]
+                {
+                    new("Preparação do posto de anestesia"),
+                    new("Monitorização hemodinâmica"),
+                    new("Apoio à indução anestésica"),
+                    new("Registos clínicos (SClínico)", new[]
+                    {
+                        "Regista diagnósticos de enfermagem",
+                        "Regista atitudes terapêuticas",
+                        "Regista sinais vitais e glicemia capilar"
+                    })
+                }),
+            new("Enfermagem de Instrumentação", "Mãos de Instrumentista", "bi-scissors", BadgeTier.Uncommon,
+                new TheoryBlueprint[]
+                {
+                    new("Instrumental cirúrgico básico", "Identificação e manuseamento do instrumental mais usado.")
+                },
+                new ParameterBlueprint[]
+                {
+                    new("Organização da mesa operatória"),
+                    new("Contagem de compressas e instrumental"),
+                    new("Instrumentação cirúrgica"),
+                    new("Lista de verificação de segurança cirúrgica")
+                }),
+            new("Enfermagem de Circulação", "Circulante Exemplar", "bi-arrow-repeat", BadgeTier.Uncommon,
+                new TheoryBlueprint[]
+                {
+                    new("Posicionamento cirúrgico do doente", "Posições cirúrgicas e prevenção de lesões.")
+                },
+                new ParameterBlueprint[]
+                {
+                    new("Acolhimento do doente na sala"),
+                    new("Posicionamento do doente"),
+                    new("Gestão de material e consumíveis (Ghaf)", new[]
+                    {
+                        "Efetua débitos ao armazém",
+                        "Efetua devoluções ao armazém"
+                    })
+                }),
+            new("Unidade de Cuidados Pós-Anestésicos (UCPA)", "Vigilante do Recobro", "bi-eye-fill", BadgeTier.Rare,
+                new TheoryBlueprint[]
+                {
+                    new("Escala de Aldrete e critérios de alta", "Avaliação do doente no recobro.")
+                },
+                new ParameterBlueprint[]
+                {
+                    new("Receção do doente no recobro"),
+                    new("Avaliação e controlo da dor pós-operatória"),
+                    new("Preparação da alta da UCPA")
+                })
         };
 
         /// <summary>
-        /// Chances (%) of Consistente, AcimaDaMedia, AbaixoDaMedia and Inconsistente for each kind of student
+        /// Chances (%) of Consistente, AcimaDaMedia, AbaixoDaMedia and Inconsistente for each kind of student,
+        /// and the chance (%) of each observation checklist item being ticked
         /// </summary>
         private static readonly SkillProfile[] SkillProfiles =
         {
-            new(60, 30, 8, 2),   // strong
-            new(35, 40, 20, 5),  // good
-            new(15, 35, 35, 15), // average
-            new(5, 20, 40, 35)   // struggling
+            new(60, 30, 8, 2, 95),   // strong
+            new(35, 40, 20, 5, 85),  // good
+            new(15, 35, 35, 15, 70), // average
+            new(5, 20, 40, 35, 55)   // struggling
         };
 
         #endregion
@@ -584,11 +634,13 @@ namespace GamP_SCPeriop.Server.Data
 
         private record PathwayPlan(string Title, int SupervisorIndex, int[] ModuleIndexes, int StartOffsetDays, bool IsArchived, int[] StudentIndexes);
 
-        private record ModuleBlueprint(string Title, string BadgeName, string BadgeIcon, BadgeTier BadgeTier, ComponentBlueprint[] Components);
+        private record ModuleBlueprint(string Title, string BadgeName, string BadgeIcon, BadgeTier BadgeTier, TheoryBlueprint[] Theory, ParameterBlueprint[] Parameters);
 
-        private record ComponentBlueprint(string Title, ModuleStage Stage, string? Description = null, ComponentBlueprint[]? Children = null);
+        private record TheoryBlueprint(string Title, string? Description = null);
 
-        private record SkillProfile(int Consistente, int AcimaDaMedia, int AbaixoDaMedia, int Inconsistente)
+        private record ParameterBlueprint(string Title, string[]? Children = null);
+
+        private record SkillProfile(int Consistente, int AcimaDaMedia, int AbaixoDaMedia, int Inconsistente, int ObservationTicked)
         {
             public ComponentStatus PickGrade(Random random)
             {

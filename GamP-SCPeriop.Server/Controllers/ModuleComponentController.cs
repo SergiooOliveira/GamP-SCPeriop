@@ -47,7 +47,7 @@ namespace GamP_SCPeriop.Server.Controllers
                 PdfFilePath = string.IsNullOrWhiteSpace(dto.PdfFilePath) ? null : dto.PdfFilePath.Trim(),
                 Stage = dto.Stage,
                 ParentComponentId = dto.ParentComponentId,
-                Weight = dto.Weight,
+                Weight = (float)Math.Round(dto.Weight, 2), // weights have at most 2 decimals
                 OrderIndex = dto.OrderIndex,
                 IsFromTemplate = false
             };
@@ -74,7 +74,7 @@ namespace GamP_SCPeriop.Server.Controllers
             existingComponent.Title = updatedComponent.Title;
             existingComponent.Description = updatedComponent.Description;
             existingComponent.PdfFilePath = updatedComponent.PdfFilePath ?? string.Empty;
-            existingComponent.Weight = updatedComponent.Weight;
+            existingComponent.Weight = (float)Math.Round(updatedComponent.Weight, 2);
             existingComponent.OrderIndex = updatedComponent.OrderIndex;
 
             await _context.SaveChangesAsync();
