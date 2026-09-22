@@ -45,34 +45,40 @@ namespace GamP_SCPeriop.Server.Controllers
             // O painel do aluno: só o próprio (ou um admin)
             if (!User.IsAdmin() && studentId != User.GetUserId()) return Forbid();
 
-            var enrollmentsModules = await _context.EnrollmentModules
-                .Include(en => en.Enrollment)
-                    .ThenInclude(e => e.Pathway)
-                        .ThenInclude(p => p.Professor)
-                .Include(en => en.Module)
-                    .ThenInclude(m => m.StageTimelines)
-                .Where(en => en.Enrollment != null && en.Enrollment.StudentId == studentId)
+            // Start from the enrollments themselves, so a pathway with no modules yet still shows on the dashboard
+            var enrollments = await _context.Enrollments
+                .AsNoTracking()
+                .Include(e => e.Pathway)
+                    .ThenInclude(p => p!.Professor)
+                .Where(e => e.StudentId == studentId)
                 .ToListAsync();
 
-            if (!enrollmentsModules.Any()) return Ok(new List<StudentDashboardCardDto>());
+            if (!enrollments.Any()) return Ok(new List<StudentDashboardCardDto>());
 
-            var dashboardCards = enrollmentsModules
-                .GroupBy(em => em.EnrollmentId)
-                .Select(group =>
+            var enrollmentIds = enrollments.Select(e => e.Id).ToList();
+            var modulesByEnrollment = (await _context.EnrollmentModules
+                    .AsNoTracking()
+                    .Include(em => em.Module)
+                        .ThenInclude(m => m!.StageTimelines)
+                    .Where(em => enrollmentIds.Contains(em.EnrollmentId))
+                    .ToListAsync())
+                .ToLookup(em => em.EnrollmentId);
+
+            var dashboardCards = enrollments.Select(enrollment =>
                 {
-                    var line = group.First();
+                    var group = modulesByEnrollment[enrollment.Id].ToList();
 
                     // Extrai as datas tanto do EnrollmentModule como das StageTimelines associadas
                     var datasInicio = group.Where(em => em.StartDate.HasValue).Select(em => em.StartDate!.Value)
                         .Concat(group.Where(em => em.Module?.StageTimelines != null)
-                                     .SelectMany(em => em.Module!.StageTimelines)
+                                     .SelectMany(em => em.Module!.StageTimelines!)
                                      .Where(t => t.StartDate.HasValue)
                                      .Select(t => t.StartDate!.Value))
                         .ToList();
 
                     var datasFim = group.Where(em => em.EndDate.HasValue).Select(em => em.EndDate!.Value)
                         .Concat(group.Where(em => em.Module?.StageTimelines != null)
-                                     .SelectMany(em => em.Module!.StageTimelines)
+                                     .SelectMany(em => em.Module!.StageTimelines!)
                                      .Where(t => t.EndDate.HasValue)
                                      .Select(t => t.EndDate!.Value))
                         .ToList();
@@ -85,19 +91,19 @@ namespace GamP_SCPeriop.Server.Controllers
 
                     return new StudentDashboardCardDto
                     {
-                        EnrollmentId = line.EnrollmentId,
-                        PathwayId = line.Enrollment?.PathwayId ?? 0,
-                        PathwayTitle = line.Enrollment?.Pathway?.Title ?? "Sem título",
-                        ProfessorName = line.Enrollment?.Pathway?.Professor?.DisplayShortName ?? "Sem supervisor",
+                        EnrollmentId = enrollment.Id,
+                        PathwayId = enrollment.PathwayId,
+                        PathwayTitle = enrollment.Pathway?.Title ?? "Sem título",
+                        ProfessorName = enrollment.Pathway?.Professor?.DisplayShortName ?? "Sem supervisor",
                         StartDate = datasInicio.Any() ? datasInicio.Min() : (DateTime?)null,
                         LimitDate = datasFim.Any() ? datasFim.Max() : (DateTime?)null,
                         AllModulesScheduled = allModulesScheduled,
-                        ProgressPercentage = line.Enrollment?.ProgressPercentage ?? 0,
-                        MinimumApprovalScore = line.Enrollment?.Pathway?.MinimumApprovalScore ?? 65,
-                        IsStarred = line.Enrollment?.IsStarred ?? false,
-                        IsHidden = line.Enrollment?.IsHidden ?? false,
-                        IsArchived = line.Enrollment?.Pathway?.IsArchived ?? false,
-                        IsFullyEvaluated = (line.Enrollment?.ProgressPercentage ?? 0) == 100
+                        ProgressPercentage = enrollment.ProgressPercentage,
+                        MinimumApprovalScore = enrollment.Pathway?.MinimumApprovalScore ?? 65,
+                        IsStarred = enrollment.IsStarred,
+                        IsHidden = enrollment.IsHidden,
+                        IsArchived = enrollment.Pathway?.IsArchived ?? false,
+                        IsFullyEvaluated = enrollment.ProgressPercentage == 100
                     };
                 }).ToList();
 
@@ -192,11 +198,11 @@ namespace GamP_SCPeriop.Server.Controllers
                         MinStartDate = _context.EnrollmentModules.Where(em => em.EnrollmentId == e.Id).Min(em => em.StartDate),
                         MaxEndDate = _context.EnrollmentModules.Where(em => em.EnrollmentId == e.Id).Max(em => em.EndDate),
 
-                        // FIX 2: total = every component that belongs to this enrollment's actual modules, not just the ones with a row already
+                        // Total = the items that can actually be graded (no theory, no weightless items, no group headers)
                         TotalEvaluations = _context.EnrollmentModules
                             .Where(em => em.EnrollmentId == e.Id)
                             .SelectMany(em => em.Module.Components)
-                            .Count(),
+                            .Count(c => c.Stage != ModuleStage.Teorica && c.Weight > 0 && !c.SubComponents.Any()),
                         CompletedEvaluations = _context.ComponentEvaluations
                             .Count(ce => ce.EnrollmentId == e.Id && ce.Status != ComponentStatus.Pending)
                     }).ToList()
@@ -266,111 +272,67 @@ namespace GamP_SCPeriop.Server.Controllers
                 PathwayId = dto.PathwayId,
                 ProgressPercentage = 0,
             };
-
             _context.Enrollments.Add(enrollment);
-            await _context.SaveChangesAsync();
 
             var pathwayModules = await _context.Modules
+                .AsNoTracking()
                 .Include(m => m.StageTimelines)
                 .Include(m => m.Components)
                 .Where(m => m.PathwayId == dto.PathwayId)
                 .ToListAsync();
 
+            // Every student gets an independent copy of the pathway's modules (dates, parameters and sub-parameters),
+            // built in memory and saved in ONE database trip (it used to save once per module and per parameter)
             foreach (var baseModule in pathwayModules)
             {
                 var clonedModule = new Module
                 {
                     Title = baseModule.Title,
                     Weight = baseModule.Weight,
+                    OrderIndex = baseModule.OrderIndex,
                     PathwayId = null,
                     IsFromTemplate = true,
-                    OriginalModuleId = baseModule.Id
+                    OriginalModuleId = baseModule.Id,
+                    StageTimelines = (baseModule.StageTimelines ?? new List<ModuleStageTimelineDto>())
+                        .Select(t => new ModuleStageTimelineDto
+                        {
+                            Stage = t.Stage,
+                            StartDate = t.StartDate,
+                            EndDate = t.EndDate
+                        }).ToList()
                 };
 
-                _context.Modules.Add(clonedModule);
-                await _context.SaveChangesAsync();
-
-                var clonedTimelines = new List<ModuleStageTimelineDto>();
-
-                if (baseModule.StageTimelines != null)
+                // Parents first, so each sub-parameter can point to its parent's copy
+                var copies = new Dictionary<int, ModuleComponent>();
+                foreach (var component in baseModule.Components.OrderBy(c => c.ParentComponentId.HasValue ? 1 : 0))
                 {
-                    foreach (var timeline in baseModule.StageTimelines)
-                    {
-                        var newTimeline = new ModuleStageTimelineDto
-                        {
-                            ModuleId = clonedModule.Id,
-                            Stage = timeline.Stage,
-                            StartDate = timeline.StartDate,
-                            EndDate = timeline.EndDate
-                        };
+                    ModuleComponent? parentCopy = null;
+                    if (component.ParentComponentId.HasValue && !copies.TryGetValue(component.ParentComponentId.Value, out parentCopy))
+                        continue; // orphaned sub-parameter: skip, as before
 
-                        _context.ModuleStageTimelines.Add(newTimeline);
-                        clonedTimelines.Add(newTimeline);
-                    }
+                    var copy = new ModuleComponent
+                    {
+                        Stage = component.Stage,
+                        Title = component.Title,
+                        Description = component.Description,
+                        Weight = component.Weight,
+                        OrderIndex = component.OrderIndex,
+                        PdfFilePath = component.PdfFilePath,
+                        IsFromTemplate = true,
+                        ParentComponent = parentCopy
+                    };
+                    copies[component.Id] = copy;
+                    clonedModule.Components.Add(copy);
                 }
 
-                // 5. CLONAR COMPONENTES (Com respeito pela Hierarquia Pai -> Filho)
-                if (baseModule.Components != null)
+                // Link the copy to the enrollment, with the module's overall dates
+                _context.EnrollmentModules.Add(new EnrollmentModule
                 {
-                    // Dicionário para guardar a correspondência entre o ID Antigo do Pai e o ID Novo do Clone
-                    var parentIdMap = new Dictionary<int, int>();
-
-                    // 5.1. Clonar apenas as tarefas Principais (Pais)
-                    var parents = baseModule.Components.Where(c => c.ParentComponentId == null).ToList();
-                    foreach (var parent in parents)
-                    {
-                        var clonedParent = new ModuleComponent
-                        {
-                            ModuleId = clonedModule.Id,
-                            Stage = parent.Stage,
-                            Title = parent.Title,
-                            Description = parent.Description,
-                            Weight = parent.Weight,
-                            PdfFilePath = parent.PdfFilePath,
-                            ParentComponentId = null,
-                            IsFromTemplate = true
-                        };
-
-                        _context.ModuleComponents.Add(clonedParent);
-                        await _context.SaveChangesAsync(); // Gerar o novo ID deste Pai
-                        parentIdMap[parent.Id] = clonedParent.Id; // Guardar no mapa para os filhos saberem a quem pertencer
-                    }
-
-                    // 5.2. Clonar as Sub-tarefas (Filhos)
-                    var children = baseModule.Components.Where(c => c.ParentComponentId != null).ToList();
-                    foreach (var child in children)
-                    {
-                        // Verifica quem era o pai antigo e vai buscar o ID do pai clonado
-                        if (child.ParentComponentId.HasValue && parentIdMap.TryGetValue(child.ParentComponentId.Value, out int newParentId))
-                        {
-                            var clonedChild = new ModuleComponent
-                            {
-                                ModuleId = clonedModule.Id,
-                                Stage = child.Stage,
-                                Title = child.Title,
-                                Description = child.Description,
-                                Weight = child.Weight,
-                                PdfFilePath = child.PdfFilePath,
-                                ParentComponentId = newParentId,
-                                IsFromTemplate = true
-                            };
-                            _context.ModuleComponents.Add(clonedChild);
-                        }
-                    }
-                }
-
-                // 6. LIGAR O NOVO CLONE À INSCRIÇÃO
-                var inheritedStart = clonedTimelines.Where(t => t.StartDate.HasValue).Select(t => t.StartDate).Min();
-                var inheritedEnd = clonedTimelines.Where(t => t.EndDate.HasValue).Select(t => t.EndDate).Max();
-
-                var enrollmentModule = new EnrollmentModule
-                {
-                    EnrollmentId = enrollment.Id,
-                    ModuleId = clonedModule.Id, // Agora sim, atrelamos o clone independente!
-                    StartDate = inheritedStart,
-                    EndDate = inheritedEnd,
-                };
-                _context.EnrollmentModules.Add(enrollmentModule);
+                    Enrollment = enrollment,
+                    Module = clonedModule,
+                    StartDate = clonedModule.StageTimelines.Where(t => t.StartDate.HasValue).Select(t => t.StartDate).Min(),
+                    EndDate = clonedModule.StageTimelines.Where(t => t.EndDate.HasValue).Select(t => t.EndDate).Max()
+                });
             }
 
             await _context.SaveChangesAsync();

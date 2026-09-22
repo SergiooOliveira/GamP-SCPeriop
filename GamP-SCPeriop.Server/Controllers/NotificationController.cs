@@ -12,6 +12,8 @@ namespace GamP_SCPeriop.Server.Controllers
     [Authorize]
     public class NotificationController : ControllerBase
     {
+        private const int MaxNotifications = 30;
+
         private readonly AppDbContext _context;
 
         public NotificationController(AppDbContext context)
@@ -27,8 +29,10 @@ namespace GamP_SCPeriop.Server.Controllers
             if (userId != User.GetUserId()) return Forbid();
 
             var notifications = await _context.Notifications
+                .AsNoTracking()
                 .Where(n => n.ReceiverId == userId)
                 .OrderByDescending(n => n.CreatedAt)
+                .Take(MaxNotifications) // the bell only needs the latest ones (this runs on every page change)
                 .Select(n => new NotificationDto
                 {
                     Id = n.Id,

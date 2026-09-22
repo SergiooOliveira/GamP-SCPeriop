@@ -255,8 +255,13 @@ namespace GamP_SCPeriop.Server.Controllers
             var module = await _context.Modules.FindAsync(id);
             if (module == null) return NotFound();
 
-            // 1. Limpar Componentes do Módulo
+            // 1. Limpar Componentes do Módulo (e as avaliações que já tenham, que antes bloqueavam a eliminação)
             var components = await _context.ModuleComponents.Where(c => c.ModuleId == id).ToListAsync();
+            var componentIds = components.Select(c => c.Id).ToList();
+            var evaluations = await _context.ComponentEvaluations.Where(ce => componentIds.Contains(ce.ModuleComponentId)).ToListAsync();
+            var gradedEnrollmentIds = evaluations.Select(ce => ce.EnrollmentId).Distinct().ToList();
+
+            if (evaluations.Any()) _context.ComponentEvaluations.RemoveRange(evaluations);
             if (components.Any()) _context.ModuleComponents.RemoveRange(components);
 
             // 2. Limpar Datas (Timelines)
@@ -270,6 +275,11 @@ namespace GamP_SCPeriop.Server.Controllers
             // 4. Agora sim, podemos apagar o Módulo com segurança
             _context.Modules.Remove(module);
             await _context.SaveChangesAsync();
+
+            // 5. The deleted grades no longer count towards those students' progress
+            foreach (var enrollmentId in gradedEnrollmentIds)
+                await EvaluationRules.RecalculateEnrollmentProgressAsync(_context, enrollmentId);
+            if (gradedEnrollmentIds.Any()) await _context.SaveChangesAsync();
 
             return Ok();
         }

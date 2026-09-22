@@ -72,7 +72,7 @@ namespace GamP_SCPeriop.Server.Controllers
             var enrollmentDtos = enrollments.Select(e =>
             {
                 var modules = modulesByEnrollment[e.Id].ToList();
-                var totalEvaluations = modules.Sum(em => em.Module?.Components.Count ?? 0);
+                var totalEvaluations = modules.Sum(em => em.Module?.Components.Count(c => EvaluationRules.IsGradable(c, em.Module.Components)) ?? 0);
                 var completed = completedEvaluations.GetValueOrDefault(e.Id);
                 var scheduled = modules.Count(em =>
                     em.StartDate != null && em.EndDate != null &&

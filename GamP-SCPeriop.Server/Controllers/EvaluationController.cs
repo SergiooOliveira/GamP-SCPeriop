@@ -161,70 +161,33 @@ namespace GamP_SCPeriop.Server.Controllers
                     .Where(ce => ce.EnrollmentId == enrollmentId)
                     .ToListAsync();
 
-                // 4. Calculate Global Progress (Pathway) with Strict Filtering
+                // 4. Global progress of the pathway (same rules as everywhere: see EvaluationRules)
                 var allComponents = enrollmentModules
                     .SelectMany(em => em.Module?.Components ?? new List<ModuleComponent>())
                     .ToList();
-
-                var parentsIds = allComponents
-                    .Where(c => c.ParentComponentId.HasValue)
-                    .Select(c => c.ParentComponentId.Value)
-                    .ToHashSet();
-
-                var assessableIds = allComponents
-                    .Where(c => c.Stage == ModuleStage.PraticaSupervisionada || c.Stage == ModuleStage.PraticaAssistida)
-                    .Where(c => !parentsIds.Contains(c.Id))
-                    .Where(c => c.Weight > 0)
-                    .Select(c => c.Id)
-                    .ToList();
-
-                if (assessableIds.Any())
-                {
-                    int completedGlobal = allEvaluations.Count(ce =>
-                        assessableIds.Contains(ce.ModuleComponentId) &&
-                        (ce.Status == ComponentStatus.AcimaDaMedia || ce.Status == ComponentStatus.Consistente));
-
-                    enrollment.ProgressPercentage = (int)((double)completedGlobal / assessableIds.Count * 100);
-                }
+                enrollment.ProgressPercentage = EvaluationRules.CalculateProgress(allComponents, allEvaluations);
 
                 // 5. Discover changed modules
                 var changedComponentsIds = requests.Select(r => r.ModuleComponentId).ToHashSet();
-                var affectedModdules = enrollmentModules
-                    .Select(em => em.Module)
-                    .Where(m => m.Components != null && m.Components.Any(c => changedComponentsIds.Contains(c.Id)))
+                var affectedModules = enrollmentModules
+                    .Select(em => em.Module!)
+                    .Where(m => m.Components.Any(c => changedComponentsIds.Contains(c.Id)))
                     .ToList();
 
-                // 6. Calculate progress and evaluate badges ONLY for affected modules
-                foreach (var currentModule in affectedModdules)
+                // 6. Module progress and badges ONLY for affected modules that have practice items
+                foreach (var currentModule in affectedModules)
                 {
-                    var moduleParentesIds = currentModule.Components
-                        .Where(c => c.ParentComponentId.HasValue)
-                        .Select(c => c.ParentComponentId.Value)
-                        .ToHashSet();
+                    if (!currentModule.Components.Any(c => EvaluationRules.CountsForProgress(c, currentModule.Components))) continue;
 
-                    var moduleAssessableIds = currentModule.Components
-                        .Where(c => c.Stage == ModuleStage.PraticaSupervisionada || c.Stage == ModuleStage.PraticaAssistida)
-                        .Where(c => !moduleParentesIds.Contains(c.Id))
-                        .Where(c => c.Weight > 0)
-                        .Select(c => c.Id)
-                        .ToList();
+                    int modulePercentage = EvaluationRules.CalculateProgress(currentModule.Components, allEvaluations);
+                    int badgeTargetModuleId = currentModule.OriginalModuleId ?? currentModule.Id;
 
-                    if (moduleAssessableIds.Any())
-                    {
-                        int completedModule = allEvaluations.Count(ce =>
-                            moduleAssessableIds.Contains(ce.ModuleComponentId) &&
-                            (ce.Status == ComponentStatus.AcimaDaMedia || ce.Status == ComponentStatus.Consistente));
-
-                        int modulePercentage = (int)((double)completedModule / moduleAssessableIds.Count * 100);
-                        int badgeTargetModuleId = currentModule.OriginalModuleId ?? currentModule.Id;
-
-                        await _badgeService.EvaluateModuleBadgeAsync(
-                            enrollment.StudentId,
-                            enrollment.Pathway.ProfessorId,
-                            badgeTargetModuleId,
-                            enrollment.PathwayId,
-                            modulePercentage);
-                    }
+                    await _badgeService.EvaluateModuleBadgeAsync(
+                        enrollment.StudentId,
+                        enrollment.Pathway!.ProfessorId,
+                        badgeTargetModuleId,
+                        enrollment.PathwayId,
+                        modulePercentage);
                 }
 
                 await _badgeService.EvaluatePathwayBadgeAsync(
@@ -240,7 +203,7 @@ namespace GamP_SCPeriop.Server.Controllers
                     Title = "Atualização de Avaliação 📊",
                     Message = $"O professor atualizou as tuas avaliações no percurso '{enrollment.Pathway.Title}'.",
                     TargetUrl = $"/pathway/{enrollment.PathwayId}",
-                    CreatedAt = DateTime.Now,
+                    CreatedAt = DateTime.UtcNow, // every other date is stored in UTC
                     IsRead = false
                 });
 
