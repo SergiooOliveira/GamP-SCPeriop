@@ -46,6 +46,10 @@ namespace GamP_SCPeriop.Server.Controllers
         [Authorize(Roles = Roles.Admin)]
         public async Task<ActionResult<PathwayTemplate>> CreateTemplate(PathwayTemplate template)
         {
+            // Only the template itself is created; modules and components have their own endpoints
+            template.Id = 0;
+            template.ModuleTemplates = new();
+
             _context.PathwayTemplates.Add(template);
             await _context.SaveChangesAsync();
             return Ok(template);

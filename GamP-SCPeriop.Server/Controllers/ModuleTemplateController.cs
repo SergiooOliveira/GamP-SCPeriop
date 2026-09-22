@@ -22,6 +22,10 @@ namespace GamP_SCPeriop.Server.Controllers
         [HttpPost]
         public async Task<ActionResult<ModuleTemplate>> CreateModule([FromBody] ModuleTemplate dto)
         {
+            // Only the module is created here; its components go through ComponentTemplateController
+            dto.Id = 0;
+            dto.ComponentTemplates = new();
+
             _context.ModuleTemplates.Add(dto);
             await _context.SaveChangesAsync();
             return Ok(dto);

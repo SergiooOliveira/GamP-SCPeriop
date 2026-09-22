@@ -2,6 +2,7 @@
 @using GamP_SCPeriop.Shared.Data.Template
 @using GamP_SCPeriop.Shared.Entity.Model
 @using GamP_SCPeriop.Shared.Enum
+@using GamP_SCPeriop.Shared.Helpers
 @inject HttpClient Http
 
 <div class="mt-4 card shadow-sm p-4 border-0" style="border-radius: 15px;">
@@ -528,9 +529,9 @@
 
                                             @if (!string.IsNullOrWhiteSpace(comp.PdfFilePath))
                                             {
-                                                <a href="@comp.PdfFilePath" target="_blank" class="btn btn-sm btn-outline-danger mt-1">
+                                                <DocumentLink Link="@comp.PdfFilePath" CssClass="btn btn-sm btn-outline-danger mt-1">
                                                     <i class="bi bi-file-pdf me-1"></i> Ver Ficheiro
-                                                </a>
+                                                </DocumentLink>
                                             }
                                         </div>
                                     }
@@ -1117,6 +1118,11 @@
                 var secureUrl = await response.Content.ReadAsStringAsync();
                 componentToEdit.PdfFilePath = secureUrl.Trim('"');
             }
+            else if (response.StatusCode == System.Net.HttpStatusCode.BadRequest)
+            {
+                // e.g. wrong file type or too big: show the server's explanation
+                validationError = (await response.Content.ReadAsStringAsync()).Trim('"');
+            }
             else
             {
                 validationError = "Erro ao enviar ficheiro para o servidor.";
@@ -1197,6 +1203,11 @@
     private async Task SaveComponent()
     {
         if (activeModalModule == null || !activeModalStage.HasValue) return;
+        if (!DocumentLinks.IsAllowed(componentToEdit.PdfFilePath))
+        {
+            validationError = "O documento tem de ser um ficheiro carregado ou uma ligação que comece por http:// ou https://.";
+            return;
+        }
         isSavingModal = true;
         componentToEdit.Stage = activeModalStage.Value.Stage;
         await OnSaveTheoreticalEvent.InvokeAsync((activeModalModule.Id, componentToEdit));

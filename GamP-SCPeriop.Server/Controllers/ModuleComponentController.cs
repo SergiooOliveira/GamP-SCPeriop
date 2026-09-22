@@ -1,5 +1,6 @@
 ﻿using GamP_SCPeriop.Server.Data;
 using GamP_SCPeriop.Server.Services;
+using GamP_SCPeriop.Shared.Helpers;
 using GamP_SCPeriop.Shared.Data;
 using GamP_SCPeriop.Shared.Entity.Model;
 using GamP_SCPeriop.Shared.Enum;
@@ -14,6 +15,8 @@ namespace GamP_SCPeriop.Server.Controllers
     [Authorize(Roles = Roles.Staff)]
     public class ModuleComponentController : ControllerBase
     {
+        private const string InvalidLinkMessage = "O documento tem de ser um ficheiro carregado ou uma ligação http(s).";
+
         private readonly AppDbContext _context;
         private readonly AccessService _access;
 
@@ -27,6 +30,8 @@ namespace GamP_SCPeriop.Server.Controllers
         [HttpPost]
         public async Task<ActionResult<ModuleComponent>> CreateModuleComponent(ModuleComponentCreateDto dto)
         {
+            if (!DocumentLinks.IsAllowed(dto.PdfFilePath)) return BadRequest(InvalidLinkMessage);
+
             if (!await _access.CanManageModuleAsync(User, dto.ModuleId)) return Forbid();
 
             // A sub-task must hang from a component of the same module
@@ -39,6 +44,7 @@ namespace GamP_SCPeriop.Server.Controllers
                 ModuleId = dto.ModuleId,
                 Title = dto.Title,
                 Description = dto.Description,
+                PdfFilePath = string.IsNullOrWhiteSpace(dto.PdfFilePath) ? null : dto.PdfFilePath.Trim(),
                 Stage = dto.Stage,
                 ParentComponentId = dto.ParentComponentId,
                 Weight = dto.Weight,
@@ -59,6 +65,7 @@ namespace GamP_SCPeriop.Server.Controllers
             if (!await _access.CanManageComponentAsync(User, id)) return Forbid();
 
             if (id != updatedComponent.Id) return BadRequest("ID mismatch.");
+            if (!DocumentLinks.IsAllowed(updatedComponent.PdfFilePath)) return BadRequest(InvalidLinkMessage);
 
             var existingComponent = await _context.ModuleComponents.FindAsync(id);
             if (existingComponent == null) return NotFound();
