@@ -1,4 +1,5 @@
 ﻿@page "/module/{ModuleId:int}"
+@using GamP_SCPeriop.Components
 @using GamP_SCPeriop.Shared.Data
 @using GamP_SCPeriop.Shared.Enum
 @using static GamP_SCPeriop.Helpers.UIHelpers
@@ -141,9 +142,9 @@
                                                                 }
                                                                 @if (!string.IsNullOrWhiteSpace(comp.PdfFilePath))
                                                                 {
-                                                                    <a href="@comp.PdfFilePath" target="_blank" class="btn btn-sm btn-outline-theme fw-semibold px-4 py-2" style="border-radius: 8px;">
+                                                                    <DocumentLink Link="@comp.PdfFilePath" CssClass="btn btn-sm btn-outline-theme fw-semibold px-4 py-2" Style="border-radius: 8px;">
                                                                         <i class="bi bi-file-earmark-pdf me-2 fs-6 align-middle"></i>Abrir Documento
-                                                                    </a>
+                                                                    </DocumentLink>
                                                                 }
                                                             </div>
                                                         }

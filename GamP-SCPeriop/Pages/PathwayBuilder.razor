@@ -602,6 +602,7 @@
                 Title = data.Component.Title,
                 Description = data.Component.Description,
                 Stage = data.Component.Stage,
+                PdfFilePath = data.Component.PdfFilePath,
                 IsFromTemplate = !IsStudentMode
             };
             await Http.PostAsJsonAsync("api/ModuleComponent", dto);

@@ -1,0 +1,76 @@
+@using GamP_SCPeriop.Shared.Helpers
+@implements IAsyncDisposable
+@inject HttpClient Http
+@inject IJSRuntime JS
+
+@* A component's document: an uploaded file (opened with the user's login) or an external http(s) link.
+   Anything else is not rendered, so a malicious link can never run script. *@
+
+@if (DocumentLinks.IsUploadedFile(Link))
+{
+    <button type="button" class="@CssClass" style="@Style" @onclick="OpenUploadedFile" disabled="@isOpening">
+        @if (isOpening)
+        {
+            <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+        }
+        @ChildContent
+    </button>
+    @if (error != null)
+    {
+        <div class="text-danger small mt-1">@error</div>
+    }
+}
+else if (DocumentLinks.IsExternalUrl(Link))
+{
+    <a href="@Link" target="_blank" rel="noopener noreferrer" class="@CssClass" style="@Style">@ChildContent</a>
+}
+
+@code {
+    [Parameter, EditorRequired] public string? Link { get; set; }
+    [Parameter] public string? CssClass { get; set; }
+    [Parameter] public string? Style { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private bool isOpening;
+    private string? error;
+    private IJSObjectReference? jsModule;
+
+    private async Task OpenUploadedFile()
+    {
+        isOpening = true;
+        error = null;
+        try
+        {
+            // HttpClient adds the login token, which a normal <a href> can't do
+            var response = await Http.GetAsync(Link);
+            if (!response.IsSuccessStatusCode)
+            {
+                error = "Não foi possível abrir o documento.";
+                return;
+            }
+
+            var bytes = await response.Content.ReadAsByteArrayAsync();
+            var fileName = DocumentLinks.GetFileName(Link!);
+            var contentType = DocumentLinks.AllowedTypes[Path.GetExtension(fileName)].ContentType;
+
+            jsModule ??= await JS.InvokeAsync<IJSObjectReference>("import", "./Components/DocumentLink.razor.js");
+            await jsModule.InvokeVoidAsync("openFile", bytes, contentType, fileName);
+        }
+        catch (Exception)
+        {
+            error = "Não foi possível abrir o documento.";
+        }
+        finally
+        {
+            isOpening = false;
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (jsModule != null)
+        {
+            try { await jsModule.DisposeAsync(); } catch (JSDisconnectedException) { }
+        }
+    }
+}
