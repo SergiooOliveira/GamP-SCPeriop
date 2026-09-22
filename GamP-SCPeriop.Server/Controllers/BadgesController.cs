@@ -28,61 +28,62 @@ namespace GamP_SCPeriop.Server.Controllers
         {
             if (!await _access.CanViewStudentAsync(User, studentId)) return Forbid();
 
-            try
+            var studentPathwayIds = await _context.Enrollments
+                .Where(e => e.StudentId == studentId)
+                .Select(e => e.PathwayId)
+                .ToListAsync();
+
+            if (!studentPathwayIds.Any())
+                return Ok(new List<StudentBadgeDto>());
+
+            var pathwayBadges = await _context.Badges
+                .AsNoTracking()
+                .Include(b => b.Pathway)
+                .Where(b => studentPathwayIds.Contains(b.PathwayId))
+                .ToListAsync();
+
+            var unlockedUserBadges = await _context.UserBadges
+                .Where(ub => ub.UserId == studentId)
+                .ToDictionaryAsync(ub => ub.BadgeId);
+
+            // Names of the modules that module badges point to, in one query (not one per badge)
+            var moduleIds = pathwayBadges
+                .Where(b => b.TriggerType == BadgeTriggerType.ModuleCompletion)
+                .Select(b => int.TryParse(b.TriggerValue, out var id) ? id : 0)
+                .Where(id => id > 0)
+                .Distinct()
+                .ToList();
+            var moduleTitles = await _context.Modules
+                .Where(m => moduleIds.Contains(m.Id))
+                .ToDictionaryAsync(m => m.Id, m => m.Title);
+
+            var badgeDtos = pathwayBadges.Select(b =>
             {
-                var studentPathwayIds = await _context.Enrollments
-                    .Where(e => e.StudentId == studentId)
-                    .Select(e => e.PathwayId)
-                    .ToListAsync<int>();
+                unlockedUserBadges.TryGetValue(b.Id, out var unlockData);
+                bool isUnlocked = unlockData != null;
 
-                if (!studentPathwayIds.Any())
-                    return Ok(new List<StudentBadgeDto>());
-
-                var pathwayBadges = await _context.Badges
-                    .Include(b => b.Pathway)
-                    .Where(b => studentPathwayIds.Contains(b.PathwayId))
-                    .ToListAsync<Badge>();
-
-                var unlockedUserBadges = await _context.UserBadges
-                    .Where(ub => ub.UserId == studentId)
-                    .ToListAsync<UserBadge>();
-
-                var badgeDtos = pathwayBadges.Select(b =>
+                return new StudentBadgeDto
                 {
-                    var unlockData = unlockedUserBadges.FirstOrDefault(ub => ub.BadgeId == b.Id);
-                    bool isUnlocked = unlockData != null;
+                    Id = b.Id,
+                    // O problema costuma estar nestas ligações quando os dados antigos vêm a null
+                    PathwayTitle = b.Pathway?.Title ?? "Percurso Desconhecido",
+                    Name = b.Name ?? "Sem Nome",
+                    Description = b.Description ?? "",
+                    Icon = b.Icon ?? "bi-trophy",
+                    Tier = b.Tier,
+                    IsUnlocked = isUnlocked,
+                    UnlockedAt = isUnlocked ? unlockData!.EarnedAt : null,
+                    TriggerType = b.TriggerType,
+                    TriggerValue = b.TriggerValue ?? "",
+                    ModuleName = b.TriggerType == BadgeTriggerType.ModuleCompletion
+                                 && int.TryParse(b.TriggerValue, out int moduleId)
+                                 && moduleTitles.TryGetValue(moduleId, out var title)
+                        ? title
+                        : null
+                };
+            }).ToList();
 
-                    return new StudentBadgeDto
-                    {
-                        Id = b.Id,
-                        // O problema costuma estar nestas ligações quando os dados antigos vêm a null
-                        PathwayTitle = b.Pathway?.Title ?? "Percurso Desconhecido",
-                        Name = b.Name ?? "Sem Nome",
-                        Description = b.Description ?? "",
-                        Icon = b.Icon ?? "bi-trophy",
-                        Tier = b.Tier,
-                        IsUnlocked = isUnlocked,
-                        UnlockedAt = isUnlocked ? unlockData!.EarnedAt : null,
-                        TriggerType = b.TriggerType,
-                        TriggerValue = b.TriggerValue ?? "",
-                        ModuleName = b.TriggerType == BadgeTriggerType.ModuleCompletion && int.TryParse(b.TriggerValue, out int moduleId)
-                            ? _context.Modules.FirstOrDefault(m => m.Id == moduleId)?.Title
-                            : null
-                    };
-                }).ToList();
-
-                return Ok(badgeDtos.OrderByDescending(b => b.IsUnlocked).ThenBy(b => b.Tier).ToList());
-            }
-            catch (Exception ex)
-            {
-                // Força a devolver JSON com a causa exata do crash!
-                return StatusCode(500, new
-                {
-                    Erro = ex.Message,
-                    Detalhe = ex.InnerException?.Message,
-                    Local = ex.StackTrace?.Substring(0, 200)
-                });
-            }
+            return Ok(badgeDtos.OrderByDescending(b => b.IsUnlocked).ThenBy(b => b.Tier).ToList());
         }
     }
 }

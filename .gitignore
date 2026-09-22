@@ -455,3 +455,8 @@ Thumbs.db
 ## Environment Configs (Optional but Recommended)
 # If you have a local config file with secrets for development
 appsettings.Local.json
+# GamP-SCPeriop: files uploaded through the app (users' documents) never go to git
+GamP-SCPeriop.Server/SecureUploads/
+
+# Server-only settings with secrets (connection string, JWT key). Never commit.
+appsettings.Production.json
