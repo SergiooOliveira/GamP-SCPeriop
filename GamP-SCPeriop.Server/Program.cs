@@ -7,21 +7,48 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using QuestPDF.Infrastructure;
 using System.Text;
+using System.Threading.RateLimiting;
 
 // Configurar a licença gratuita do QuestPDF
 QuestPDF.Settings.License = LicenseType.Community;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddCors(options =>
+// Secrets never live in the repo: on the server they come from appsettings.Production.json or environment variables.
+// Fail at startup with a clear message instead of running with a missing or weak key.
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+if (string.IsNullOrWhiteSpace(connectionString))
+    throw new InvalidOperationException(
+        "ConnectionStrings:DefaultConnection is not set. On the server, add it to appsettings.Production.json (next to the app) " +
+        "or set the ConnectionStrings__DefaultConnection environment variable.");
+
+var jwtKey = builder.Configuration["Jwt:Key"];
+if (string.IsNullOrWhiteSpace(jwtKey) || Encoding.UTF8.GetByteCount(jwtKey) < 32)
+    throw new InvalidOperationException(
+        "Jwt:Key is missing or shorter than 32 bytes. On the server, add it to appsettings.Production.json " +
+        "or set the Jwt__Key environment variable (generate one with: openssl rand -base64 48).");
+
+// No CORS policy: the Blazor client is served by this same server (same origin), so no other site may call the API.
+
+// Login attempts: at most 20 per minute from one IP address (per-account lockout is in LoginAttemptTracker)
+builder.Services.AddRateLimiter(options =>
 {
-    options.AddPolicy("AllowBlazorClient", policy =>
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy("login", context => RateLimitPartition.GetFixedWindowLimiter(
+        context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 20, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
+    options.OnRejected = async (context, token) =>
     {
-        policy.AllowAnyOrigin()
-              .AllowAnyMethod()
-              .AllowAnyHeader();
-    });
+        context.HttpContext.Response.ContentType = "text/plain; charset=utf-8";
+        await context.HttpContext.Response.WriteAsync("Demasiadas tentativas. Aguarde um minuto e tente novamente.", token);
+    };
 });
+
+builder.Services.AddMemoryCache();
+builder.Services.AddSingleton<LoginAttemptTracker>();
+
+// Errors in Production return a generic message (details only go to the server log)
+builder.Services.AddProblemDetails();
 
 // Add services to the container.
 
@@ -44,7 +71,7 @@ builder.Services.AddScoped<DbSeeder>();
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(
-        builder.Configuration.GetConnectionString("DefaultConnection"),
+        connectionString,
         sqlOptions => sqlOptions.EnableRetryOnFailure(
             maxRetryCount: 5,                           // Try 5 times
             maxRetryDelay: TimeSpan.FromSeconds(10),    // Wait up to 10s between tries
@@ -62,15 +89,13 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateIssuerSigningKey = true,
             ValidIssuer = builder.Configuration["Jwt:Issuer"],
             ValidAudience = builder.Configuration["Jwt:Audience"],
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]))
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
         };
     });
 
 builder.Services.AddAuthorization();
 
 var app = builder.Build();
-
-app.UseCors("AllowBlazorClient");
 
 using (var scope = app.Services.CreateScope())
 {
@@ -91,6 +116,11 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+else
+{
+    // Unhandled errors: generic 500 response, no stack traces or messages sent to the browser
+    app.UseExceptionHandler();
+}
 
 app.UseHttpsRedirection();
 
@@ -98,12 +128,7 @@ app.UseBlazorFrameworkFiles();
 app.UseStaticFiles();
 app.UseRouting();
 
-app.UseCors("AllowBlazorClient");
-
-//app.UseCors(policy =>
-//    policy.AllowAnyOrigin()
-//          .AllowAnyMethod()
-//          .AllowAnyHeader());
+app.UseRateLimiter();
 
 app.UseAuthentication();
 app.UseAuthorization();
