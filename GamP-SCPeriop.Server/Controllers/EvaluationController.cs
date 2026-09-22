@@ -51,9 +51,9 @@ namespace GamP_SCPeriop.Server.Controllers
                 .Where(ce => ce.EnrollmentId == id)
                 .ToListAsync();
 
-            var weekStartUtc = GradeLock.CurrentWeekStartUtc(DateTime.UtcNow);
+            var today = EvaluationWindow.TodayInPortugal(DateTime.UtcNow);
 
-            // Injeta as notas nas componentes (e se já não podem ser alteradas)
+            // Injeta as notas nas componentes (e se o período de avaliação da fase já terminou)
             foreach (var em in enrollmentModules)
             {
                 if (em.Module?.Components != null)
@@ -61,9 +61,11 @@ namespace GamP_SCPeriop.Server.Controllers
                     foreach (var component in em.Module.Components)
                     {
                         var eval = evaluations.FirstOrDefault(e => e.ModuleComponentId == component.Id);
+                        var timeline = em.Module.StageTimelines?.FirstOrDefault(t => t.Stage == component.Stage);
+
                         component.Status = eval != null ? eval.Status : ComponentStatus.Pending;
                         component.EvaluatedAt = eval?.EvaluatedAt;
-                        component.IsGradeLocked = eval != null && GradeLock.IsLocked(eval, weekStartUtc);
+                        component.IsGradeLocked = EvaluationWindow.HasEnded(timeline?.EndDate, today);
                     }
                 }
             }
@@ -93,27 +95,27 @@ namespace GamP_SCPeriop.Server.Controllers
                 .ToListAsync();
             if (components.Count != componentIds.Count) return BadRequest("Há componentes que não pertencem a esta inscrição.");
 
-            // A stage can't be graded before it starts
+            // Each stage can only be graded (and re-graded) within its evaluation period: start date to end date
             var moduleIds = components.Select(c => c.ModuleId).Distinct().ToList();
-            var stageStarts = await _context.ModuleStageTimelines
-                .Where(t => moduleIds.Contains(t.ModuleId) && t.StartDate != null)
-                .Select(t => new { t.ModuleId, t.Stage, t.StartDate })
+            var timelines = await _context.ModuleStageTimelines
+                .Where(t => moduleIds.Contains(t.ModuleId))
+                .Select(t => new { t.ModuleId, t.Stage, t.StartDate, t.EndDate })
                 .ToListAsync();
-            var today = GradeLock.TodayInPortugal(DateTime.UtcNow);
-            if (components.Any(c => stageStarts.Any(t => t.ModuleId == c.ModuleId && t.Stage == c.Stage && t.StartDate!.Value.Date > today)))
+            var today = EvaluationWindow.TodayInPortugal(DateTime.UtcNow);
+
+            var stageWindows = components
+                .Select(c => timelines.FirstOrDefault(t => t.ModuleId == c.ModuleId && t.Stage == c.Stage))
+                .Where(t => t != null)
+                .ToList();
+            if (stageWindows.Any(t => EvaluationWindow.HasNotStarted(t!.StartDate, today)))
                 return BadRequest("Não é possível avaliar uma fase que ainda não começou.");
+            if (stageWindows.Any(t => EvaluationWindow.HasEnded(t!.EndDate, today)))
+                return BadRequest("O período de avaliação desta fase já terminou: as avaliações são definitivas.");
 
             // 1. Load existing evaluations
             var existingEval = await _context.ComponentEvaluations
                 .Where(ce => ce.EnrollmentId == enrollmentId)
                 .ToDictionaryAsync(ce => ce.ModuleComponentId);
-
-            // Grades from previous weeks are final
-            var weekStartUtc = GradeLock.CurrentWeekStartUtc(DateTime.UtcNow);
-            if (requests.Any(r => existingEval.TryGetValue(r.ModuleComponentId, out var old)
-                                  && old.Status != r.Status
-                                  && GradeLock.IsLocked(old, weekStartUtc)))
-                return BadRequest("Não é possível alterar avaliações dadas em semanas anteriores.");
 
             // 2. Update or add evaluations in memory
             foreach (var req in requests)

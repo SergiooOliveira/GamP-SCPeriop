@@ -21,7 +21,8 @@ namespace GamP_SCPeriop.Shared.Data
         [NotMapped]
         public ComponentStatus Status { get; set; } = ComponentStatus.Pending;
 
-        // Filled in by the evaluation endpoints: when this grade was given, and whether it can no longer be changed
+        // Filled in by the evaluation endpoints: when this grade was given, and whether the stage's
+        // evaluation period (its end date) is over, which makes the grade final
         [NotMapped]
         public DateTime? EvaluatedAt { get; set; }
 
