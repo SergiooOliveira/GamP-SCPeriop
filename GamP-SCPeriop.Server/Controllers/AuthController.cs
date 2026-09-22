@@ -1,13 +1,11 @@
 ﻿using GamP_SCPeriop.Server.Data;
+using GamP_SCPeriop.Server.Services;
 using GamP_SCPeriop.Shared.Data;
 using GamP_SCPeriop.Shared.Entity.Model;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
-using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
-using System.Text;
 
 namespace GamP_SCPeriop.Server.Controllers
 {
@@ -16,12 +14,12 @@ namespace GamP_SCPeriop.Server.Controllers
     public class AuthController : ControllerBase
     {
         private readonly AppDbContext _context;
-        private readonly IConfiguration _configuration;
+        private readonly TokenService _tokenService;
 
-        public AuthController(AppDbContext context, IConfiguration configuration)
+        public AuthController(AppDbContext context, TokenService tokenService)
         {
             _context = context;
-            _configuration = configuration;
+            _tokenService = tokenService;
         }
 
         [HttpPost("register")]
@@ -60,34 +58,10 @@ namespace GamP_SCPeriop.Server.Controllers
                 return BadRequest("User not found or password incorrect");
             }
 
-            // 1. Criar a lista de informações do crachá (Claims)
-            var claims = new List<Claim>
-            {
-                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-                new Claim(ClaimTypes.Name, user.FullName),
-                new Claim(ClaimTypes.Email, user.Email),
-                new Claim(ClaimTypes.Role, user.Role.ToString()) // Guarda se é Admin, Supervisor ou Supervisionado
-            };
+            // Cria o Token assinado (com validade de 7 dias)
+            var tokenString = _tokenService.CreateToken(user);
 
-            // 2. Assinar o crachá com a tua chave secreta
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]));
-            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256Signature);
-
-            // 3. Montar o Token (com validade de 7 dias)
-            var tokenDescriptor = new SecurityTokenDescriptor
-            {
-                Subject = new ClaimsIdentity(claims),
-                Expires = DateTime.UtcNow.AddDays(7),
-                Issuer = _configuration["Jwt:Issuer"],
-                Audience = _configuration["Jwt:Audience"],
-                SigningCredentials = creds
-            };
-
-            var tokenHandler = new JwtSecurityTokenHandler();
-            var securityToken = tokenHandler.CreateToken(tokenDescriptor);
-            var tokenString = tokenHandler.WriteToken(securityToken);
-
-            // 4. Limpamos a password por segurança e devolvemos o Token + Dados do Utilizador
+            // Limpamos a password por segurança e devolvemos o Token + Dados do Utilizador
             user.Password = string.Empty;
 
             return Ok(new LoginResponseDto

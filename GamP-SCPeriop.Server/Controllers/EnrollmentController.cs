@@ -1,4 +1,5 @@
 ﻿using GamP_SCPeriop.Server.Data;
+using GamP_SCPeriop.Server.Services;
 using GamP_SCPeriop.Shared.Data;
 using GamP_SCPeriop.Shared.Entity.Model;
 using GamP_SCPeriop.Shared.Enum;
@@ -199,58 +200,18 @@ namespace GamP_SCPeriop.Server.Controllers
                     ? (int)student.Enrollments.Average(e => e.ProgressPercentage)
                     : 0,
 
-                ActivePathways = student.Enrollments.Select(e =>
+                ActivePathways = student.Enrollments.Select(e => new PathwayTagDto
                 {
-                    string status;
-                    bool hasModules = e.TotalModules > 0;
-                    bool isFullyScheduled = hasModules && e.TotalModules == e.ScheduledModules;
-
-                    bool hasStartedEvaluations = e.CompletedEvaluations > 0;
-                    bool isFullyEvaluated = (e.TotalEvaluations > 0 && e.CompletedEvaluations == e.TotalEvaluations) || e.ProgressPercentage >= 100;
-
-                    // REGRA 1 — dates are authoritative, but only once every module is actually scheduled
-                    if (isFullyEvaluated
-                        || e.IsArchived
-                        || (isFullyScheduled && e.MaxEndDate.HasValue && e.MaxEndDate < now))
-                    {
-                        var minScore = e.MinimumApprovalScore > 0 ? e.MinimumApprovalScore : 65;
-                        status = e.ProgressPercentage >= minScore ? "Concluído (Aprovado)" : "Concluído (Reprovado)";
-                    }
-                    // REGRA 2 — not fully scheduled, but work has started
-                    else if (hasStartedEvaluations)
-                    {
-                        status = "Em curso";
-                    }
-                    // REGRA 3 — not fully scheduled, nothing started
-                    else if (!hasModules || !isFullyScheduled)
-                    {
-                        status = "Pendente";
-                    }
-                    else if (e.MinStartDate.HasValue && e.MinStartDate > now)
-                    {
-                        status = "Por iniciar";
-                    }
-                    else
-                    {
-                        status = "Em curso";
-                    }
-
-                    return new PathwayTagDto
-                    {
-                        PathwayId = e.PathwayId,
-                        Title = e.PathwayTitle,
-                        EnrollmentId = e.EnrollmentId,
-                        Status = status
-                    };
+                    PathwayId = e.PathwayId,
+                    Title = e.PathwayTitle,
+                    EnrollmentId = e.EnrollmentId,
+                    Status = EnrollmentStatusHelper.GetStatus(
+                        e.ProgressPercentage, e.IsArchived, e.MinimumApprovalScore,
+                        e.TotalModules, e.ScheduledModules,
+                        e.TotalEvaluations, e.CompletedEvaluations,
+                        e.MinStartDate, e.MaxEndDate, now)
                 })
-                .OrderBy(p => p.Status switch
-                {
-                    "Em curso" => 1,
-                    "Por iniciar" => 2,
-                    "Pendente" => 3,
-                    "Concluído (Aprovado)" => 4,
-                    _ => 5 // Concluído (Reprovado) ou outros
-                })
+                .OrderBy(p => EnrollmentStatusHelper.GetSortOrder(p.Status))
                 .ThenBy(p => p.Title)
                 .ToList()
             }).ToList();

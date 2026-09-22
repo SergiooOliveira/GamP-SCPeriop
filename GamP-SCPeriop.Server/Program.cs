@@ -38,6 +38,8 @@ builder.Services.AddSwaggerGen();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 builder.Services.AddScoped<BadgeService>();
+builder.Services.AddScoped<TokenService>();
+builder.Services.AddScoped<DbSeeder>();
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(
@@ -73,6 +75,12 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     db.Database.Migrate();
+
+    // Test data: dotnet run --project GamP-SCPeriop.Server -- --seed (wipes the database first)
+    if (app.Environment.IsDevelopment() && args.Contains("--seed"))
+    {
+        await scope.ServiceProvider.GetRequiredService<DbSeeder>().ResetAndSeedAsync();
+    }
 }
 
 // Configure the HTTP request pipeline.
