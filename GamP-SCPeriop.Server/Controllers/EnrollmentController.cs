@@ -157,13 +157,15 @@ namespace GamP_SCPeriop.Server.Controllers
         [HttpGet("management")]
         public async Task<ActionResult<List<StudentManagementDto>>> GetAllStudentsForManagement()
         {
-            // Supervisors see every student (to be able to enrol them) but only the progress in their own pathways
+            // Supervisors only see the students they have enrolled in their pathways, and only that progress.
+            // (To add new students, the pathway page lists every student through api/User/students.)
             var isAdmin = User.IsAdmin();
             var supervisorId = User.GetUserId();
 
             // 1. Extração SQL: Inclui sub-consultas para as datas e para as avaliações reais
             var rawData = await _context.Users
                 .Where(u => u.Role == UserRole.Supervisionado)
+                .Where(u => isAdmin || u.Enrollments.Any(e => e.Pathway!.ProfessorId == supervisorId))
                 .Select(student => new
                 {
                     student.Id,

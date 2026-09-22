@@ -24,8 +24,12 @@ namespace GamP_SCPeriop.Server.Controllers
         [Authorize(Roles = Roles.Staff)]
         public async Task<ActionResult<List<User>>> GetStudents()
         {
+            // Used to pick students to enrol: only what's needed to identify them
             var students = await _context.Users
+                .AsNoTracking()
                 .Where(u => u.Role == UserRole.Supervisionado)
+                .OrderBy(u => u.FullName)
+                .Select(u => new User { Id = u.Id, FullName = u.FullName, Email = u.Email, Role = u.Role, University = u.University })
                 .ToListAsync();
 
             return Ok(students);

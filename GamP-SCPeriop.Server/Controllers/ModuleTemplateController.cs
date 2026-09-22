@@ -25,6 +25,7 @@ namespace GamP_SCPeriop.Server.Controllers
             // Only the module is created here; its components go through ComponentTemplateController
             dto.Id = 0;
             dto.ComponentTemplates = new();
+            dto.Weight = (float)Math.Round(dto.Weight, 2);
 
             _context.ModuleTemplates.Add(dto);
             await _context.SaveChangesAsync();
@@ -80,7 +81,7 @@ namespace GamP_SCPeriop.Server.Controllers
 
             // Atualiza apenas os campos que interessam (protege o resto da estrutura)
             existingTemplate.Title = updatedTemplate.Title;
-            existingTemplate.Weight = updatedTemplate.Weight;
+            existingTemplate.Weight = (float)Math.Round(updatedTemplate.Weight, 2);
             existingTemplate.OrderIndex = updatedTemplate.OrderIndex;
 
             // Guarda as alterações

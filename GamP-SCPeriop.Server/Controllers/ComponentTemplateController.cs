@@ -30,6 +30,7 @@ namespace GamP_SCPeriop.Server.Controllers
             // Only this component is created: ignore any id or nested children sent by the client
             dto.Id = 0;
             dto.SubComponents = new();
+            dto.Weight = (float)Math.Round(dto.Weight, 2);
 
             _context.ComponentTemplates.Add(dto);
             await _context.SaveChangesAsync();
@@ -49,7 +50,7 @@ namespace GamP_SCPeriop.Server.Controllers
             // Num molde, só nos interessa atualizar os textos
             existingComponent.Title = updatedComponent.Title;
             existingComponent.Description = updatedComponent.Description;
-            existingComponent.Weight = updatedComponent.Weight;
+            existingComponent.Weight = (float)Math.Round(updatedComponent.Weight, 2);
             existingComponent.PdfFilePath = updatedComponent.PdfFilePath ?? string.Empty;
             existingComponent.OrderIndex = updatedComponent.OrderIndex;
 
