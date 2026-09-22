@@ -4,11 +4,14 @@
 @using GamP_SCPeriop.Shared.Enum
 @using System.Security.Claims
 @using GamP_SCPeriop.Client.Auth
+@using Microsoft.AspNetCore.Components.WebAssembly.Hosting
+@using GamP_SCPeriop.Helpers
 @inherits LayoutComponentBase
 @inject AuthenticationStateProvider AuthStateProvider
 @inject NavigationManager Nav
 @inject HttpClient Http
 @inject IJSRuntime JS
+@inject IWebAssemblyHostEnvironment HostEnvironment
 @implements IDisposable
 
 <AuthorizeView>
@@ -112,6 +115,14 @@
                                             <i class="bi bi-gear me-2 text-secondary"></i> Definições
                                         </button>
                                         <hr class="dropdown-divider my-1">
+
+                                        @if (HostEnvironment.IsDevelopment())
+                                        {
+                                            <a class="btn btn-white text-dark text-start px-3 py-2 w-100 border-0" href="@DevDashboardUrls.GetDashboardUrl(Nav.BaseUri)" target="_blank" @onclick="CloseDropdown">
+                                                <i class="bi bi-cone-striped me-2 text-warning"></i> Painel de Testes
+                                            </a>
+                                            <hr class="dropdown-divider my-1">
+                                        }
 
                                         <button class="btn btn-white text-danger text-start px-3 py-2 w-100 border-0" @onclick="Logout">
                                             <i class="bi bi-box-arrow-right me-2"></i> Sair

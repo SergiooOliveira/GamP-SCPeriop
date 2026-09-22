@@ -1,0 +1,470 @@
+@using GamP_SCPeriop.Helpers
+@using GamP_SCPeriop.Shared.Entity.Model
+@using GamP_SCPeriop.Shared.Enum
+@implements IAsyncDisposable
+
+@inject HttpClient Http
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+@* Development test dashboard, served on https://dashboard.dev.localhost:7038 (see App.razor) *@
+
+<PageTitle>Painel de Testes · GamP</PageTitle>
+
+<div class="dd">
+    <header class="dd-top">
+        <div class="dd-top-inner">
+            <div class="dd-brand">
+                <div class="dd-logo"><i class="bi bi-mortarboard-fill"></i></div>
+                <div>
+                    <div class="dd-brand-name">Painel de Testes</div>
+                    <div class="dd-brand-sub">GamP · SCPeriop <span class="dd-env">desenvolvimento</span></div>
+                </div>
+            </div>
+
+            <div class="dd-top-actions">
+                @if (overview != null)
+                {
+                    <span class="dd-key" title="Password de todas as contas de teste">
+                        <i class="bi bi-key-fill"></i><code>@overview.TestPassword</code>
+                    </span>
+                }
+                <button class="dd-icon-btn" title="@(isDark ? "Tema claro" : "Tema escuro")" @onclick="ToggleTheme">
+                    <i class="bi @(isDark ? "bi-sun-fill" : "bi-moon-stars-fill")"></i>
+                </button>
+                <button class="dd-icon-btn" title="Atualizar" @onclick="LoadOverview" disabled="@isBusy">
+                    <i class="bi bi-arrow-clockwise @(isLoading ? "dd-spin" : "")"></i>
+                </button>
+                <button class="dd-btn dd-btn-danger" @onclick="() => showResetConfirm = true" disabled="@isBusy">
+                    <i class="bi bi-database-fill-gear"></i><span>Repor dados</span>
+                </button>
+                <a class="dd-btn dd-btn-primary" href="@appUrl" target="_blank">
+                    <span>Abrir aplicação</span><i class="bi bi-box-arrow-up-right"></i>
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <main class="dd-main">
+        @if (overview == null)
+        {
+            <section class="dd-kpis">
+                @for (int i = 0; i < 4; i++)
+                {
+                    <div class="dd-kpi dd-skeleton"></div>
+                }
+            </section>
+            <section class="dd-grid">
+                @for (int i = 0; i < 6; i++)
+                {
+                    <div class="dd-card dd-skeleton" style="height: 220px;"></div>
+                }
+            </section>
+        }
+        else
+        {
+            <section class="dd-kpis">
+                <div class="dd-kpi">
+                    <div class="dd-kpi-icon tone-brand"><i class="bi bi-people-fill"></i></div>
+                    <div>
+                        <div class="dd-kpi-value">@overview.Users.Count</div>
+                        <div class="dd-kpi-label">Utilizadores</div>
+                        <div class="dd-kpi-hint">@Admins.Count() admin · @Supervisors.Count() supervisores · @Students.Count() alunos</div>
+                    </div>
+                </div>
+                <div class="dd-kpi">
+                    <div class="dd-kpi-icon tone-em-curso"><i class="bi bi-activity"></i></div>
+                    <div>
+                        <div class="dd-kpi-value">@StatusCount(EmCurso)</div>
+                        <div class="dd-kpi-label">Inscrições em curso</div>
+                        <div class="dd-kpi-hint">@AllEnrollments.Count() inscrições no total</div>
+                    </div>
+                </div>
+                <div class="dd-kpi">
+                    <div class="dd-kpi-icon tone-approved"><i class="bi bi-patch-check-fill"></i></div>
+                    <div>
+                        <div class="dd-kpi-value">@ApprovalRate<small>%</small></div>
+                        <div class="dd-kpi-label">Taxa de aprovação</div>
+                        <div class="dd-kpi-hint">@StatusCount(Aprovado) aprovados · @StatusCount(Reprovado) reprovados</div>
+                    </div>
+                </div>
+                <div class="dd-kpi">
+                    <div class="dd-kpi-icon tone-star"><i class="bi bi-award-fill"></i></div>
+                    <div>
+                        <div class="dd-kpi-value">@Students.Sum(s => s.BadgesEarned)</div>
+                        <div class="dd-kpi-label">Badges conquistadas</div>
+                        <div class="dd-kpi-hint">@Students.Sum(s => s.UnreadNotifications) notificações por ler</div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="dd-distribution">
+                <div class="dd-distribution-head">
+                    <h2>Estado das inscrições</h2>
+                    <span>Clica num estado para filtrar os alunos</span>
+                </div>
+                <div class="dd-stack">
+                    @foreach (var status in Statuses.Where(s => StatusCount(s.Key) > 0))
+                    {
+                        <div class="dd-stack-part @status.Css" style="flex-grow: @StatusCount(status.Key);" title="@status.Key: @StatusCount(status.Key)"></div>
+                    }
+                </div>
+                <div class="dd-legend">
+                    @foreach (var status in Statuses)
+                    {
+                        <button class="dd-legend-item @(statusFilter == status.Key ? "active" : "")" @onclick="() => ToggleStatus(status.Key)">
+                            <span class="dd-dot @status.Css"></span>@status.Key<strong>@StatusCount(status.Key)</strong>
+                        </button>
+                    }
+                </div>
+            </section>
+
+            <section class="dd-toolbar">
+                <div class="dd-tabs" role="tablist">
+                    @foreach (var tab in Tabs)
+                    {
+                        <button class="dd-tab @(activeTab == tab.Role ? "active" : "")" role="tab" @onclick="() => activeTab = tab.Role">
+                            <i class="bi @tab.Icon"></i>@tab.Label<span class="dd-count">@overview.Users.Count(u => u.Role == tab.Role)</span>
+                        </button>
+                    }
+                </div>
+                <div class="dd-search">
+                    <i class="bi bi-search"></i>
+                    <input placeholder="Procurar nome, email ou percurso..." @bind="search" @bind:event="oninput" />
+                    @if (!string.IsNullOrEmpty(search))
+                    {
+                        <button class="dd-clear" title="Limpar" @onclick='() => search = ""'><i class="bi bi-x-lg"></i></button>
+                    }
+                </div>
+            </section>
+
+            @if (activeTab == UserRole.Supervisionado && statusFilter != null)
+            {
+                <div class="dd-filter-note">
+                    A mostrar alunos com inscrições <strong>@statusFilter</strong>
+                    <button @onclick="() => statusFilter = null">Limpar filtro <i class="bi bi-x"></i></button>
+                </div>
+            }
+
+            <section class="dd-grid">
+                @foreach (var user in VisibleUsers)
+                {
+                    <article class="dd-card" @key="user.Id">
+                        <header class="dd-person">
+                            <div class="dd-avatar" style="--hue: @Hue(user);">@Initials(user)</div>
+                            <div class="dd-person-text">
+                                <h3>@user.FullName</h3>
+                                <p>@user.Email</p>
+                            </div>
+                            <a class="dd-enter" href="@EnterUrl(user)" target="_blank" title="Entrar como @user.FullName (novo separador)">
+                                Entrar<i class="bi bi-arrow-up-right"></i>
+                            </a>
+                        </header>
+
+                        @if (user.Role == UserRole.Supervisionado)
+                        {
+                            <div class="dd-chips">
+                                <span class="dd-chip"><i class="bi bi-award-fill tone-star-text"></i>@Plural(user.BadgesEarned, "badge", "badges")</span>
+                                <span class="dd-chip @(user.UnreadNotifications > 0 ? "dd-chip-alert" : "")"><i class="bi bi-bell-fill"></i>@user.UnreadNotifications por ler</span>
+                            </div>
+                            <ul class="dd-list">
+                                @foreach (var enrollment in user.Enrollments)
+                                {
+                                    <li class="dd-enrollment">
+                                        <div class="dd-row">
+                                            <span class="dd-item-title" title="@enrollment.PathwayTitle">@enrollment.PathwayTitle</span>
+                                            <span class="dd-pill @StatusCss(enrollment.Status)">@ShortStatus(enrollment.Status)</span>
+                                        </div>
+                                        <div class="dd-progress" title="Mínimo para aprovação: @enrollment.MinimumApprovalScore%">
+                                            <div class="dd-progress-fill @StatusCss(enrollment.Status)" style="width: @(enrollment.ProgressPercentage)%"></div>
+                                            <div class="dd-progress-mark" style="left: @(enrollment.MinimumApprovalScore)%"></div>
+                                        </div>
+                                        <div class="dd-row dd-sub">
+                                            <span><strong>@enrollment.ProgressPercentage%</strong> · @enrollment.CompletedEvaluations/@enrollment.TotalEvaluations avaliadas</span>
+                                            <span><i class="bi bi-person-badge"></i>@enrollment.SupervisorName</span>
+                                        </div>
+                                    </li>
+                                }
+                                @if (!user.Enrollments.Any())
+                                {
+                                    <li class="dd-empty-line">Sem inscrições</li>
+                                }
+                            </ul>
+                        }
+                        else if (user.Role == UserRole.Supervisor)
+                        {
+                            <div class="dd-chips">
+                                <span class="dd-chip"><i class="bi bi-signpost-split-fill"></i>@Plural(user.Pathways.Count(p => !p.IsArchived), "percurso ativo", "percursos ativos")</span>
+                                <span class="dd-chip"><i class="bi bi-people-fill"></i>@Plural(user.Pathways.Where(p => !p.IsArchived).Sum(p => p.StudentCount), "aluno", "alunos")</span>
+                            </div>
+                            <ul class="dd-list">
+                                @foreach (var pathway in user.Pathways)
+                                {
+                                    <li class="dd-enrollment @(pathway.IsArchived ? "dd-archived" : "")">
+                                        <div class="dd-row">
+                                            <span class="dd-item-title" title="@pathway.Title">@pathway.Title</span>
+                                            @if (pathway.IsArchived)
+                                            {
+                                                <span class="dd-pill st-por-iniciar"><i class="bi bi-archive"></i>Arquivado</span>
+                                            }
+                                        </div>
+                                        <div class="dd-progress">
+                                            <div class="dd-progress-fill st-em-curso" style="width: @(pathway.AverageProgress)%"></div>
+                                        </div>
+                                        <div class="dd-row dd-sub">
+                                            <span>Média <strong>@pathway.AverageProgress%</strong></span>
+                                            <span><i class="bi bi-people"></i>@Plural(pathway.StudentCount, "aluno", "alunos")</span>
+                                        </div>
+                                    </li>
+                                }
+                                @if (!user.Pathways.Any())
+                                {
+                                    <li class="dd-empty-line">Sem percursos</li>
+                                }
+                            </ul>
+                        }
+                        else
+                        {
+                            <p class="dd-role-note">
+                                <i class="bi bi-building"></i>
+                                Docente da escola: gere os moldes de percursos, as badges e os utilizadores.
+                            </p>
+                        }
+                    </article>
+                }
+            </section>
+
+            @if (!VisibleUsers.Any())
+            {
+                <div class="dd-empty">
+                    <i class="bi bi-search"></i>
+                    <p>Nenhum utilizador corresponde à pesquisa.</p>
+                </div>
+            }
+
+            <footer class="dd-footer">
+                <i class="bi bi-lightbulb"></i>
+                Cada "Entrar" abre um novo separador com a sua própria sessão, por isso podes ter um supervisor e um aluno abertos lado a lado.
+            </footer>
+        }
+    </main>
+
+    @if (showResetConfirm)
+    {
+        <div class="dd-modal-backdrop" @onclick="() => showResetConfirm = false"></div>
+        <div class="dd-modal" role="dialog" aria-modal="true">
+            <div class="dd-modal-icon"><i class="bi bi-exclamation-triangle-fill"></i></div>
+            <h2>Repor os dados de teste?</h2>
+            <p>
+                Isto apaga <strong>todos</strong> os utilizadores, percursos, avaliações, badges e notificações
+                e cria um conjunto novo. Os separadores com sessões abertas deixam de funcionar.
+            </p>
+            <div class="dd-modal-actions">
+                <button class="dd-btn dd-btn-ghost" @onclick="() => showResetConfirm = false">Cancelar</button>
+                <button class="dd-btn dd-btn-danger-solid" @onclick="Reseed">
+                    <i class="bi bi-database-fill-gear"></i>Apagar e recriar
+                </button>
+            </div>
+        </div>
+    }
+
+    @if (toast != null)
+    {
+        <div class="dd-toast @(toastIsError ? "error" : "")" role="status">
+            <i class="bi @(toastIsError ? "bi-x-circle-fill" : isBusy ? "bi-hourglass-split" : "bi-check-circle-fill")"></i>
+            <span>@toast</span>
+        </div>
+    }
+</div>
+
+@code {
+    private const string EmCurso = "Em curso";
+    private const string PorIniciar = "Por iniciar";
+    private const string Pendente = "Pendente";
+    private const string Aprovado = "Concluído (Aprovado)";
+    private const string Reprovado = "Concluído (Reprovado)";
+
+    private static readonly (string Key, string Css)[] Statuses =
+    {
+        (EmCurso, "st-em-curso"),
+        (PorIniciar, "st-por-iniciar"),
+        (Pendente, "st-pendente"),
+        (Aprovado, "st-approved"),
+        (Reprovado, "st-reproved")
+    };
+
+    private static readonly (UserRole Role, string Label, string Icon)[] Tabs =
+    {
+        (UserRole.Supervisionado, "Alunos", "bi-mortarboard"),
+        (UserRole.Supervisor, "Supervisores", "bi-person-badge"),
+        (UserRole.Admin, "Administradores", "bi-building")
+    };
+
+    private DevOverviewDto? overview;
+    private UserRole activeTab = UserRole.Supervisionado;
+    private string search = string.Empty;
+    private string? statusFilter;
+    private string appUrl = "/";
+
+    private bool isLoading;
+    private bool isBusy;
+    private bool isDark;
+    private bool showResetConfirm;
+    private string? toast;
+    private bool toastIsError;
+    private CancellationTokenSource? toastTimer;
+    private IJSObjectReference? jsModule;
+
+    private IEnumerable<DevUserDto> Admins => overview?.Users.Where(u => u.Role == UserRole.Admin) ?? Enumerable.Empty<DevUserDto>();
+    private IEnumerable<DevUserDto> Supervisors => overview?.Users.Where(u => u.Role == UserRole.Supervisor) ?? Enumerable.Empty<DevUserDto>();
+    private IEnumerable<DevUserDto> Students => overview?.Users.Where(u => u.Role == UserRole.Supervisionado) ?? Enumerable.Empty<DevUserDto>();
+    private IEnumerable<DevEnrollmentDto> AllEnrollments => Students.SelectMany(s => s.Enrollments);
+
+    private int ApprovalRate
+    {
+        get
+        {
+            var finished = StatusCount(Aprovado) + StatusCount(Reprovado);
+            return finished == 0 ? 0 : (int)Math.Round(100.0 * StatusCount(Aprovado) / finished);
+        }
+    }
+
+    private IEnumerable<DevUserDto> VisibleUsers => (overview?.Users ?? new())
+        .Where(u => u.Role == activeTab)
+        .Where(MatchesSearch)
+        .Where(u => activeTab != UserRole.Supervisionado || statusFilter == null || u.Enrollments.Any(e => e.Status == statusFilter));
+
+    protected override async Task OnInitializedAsync()
+    {
+        appUrl = DevDashboardUrls.GetAppUrl(Nav.BaseUri);
+        await LoadOverview();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        jsModule = await JS.InvokeAsync<IJSObjectReference>("import", "./Components/DevDashboard.razor.js");
+        isDark = await jsModule.InvokeAsync<string>("initTheme") == "dark";
+        StateHasChanged();
+    }
+
+    private async Task LoadOverview()
+    {
+        isLoading = true;
+        try
+        {
+            overview = await Http.GetFromJsonAsync<DevOverviewDto>($"api/dev/overview?t={DateTime.UtcNow.Ticks}");
+        }
+        catch (Exception ex)
+        {
+            ShowToast($"Erro ao carregar os dados: {ex.Message}", true);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task Reseed()
+    {
+        showResetConfirm = false;
+        isBusy = true;
+        ShowToast("A recriar os dados de teste...", false, autoHide: false);
+
+        try
+        {
+            var response = await Http.PostAsync("api/dev/reseed", null);
+            if (!response.IsSuccessStatusCode)
+            {
+                ShowToast($"Erro ao repor os dados ({(int)response.StatusCode}).", true);
+                return;
+            }
+
+            await LoadOverview();
+            ShowToast("Dados de teste recriados.", false);
+        }
+        catch (Exception ex)
+        {
+            ShowToast($"Erro ao repor os dados: {ex.Message}", true);
+        }
+        finally
+        {
+            isBusy = false;
+        }
+    }
+
+    private async Task ToggleTheme()
+    {
+        isDark = !isDark;
+        if (jsModule != null)
+            await jsModule.InvokeVoidAsync("setTheme", isDark ? "dark" : "light");
+    }
+
+    private void ToggleStatus(string status)
+    {
+        statusFilter = statusFilter == status ? null : status;
+        activeTab = UserRole.Supervisionado;
+    }
+
+    private void ShowToast(string text, bool error, bool autoHide = true)
+    {
+        toast = text;
+        toastIsError = error;
+
+        toastTimer?.Cancel();
+        if (!autoHide) return;
+
+        var timer = toastTimer = new CancellationTokenSource();
+        _ = Task.Delay(4000, timer.Token).ContinueWith(t =>
+        {
+            if (t.IsCanceled) return;
+            toast = null;
+            InvokeAsync(StateHasChanged);
+        });
+    }
+
+    private bool MatchesSearch(DevUserDto user)
+    {
+        if (string.IsNullOrWhiteSpace(search)) return true;
+        var term = search.Trim();
+        return user.FullName.Contains(term, StringComparison.OrdinalIgnoreCase)
+            || user.Email.Contains(term, StringComparison.OrdinalIgnoreCase)
+            || user.Enrollments.Any(e => e.PathwayTitle.Contains(term, StringComparison.OrdinalIgnoreCase))
+            || user.Pathways.Any(p => p.Title.Contains(term, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private string EnterUrl(DevUserDto user) => $"{appUrl}dev/entrar/{user.Id}";
+
+    private static string Plural(int count, string singular, string plural) => $"{count} {(count == 1 ? singular : plural)}";
+
+    private int StatusCount(string status) => AllEnrollments.Count(e => e.Status == status);
+
+    private static string StatusCss(string status) => Statuses.FirstOrDefault(s => s.Key == status).Css ?? "st-reproved";
+
+    private static string ShortStatus(string status) => status switch
+    {
+        Aprovado => "Aprovado",
+        Reprovado => "Reprovado",
+        _ => status
+    };
+
+    private static string Initials(DevUserDto user)
+    {
+        var names = user.FullName.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (names.Length == 0) return "?";
+        return names.Length == 1 ? names[0][..1] : $"{names[0][0]}{names[^1][0]}";
+    }
+
+    // Stable colour per person
+    private static int Hue(DevUserDto user) => user.FullName.Aggregate(7, (hash, ch) => (hash * 31 + ch) % 360);
+
+    public async ValueTask DisposeAsync()
+    {
+        toastTimer?.Cancel();
+        if (jsModule != null)
+        {
+            try { await jsModule.DisposeAsync(); } catch (JSDisconnectedException) { }
+        }
+    }
+}
