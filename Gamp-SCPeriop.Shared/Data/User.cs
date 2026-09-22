@@ -1,6 +1,7 @@
 ﻿using GamP_SCPeriop.Shared.Enum;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 
 namespace GamP_SCPeriop.Shared.Data
 {
@@ -15,8 +16,9 @@ namespace GamP_SCPeriop.Shared.Data
         [Required, EmailAddress]
         public string Email { get; set; } = string.Empty;
 
+        // BCrypt hash. Never serialized, so it can't leak through any API response that returns a User.
         [Required]
-        // CHANGED: Replaced plain 'Password' with 'PasswordHash'
+        [JsonIgnore]
         public string Password { get; set; } = string.Empty;
 
         public UserRole Role { get; set; } = UserRole.Supervisionado;

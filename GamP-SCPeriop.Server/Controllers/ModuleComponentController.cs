@@ -1,4 +1,5 @@
 ﻿using GamP_SCPeriop.Server.Data;
+using GamP_SCPeriop.Server.Services;
 using GamP_SCPeriop.Shared.Data;
 using GamP_SCPeriop.Shared.Entity.Model;
 using GamP_SCPeriop.Shared.Enum;
@@ -10,20 +11,29 @@ namespace GamP_SCPeriop.Server.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize]
+    [Authorize(Roles = Roles.Staff)]
     public class ModuleComponentController : ControllerBase
     {
         private readonly AppDbContext _context;
+        private readonly AccessService _access;
 
-        public ModuleComponentController(AppDbContext context)
+        public ModuleComponentController(AppDbContext context, AccessService access)
         {
             _context = context;
+            _access = access;
         }
 
         // --- 1. CREATE (POST) ---
         [HttpPost]
         public async Task<ActionResult<ModuleComponent>> CreateModuleComponent(ModuleComponentCreateDto dto)
         {
+            if (!await _access.CanManageModuleAsync(User, dto.ModuleId)) return Forbid();
+
+            // A sub-task must hang from a component of the same module
+            if (dto.ParentComponentId.HasValue &&
+                !await _context.ModuleComponents.AnyAsync(c => c.Id == dto.ParentComponentId.Value && c.ModuleId == dto.ModuleId))
+                return BadRequest("O componente pai não pertence a este módulo.");
+
             var component = new ModuleComponent
             {
                 ModuleId = dto.ModuleId,
@@ -46,6 +56,8 @@ namespace GamP_SCPeriop.Server.Controllers
         [HttpPut("{id}")]      
         public async Task<IActionResult> UpdateComponent(int id, [FromBody] ModuleComponent updatedComponent)
         {
+            if (!await _access.CanManageComponentAsync(User, id)) return Forbid();
+
             if (id != updatedComponent.Id) return BadRequest("ID mismatch.");
 
             var existingComponent = await _context.ModuleComponents.FindAsync(id);
@@ -66,6 +78,8 @@ namespace GamP_SCPeriop.Server.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteComponent(int id)
         {
+            if (!await _access.CanManageComponentAsync(User, id)) return Forbid();
+
             var component = await _context.ModuleComponents.FindAsync(id);
             if (component == null) return NotFound();
 
@@ -87,6 +101,8 @@ namespace GamP_SCPeriop.Server.Controllers
         [HttpGet("{id}")]
         public async Task<ActionResult<ModuleComponent>> GetComponent(int id)
         {
+            if (!await _access.CanManageComponentAsync(User, id)) return Forbid();
+
             var component = await _context.ModuleComponents.FindAsync(id);
             if (component == null) return NotFound();
             return component;

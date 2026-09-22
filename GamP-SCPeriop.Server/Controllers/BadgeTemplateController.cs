@@ -1,4 +1,5 @@
 ﻿using GamP_SCPeriop.Server.Data;
+using GamP_SCPeriop.Server.Services;
 using GamP_SCPeriop.Shared.Data.Template;
 using GamP_SCPeriop.Shared.Entity.Model;
 using Microsoft.AspNetCore.Authorization;
@@ -9,7 +10,7 @@ namespace GamP_SCPeriop.Server.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize]
+    [Authorize(Roles = Roles.Admin)]
     public class BadgeTemplateController : ControllerBase
     {
         private readonly AppDbContext _context;

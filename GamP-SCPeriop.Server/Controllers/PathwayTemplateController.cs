@@ -1,4 +1,5 @@
 ﻿using GamP_SCPeriop.Server.Data;
+using GamP_SCPeriop.Server.Services;
 using GamP_SCPeriop.Shared.Data.Template;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -8,7 +9,7 @@ namespace GamP_SCPeriop.Server.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize]
+    [Authorize(Roles = Roles.Staff)]
     public class PathwayTemplateController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -42,6 +43,7 @@ namespace GamP_SCPeriop.Server.Controllers
         }
 
         [HttpPost]
+        [Authorize(Roles = Roles.Admin)]
         public async Task<ActionResult<PathwayTemplate>> CreateTemplate(PathwayTemplate template)
         {
             _context.PathwayTemplates.Add(template);
@@ -50,6 +52,7 @@ namespace GamP_SCPeriop.Server.Controllers
         }
 
         [HttpDelete("{id}")]
+        [Authorize(Roles = Roles.Admin)]
         public async Task<IActionResult> DeleteTemplate(int id)
         {
             var template = await _context.PathwayTemplates.FindAsync(id);

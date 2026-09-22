@@ -39,6 +39,7 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddOpenApi();
 builder.Services.AddScoped<BadgeService>();
 builder.Services.AddScoped<TokenService>();
+builder.Services.AddScoped<AccessService>();
 builder.Services.AddScoped<DbSeeder>();
 
 builder.Services.AddDbContext<AppDbContext>(options =>
@@ -116,19 +117,29 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-    // Verifica se já existe algum utilizador na base de dados
+    // Empty database: create the first admin from configuration (no default password baked into the code).
+    // Set BootstrapAdmin:Email and BootstrapAdmin:Password (e.g. as environment variables BootstrapAdmin__Email / BootstrapAdmin__Password).
     if (!db.Users.Any())
     {
-        var adminUser = new User
-        {
-            Email = "admin@gamp.com",
-            FullName = "Administrador",
-            Password = BCrypt.Net.BCrypt.HashPassword("123"), // Ou o método de hash que já uses no projeto
-            Role = UserRole.Admin // Ajusta conforme o teu enum de roles
-        };
+        var adminEmail = builder.Configuration["BootstrapAdmin:Email"];
+        var adminPassword = builder.Configuration["BootstrapAdmin:Password"];
 
-        db.Users.Add(adminUser);
-        db.SaveChanges();
+        if (string.IsNullOrWhiteSpace(adminEmail) || string.IsNullOrWhiteSpace(adminPassword) || adminPassword.Length < 8)
+        {
+            app.Logger.LogWarning("The database has no users. Set BootstrapAdmin:Email and BootstrapAdmin:Password (8+ characters) to create the first admin.");
+        }
+        else
+        {
+            db.Users.Add(new User
+            {
+                Email = adminEmail,
+                FullName = builder.Configuration["BootstrapAdmin:FullName"] ?? "Administrador",
+                Password = BCrypt.Net.BCrypt.HashPassword(adminPassword),
+                Role = UserRole.Admin
+            });
+            db.SaveChanges();
+            app.Logger.LogInformation("Created the first admin account {Email}.", adminEmail);
+        }
     }
 }
 

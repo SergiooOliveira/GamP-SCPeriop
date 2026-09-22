@@ -1,4 +1,5 @@
 ﻿using GamP_SCPeriop.Server.Data;
+using GamP_SCPeriop.Server.Services;
 using GamP_SCPeriop.Shared.Data;
 using GamP_SCPeriop.Shared.Entity.Model;
 using GamP_SCPeriop.Shared.Enum;
@@ -14,15 +15,24 @@ namespace GamP_SCPeriop.Server.Controllers
     public class ModuleController : ControllerBase
     {
         private readonly AppDbContext _context;
+        private readonly AccessService _access;
 
-        public ModuleController(AppDbContext context)
+        public ModuleController(AppDbContext context, AccessService access)
         {
             _context = context;
+            _access = access;
         }
 
         [HttpPost]
+        [Authorize(Roles = Roles.Staff)]
         public async Task<ActionResult<Module>> CreateModule(ModuleCreateDto dto)
         {
+            // Um módulo pertence ao plano de um aluno (EnrollmentId) ou ao percurso geral (PathwayId)
+            var allowed = dto.EnrollmentId.HasValue
+                ? await _access.CanManageEnrollmentAsync(User, dto.EnrollmentId.Value)
+                : dto.PathwayId.HasValue && await _access.CanManagePathwayAsync(User, dto.PathwayId.Value);
+            if (!allowed) return Forbid();
+
             var module = new Module
             {
                 Title = dto.Title,
@@ -52,6 +62,8 @@ namespace GamP_SCPeriop.Server.Controllers
         [HttpGet("{id}")]
         public async Task<ActionResult<Module>> GetModule(int id)
         {
+            if (!await _access.CanViewModuleAsync(User, id)) return Forbid();
+
             var module = await _context.Modules
                 // 1. Grab the components inside the module
                 .Include(m => m.Components)
@@ -69,6 +81,8 @@ namespace GamP_SCPeriop.Server.Controllers
         [HttpGet("{moduleId}/student/{studentId}")]
         public async Task<ActionResult<Module>> GetModuleForStudent(int moduleId, int studentId)
         {
+            if (!await _access.CanViewStudentAsync(User, studentId)) return Forbid();
+
             // 1. Procurar na tabela ponte (EnrollmentModule) para encontrar o clone exato e a inscrição
             var enrollmentModule = await _context.EnrollmentModules
                 .Include(em => em.Enrollment)
@@ -105,8 +119,11 @@ namespace GamP_SCPeriop.Server.Controllers
         }
 
         [HttpPut("{id}")]
+        [Authorize(Roles = Roles.Staff)]
         public async Task<IActionResult> UpdateModule(int id, Module updatedModule)
         {
+            if (!await _access.CanManageModuleAsync(User, id)) return Forbid();
+
             if (id != updatedModule.Id) return BadRequest();
 
             // 1. Vai buscar o módulo e as datas atuais
@@ -174,8 +191,11 @@ namespace GamP_SCPeriop.Server.Controllers
         }
 
         [HttpPut("{id}/timeline")]
+        [Authorize(Roles = Roles.Staff)]
         public async Task<IActionResult> UpdateStudentTimeline(int id, [FromBody] Module updatedModule)
         {
+            if (!await _access.CanManageModuleAsync(User, id)) return Forbid();
+
             if (id != updatedModule.Id) return BadRequest();
 
             var existingModule = await _context.Modules
@@ -227,8 +247,11 @@ namespace GamP_SCPeriop.Server.Controllers
         }
 
         [HttpDelete("{id}")]
+        [Authorize(Roles = Roles.Staff)]
         public async Task<IActionResult> DeleteModule(int id)
         {
+            if (!await _access.CanManageModuleAsync(User, id)) return Forbid();
+
             var module = await _context.Modules.FindAsync(id);
             if (module == null) return NotFound();
 
