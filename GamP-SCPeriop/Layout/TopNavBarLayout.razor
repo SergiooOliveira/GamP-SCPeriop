@@ -161,6 +161,9 @@
 
     protected override async Task OnInitializedAsync()
     {
+        // Tema guardado no cookie (já aplicado pelo index.html): o botão tem de mostrar o ícone certo
+        isDarkMode = await JS.InvokeAsync<string>("gampTheme.get") == "dark";
+
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
         var tokenUser = authState.User;
 
@@ -284,7 +287,7 @@
         isDarkMode = !isDarkMode;
         var theme = isDarkMode ? "dark" : "light";
 
-        // Injeta a mudança diretamente na tag <html> apenas para a sessão atual
-        await JS.InvokeVoidAsync("document.documentElement.setAttribute", "data-bs-theme", theme);
+        // Aplica o tema e guarda-o num cookie (index.html volta a aplicá-lo ao recarregar a página)
+        await JS.InvokeVoidAsync("gampTheme.set", theme);
     }
 }

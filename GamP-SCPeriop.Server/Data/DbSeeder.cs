@@ -1,5 +1,7 @@
 using GamP_SCPeriop.Helpers;
+using GamP_SCPeriop.Server.Services;
 using GamP_SCPeriop.Shared.Data;
+using GamP_SCPeriop.Shared.Data.Template;
 using GamP_SCPeriop.Shared.Entity.Model;
 using GamP_SCPeriop.Shared.Enum;
 using Microsoft.EntityFrameworkCore;
@@ -9,9 +11,12 @@ using System.Text;
 namespace GamP_SCPeriop.Server.Data
 {
     /// <summary>
-    /// Development-only test data. Wipes users, pathways, enrollments, evaluations, badges and
-    /// notifications, then recreates a realistic data set (2 admins, 5 supervisors, 20 students).
-    /// Admin (base) templates are kept.
+    /// Development-only test data. Wipes users, templates, pathways, enrollments, evaluations, badges and
+    /// notifications, then recreates a realistic data set the same way the app does it:
+    ///   1. the admins' Pathway Templates ("Moldes"), with their modules, parameters and badge templates;
+    ///   2. each supervisor's pathway created FROM a template (same code as the "create pathway" button);
+    ///   3. the supervisor setting the stage dates, then enrolling students (same code as "Adicionar Aluno");
+    ///   4. grades, badges and notifications according to how far each stage is.
     /// Run it with: dotnet run --project GamP-SCPeriop.Server -- --seed
     /// </summary>
     public class DbSeeder
@@ -24,14 +29,16 @@ namespace GamP_SCPeriop.Server.Data
         private static readonly int[] StageLengthDays = { 4, 5, 6, 6 };
 
         private readonly AppDbContext _context;
+        private readonly PathwayService _pathways;
         private readonly ILogger<DbSeeder> _logger;
 
         private Random _random = new();
         private DateTime _today;
 
-        public DbSeeder(AppDbContext context, ILogger<DbSeeder> logger)
+        public DbSeeder(AppDbContext context, PathwayService pathways, ILogger<DbSeeder> logger)
         {
             _context = context;
+            _pathways = pathways;
             _logger = logger;
         }
 
@@ -75,22 +82,12 @@ namespace GamP_SCPeriop.Server.Data
             await _context.Modules.ExecuteDeleteAsync();
             await _context.Pathways.ExecuteDeleteAsync();
 
-            // Personal templates belong to supervisors that are about to be removed. Admin base templates stay.
-            var personalTemplateIds = await _context.PathwayTemplates
-                .Where(t => t.SupervisorOwnerId != null)
-                .Select(t => t.Id)
-                .ToListAsync();
-
-            if (personalTemplateIds.Any())
-            {
-                await _context.BadgeTemplates.Where(b => personalTemplateIds.Contains(b.PathwayTemplateId)).ExecuteDeleteAsync();
-                await _context.ComponentTemplates
-                    .Where(c => c.ParentComponentTemplateId != null && personalTemplateIds.Contains(c.ModuleTemplate!.PathwayTemplateId))
-                    .ExecuteDeleteAsync();
-                await _context.ComponentTemplates.Where(c => personalTemplateIds.Contains(c.ModuleTemplate!.PathwayTemplateId)).ExecuteDeleteAsync();
-                await _context.ModuleTemplates.Where(m => personalTemplateIds.Contains(m.PathwayTemplateId)).ExecuteDeleteAsync();
-                await _context.PathwayTemplates.Where(t => personalTemplateIds.Contains(t.Id)).ExecuteDeleteAsync();
-            }
+            // Templates are recreated too (the original sample "Moldes" included)
+            await _context.BadgeTemplates.ExecuteDeleteAsync();
+            await _context.ComponentTemplates.Where(c => c.ParentComponentTemplateId != null).ExecuteDeleteAsync();
+            await _context.ComponentTemplates.ExecuteDeleteAsync();
+            await _context.ModuleTemplates.ExecuteDeleteAsync();
+            await _context.PathwayTemplates.ExecuteDeleteAsync();
 
             await _context.Users.ExecuteDeleteAsync();
         }
@@ -113,97 +110,71 @@ namespace GamP_SCPeriop.Server.Data
             _context.Users.AddRange(students);
             await _context.SaveChangesAsync();
 
+            // 1. The admins' templates
+            var templateIds = new List<int>();
+            foreach (var templatePlan in TemplatePlans)
+                templateIds.Add(await CreateTemplateAsync(templatePlan));
+
             int enrollmentCount = 0, evaluationCount = 0, badgeCount = 0, userBadgeCount = 0;
 
             foreach (var plan in PathwayPlans)
             {
                 var supervisor = supervisors[plan.SupervisorIndex];
+                var templatePlan = TemplatePlans[plan.TemplateIndex];
                 var pathwayStart = _today.AddDays(plan.StartOffsetDays);
 
-                // 1. The pathway and its base ("geral") modules
-                var pathway = new Pathway
+                // 2. The supervisor creates the pathway from a template (modules, parameters and badges are copied)
+                var pathway = await _pathways.CreatePathwayAsync(new PathwayCreateDto
                 {
                     Title = plan.Title,
                     ProfessorId = supervisor.Id,
+                    TemplateId = templateIds[plan.TemplateIndex],
                     MinimumPassScore = 50,
                     MinimumApprovalScore = 80,
-                    IsArchived = plan.IsArchived,
                     StartDate = pathwayStart,
-                    EndDate = pathwayStart.AddDays(plan.ModuleIndexes.Length * ModuleLengthDays - 1)
-                };
+                    EndDate = pathwayStart.AddDays(templatePlan.ModuleIndexes.Length * ModuleLengthDays - 1)
+                });
+                pathway.IsArchived = plan.IsArchived;
 
-                var moduleWeights = SplitWeights(plan.ModuleIndexes.Length);
-                for (int order = 0; order < plan.ModuleIndexes.Length; order++)
-                {
-                    var blueprint = ModuleCatalog[plan.ModuleIndexes[order]];
-                    var moduleStart = pathwayStart.AddDays(order * ModuleLengthDays);
-                    pathway.Modules.Add(BuildBaseModule(blueprint, order, moduleWeights[order], moduleStart));
-                }
-
-                _context.Pathways.Add(pathway);
+                // 3. ...and sets the stage dates in the builder, module after module
+                var baseModules = await _context.Modules
+                    .Include(m => m.StageTimelines)
+                    .Where(m => m.PathwayId == pathway.Id)
+                    .OrderBy(m => m.OrderIndex)
+                    .ToListAsync();
+                for (int order = 0; order < baseModules.Count; order++)
+                    SetStageDates(baseModules[order], pathwayStart.AddDays(order * ModuleLengthDays));
                 await _context.SaveChangesAsync();
 
-                // 2. Badges, frozen onto this pathway (module badges point at the base module id)
-                var moduleBadges = new Dictionary<int, Badge>();
-                for (int order = 0; order < pathway.Modules.Count; order++)
-                {
-                    var blueprint = ModuleCatalog[plan.ModuleIndexes[order]];
-                    var badge = new Badge
-                    {
-                        PathwayId = pathway.Id,
-                        Name = blueprint.BadgeName,
-                        Description = $"Concluíste o módulo \"{blueprint.Title}\" com pelo menos 65% das práticas bem avaliadas.",
-                        Icon = blueprint.BadgeIcon,
-                        Tier = blueprint.BadgeTier,
-                        TriggerType = BadgeTriggerType.ModuleCompletion,
-                        TriggerValue = pathway.Modules[order].Id.ToString()
-                    };
-                    moduleBadges[pathway.Modules[order].Id] = badge;
-                    _context.Badges.Add(badge);
-                }
+                // Badges copied from the template: module badges point at the pathway's (base) modules
+                var badges = await _context.Badges.Where(b => b.PathwayId == pathway.Id).ToListAsync();
+                badgeCount += badges.Count;
+                var moduleBadges = badges
+                    .Where(b => b.TriggerType == BadgeTriggerType.ModuleCompletion && int.TryParse(b.TriggerValue, out _))
+                    .ToDictionary(b => int.Parse(b.TriggerValue));
+                var excellenceBadge = badges.FirstOrDefault(b => b.TriggerType == BadgeTriggerType.ExcellenceGrade);
+                var pathwayBadge = badges.FirstOrDefault(b => b.TriggerType == BadgeTriggerType.PathwayMilestone);
 
-                var excellenceBadge = new Badge
-                {
-                    PathwayId = pathway.Id,
-                    Name = "Excelência Clínica",
-                    Description = "Obtiveste pelo menos 5 avaliações \"Consistente\" neste percurso.",
-                    Icon = "bi-star-fill",
-                    Tier = BadgeTier.Epic,
-                    TriggerType = BadgeTriggerType.ExcellenceGrade,
-                    TriggerValue = "5"
-                };
-                var pathwayBadge = new Badge
-                {
-                    PathwayId = pathway.Id,
-                    Name = "Percurso Concluído",
-                    Description = $"Concluíste todas as práticas do percurso \"{pathway.Title}\".",
-                    Icon = "bi-trophy-fill",
-                    Tier = BadgeTier.Legendary,
-                    TriggerType = BadgeTriggerType.PathwayMilestone,
-                    TriggerValue = "100"
-                };
-                _context.Badges.AddRange(excellenceBadge, pathwayBadge);
-                badgeCount += moduleBadges.Count + 2;
-                await _context.SaveChangesAsync();
-
-                // 3. Enrollments: every student gets independent copies of the modules (same as EnrollmentController)
+                // 4. Students enrolled (each gets independent copies of the modules)
                 foreach (var studentIndex in plan.StudentIndexes)
                 {
                     var student = students[studentIndex];
                     var skill = SkillProfiles[studentIndex % SkillProfiles.Length];
 
-                    var enrollment = new Enrollment { StudentId = student.Id, PathwayId = pathway.Id };
-                    _context.Enrollments.Add(enrollment);
-
-                    var clones = pathway.Modules.Select(m => CloneForEnrollment(m, enrollment)).ToList();
-                    await _context.SaveChangesAsync();
+                    var enrollment = await _pathways.EnrollStudentAsync(student.Id, pathway.Id);
                     enrollmentCount++;
 
-                    // 4. Evaluations, depending on how far along each stage is
+                    var clones = await _context.Modules
+                        .Include(m => m.Components)
+                        .Include(m => m.StageTimelines)
+                        .Where(m => _context.EnrollmentModules.Any(em => em.EnrollmentId == enrollment.Id && em.ModuleId == m.Id))
+                        .ToListAsync();
+
+                    // 5. Evaluations, depending on how far along each stage is
                     var evaluations = new List<ComponentEvaluation>();
                     foreach (var clone in clones)
                     {
-                        foreach (var component in GradableComponents(clone))
+                        foreach (var component in clone.Components.Where(c => EvaluationRules.IsGradable(c, clone.Components)))
                         {
                             var evaluation = Evaluate(component, clone, enrollment, skill, plan.IsArchived);
                             if (evaluation != null) evaluations.Add(evaluation);
@@ -212,23 +183,27 @@ namespace GamP_SCPeriop.Server.Data
                     _context.ComponentEvaluations.AddRange(evaluations);
                     evaluationCount += evaluations.Count;
 
-                    enrollment.ProgressPercentage = CalculateProgress(clones.SelectMany(c => c.Components), evaluations);
-                    enrollment.IsStarred = plan.IsArchived == false && _random.Next(4) == 0;
+                    enrollment.ProgressPercentage = EvaluationRules.CalculateProgress(clones.SelectMany(c => c.Components).ToList(), evaluations);
+                    enrollment.IsStarred = !plan.IsArchived && _random.Next(4) == 0;
 
-                    // 5. Badges earned (same thresholds as BadgeService) + their notifications
+                    // 6. Badges earned (same thresholds as BadgeService) + their notifications
                     var earned = new List<(Badge Badge, DateTime At)>();
                     foreach (var clone in clones)
                     {
                         var moduleEvaluations = evaluations.Where(e => clone.Components.Any(c => c.Id == e.ModuleComponentId)).ToList();
-                        if (CalculateProgress(clone.Components, moduleEvaluations) >= 65)
-                            earned.Add((moduleBadges[clone.OriginalModuleId!.Value], moduleEvaluations.Max(e => e.EvaluatedAt)));
+                        if (moduleEvaluations.Any()
+                            && EvaluationRules.CalculateProgress(clone.Components, moduleEvaluations) >= 65
+                            && moduleBadges.TryGetValue(clone.OriginalModuleId!.Value, out var moduleBadge))
+                        {
+                            earned.Add((moduleBadge, moduleEvaluations.Max(e => e.EvaluatedAt)));
+                        }
                     }
 
                     var consistent = evaluations.Where(e => e.Status == ComponentStatus.Consistente).OrderBy(e => e.EvaluatedAt).ToList();
-                    if (consistent.Count >= 5)
+                    if (excellenceBadge != null && consistent.Count >= 5)
                         earned.Add((excellenceBadge, consistent[4].EvaluatedAt));
 
-                    if (enrollment.ProgressPercentage >= 100)
+                    if (pathwayBadge != null && enrollment.ProgressPercentage >= 100)
                         earned.Add((pathwayBadge, evaluations.Max(e => e.EvaluatedAt)));
 
                     foreach (var (badge, at) in earned)
@@ -258,6 +233,7 @@ namespace GamP_SCPeriop.Server.Data
                 Admins = admins.Count,
                 Supervisors = supervisors.Count,
                 Students = students.Count,
+                Templates = TemplatePlans.Length,
                 Pathways = PathwayPlans.Length,
                 Enrollments = enrollmentCount,
                 Evaluations = evaluationCount,
@@ -267,72 +243,130 @@ namespace GamP_SCPeriop.Server.Data
             };
         }
 
-        private Module BuildBaseModule(ModuleBlueprint blueprint, int order, float weight, DateTime moduleStart)
+        /// <summary>
+        /// A Pathway Template as the admin builds it in "Pathway Templates": modules with weights, theory items,
+        /// the same parameters in all 4 practical stages, and the template's badges.
+        /// </summary>
+        private async Task<int> CreateTemplateAsync(TemplatePlan plan)
         {
-            var module = new Module
+            var template = new PathwayTemplate
             {
-                Title = blueprint.Title,
-                Weight = weight,
-                OrderIndex = order,
-                StageTimelines = new List<ModuleStageTimelineDto>()
+                Title = plan.Title,
+                Description = plan.Description,
+                MinimumApprovalScore = 80,
+                IsAdminBase = true
             };
 
-            var stageStart = moduleStart;
-            var stages = ModuleStageHelper.GetTimelineStages().ToList();
-            for (int i = 0; i < stages.Count; i++)
+            var moduleWeights = SplitWeights(plan.ModuleIndexes.Length);
+            var practicalStages = ModuleStageHelper.GetTimelineStages().ToList();
+
+            for (int order = 0; order < plan.ModuleIndexes.Length; order++)
             {
-                var length = StageLengthDays[Math.Min(i, StageLengthDays.Length - 1)];
-                module.StageTimelines.Add(new ModuleStageTimelineDto
+                var blueprint = ModuleCatalog[plan.ModuleIndexes[order]];
+                var moduleTemplate = new ModuleTemplate { Title = blueprint.Title, Weight = moduleWeights[order], OrderIndex = order };
+
+                // Theory items: no weight (theory is never graded)
+                for (int i = 0; i < blueprint.Theory.Length; i++)
                 {
-                    Stage = stages[i],
-                    StartDate = stageStart,
-                    EndDate = stageStart.AddDays(length - 1)
-                });
-                stageStart = stageStart.AddDays(length);
-            }
-
-            // Theory items are added one by one in the builder, with no weight (theory is never graded)
-            for (int i = 0; i < blueprint.Theory.Length; i++)
-            {
-                module.Components.Add(new ModuleComponent
-                {
-                    Title = blueprint.Theory[i].Title,
-                    Description = blueprint.Theory[i].Description,
-                    Stage = ModuleStage.Teorica,
-                    Weight = 0,
-                    OrderIndex = i
-                });
-            }
-
-            // Like the "new module" form: the same parameters are copied into every practical stage,
-            // with weights that add up to 100 per stage (and per group of sub-parameters)
-            var parameterWeights = SplitWeights(blueprint.Parameters.Length);
-            foreach (var stage in stages)
-            {
-                for (int i = 0; i < blueprint.Parameters.Length; i++)
-                {
-                    var parameter = blueprint.Parameters[i];
-                    var parent = new ModuleComponent { Title = parameter.Title, Stage = stage, Weight = parameterWeights[i], OrderIndex = i };
-                    module.Components.Add(parent);
-
-                    if (parameter.Children == null) continue;
-
-                    var childWeights = SplitWeights(parameter.Children.Length);
-                    for (int j = 0; j < parameter.Children.Length; j++)
+                    moduleTemplate.ComponentTemplates.Add(new ComponentTemplate
                     {
-                        module.Components.Add(new ModuleComponent
+                        Title = blueprint.Theory[i].Title,
+                        Description = blueprint.Theory[i].Description,
+                        Stage = ModuleStage.Teorica,
+                        Weight = 0,
+                        OrderIndex = i
+                    });
+                }
+
+                // Like the "new module" form: the same parameters in every practical stage, weights adding up to 100
+                var parameterWeights = SplitWeights(blueprint.Parameters.Length);
+                foreach (var stage in practicalStages)
+                {
+                    for (int i = 0; i < blueprint.Parameters.Length; i++)
+                    {
+                        var parameter = blueprint.Parameters[i];
+                        var parent = new ComponentTemplate { Title = parameter.Title, Stage = stage, Weight = parameterWeights[i], OrderIndex = i };
+                        moduleTemplate.ComponentTemplates.Add(parent);
+
+                        if (parameter.Children == null) continue;
+
+                        var childWeights = SplitWeights(parameter.Children.Length);
+                        for (int j = 0; j < parameter.Children.Length; j++)
                         {
-                            Title = parameter.Children[j],
-                            Stage = stage,
-                            Weight = childWeights[j],
-                            OrderIndex = j,
-                            ParentComponent = parent
-                        });
+                            moduleTemplate.ComponentTemplates.Add(new ComponentTemplate
+                            {
+                                Title = parameter.Children[j],
+                                Stage = stage,
+                                Weight = childWeights[j],
+                                OrderIndex = j,
+                                ParentComponentTemplate = parent
+                            });
+                        }
                     }
                 }
+
+                template.ModuleTemplates.Add(moduleTemplate);
             }
 
-            return module;
+            _context.PathwayTemplates.Add(template);
+            await _context.SaveChangesAsync();
+
+            // Badge templates: module badges reference the template module (translated to the real module when a pathway is created)
+            var moduleTemplates = template.ModuleTemplates.OrderBy(m => m.OrderIndex).ToList();
+            for (int order = 0; order < moduleTemplates.Count; order++)
+            {
+                var blueprint = ModuleCatalog[plan.ModuleIndexes[order]];
+                _context.BadgeTemplates.Add(new BadgeTemplate
+                {
+                    PathwayTemplateId = template.Id,
+                    Name = blueprint.BadgeName,
+                    Description = $"Concluíste o módulo \"{blueprint.Title}\" com pelo menos 65% das práticas bem avaliadas.",
+                    Icon = blueprint.BadgeIcon,
+                    Tier = blueprint.BadgeTier,
+                    TriggerType = BadgeTriggerType.ModuleCompletion,
+                    TriggerValue = moduleTemplates[order].Id.ToString()
+                });
+            }
+
+            _context.BadgeTemplates.Add(new BadgeTemplate
+            {
+                PathwayTemplateId = template.Id,
+                Name = "Excelência Clínica",
+                Description = "Obtiveste pelo menos 5 avaliações \"Consistente\" neste percurso.",
+                Icon = "bi-star-fill",
+                Tier = BadgeTier.Epic,
+                TriggerType = BadgeTriggerType.ExcellenceGrade,
+                TriggerValue = "5"
+            });
+            _context.BadgeTemplates.Add(new BadgeTemplate
+            {
+                PathwayTemplateId = template.Id,
+                Name = "Percurso Concluído",
+                Description = "Concluíste todas as práticas do percurso.",
+                Icon = "bi-trophy-fill",
+                Tier = BadgeTier.Legendary,
+                TriggerType = BadgeTriggerType.PathwayMilestone,
+                TriggerValue = "100"
+            });
+            await _context.SaveChangesAsync();
+
+            return template.Id;
+        }
+
+        /// <summary>
+        /// What the supervisor does in the builder: consecutive date ranges for the module's practical stages
+        /// </summary>
+        private static void SetStageDates(Module module, DateTime moduleStart)
+        {
+            var stageStart = moduleStart;
+            var timelines = module.StageTimelines!.OrderBy(t => t.Stage).ToList();
+            for (int i = 0; i < timelines.Count; i++)
+            {
+                var length = StageLengthDays[Math.Min(i, StageLengthDays.Length - 1)];
+                timelines[i].StartDate = stageStart;
+                timelines[i].EndDate = stageStart.AddDays(length - 1);
+                stageStart = stageStart.AddDays(length);
+            }
         }
 
         /// <summary>
@@ -346,67 +380,6 @@ namespace GamP_SCPeriop.Server.Data
             weights[^1] = (float)Math.Round(100.0 - split * (count - 1), 2);
             return weights;
         }
-
-        /// <summary>
-        /// Mirrors EnrollmentController.CreateEnrollment: an independent copy of the module per student
-        /// </summary>
-        private Module CloneForEnrollment(Module baseModule, Enrollment enrollment)
-        {
-            var clone = new Module
-            {
-                Title = baseModule.Title,
-                Weight = baseModule.Weight,
-                OrderIndex = baseModule.OrderIndex,
-                PathwayId = null,
-                IsFromTemplate = true,
-                OriginalModuleId = baseModule.Id,
-                StageTimelines = baseModule.StageTimelines!.Select(t => new ModuleStageTimelineDto
-                {
-                    Stage = t.Stage,
-                    StartDate = t.StartDate,
-                    EndDate = t.EndDate
-                }).ToList()
-            };
-
-            var parentMap = new Dictionary<ModuleComponent, ModuleComponent>();
-            foreach (var component in baseModule.Components.OrderBy(c => c.ParentComponent == null ? 0 : 1))
-            {
-                var copy = new ModuleComponent
-                {
-                    Title = component.Title,
-                    Description = component.Description,
-                    Stage = component.Stage,
-                    Weight = component.Weight,
-                    OrderIndex = component.OrderIndex,
-                    PdfFilePath = component.PdfFilePath,
-                    IsFromTemplate = true,
-                    ParentComponent = component.ParentComponent == null ? null : parentMap[component.ParentComponent]
-                };
-                parentMap[component] = copy;
-                clone.Components.Add(copy);
-            }
-
-            _context.Modules.Add(clone);
-            _context.EnrollmentModules.Add(new EnrollmentModule
-            {
-                Enrollment = enrollment,
-                Module = clone,
-                StartDate = clone.StageTimelines.Min(t => t.StartDate),
-                EndDate = clone.StageTimelines.Max(t => t.EndDate)
-            });
-
-            return clone;
-        }
-
-        /// <summary>
-        /// What the evaluation page lets a supervisor grade: practical-stage items with a weight,
-        /// excluding group headers (their sub-parameters are graded instead). Theory is never graded.
-        /// </summary>
-        private static IEnumerable<ModuleComponent> GradableComponents(Module module) =>
-            module.Components.Where(c =>
-                c.Stage != ModuleStage.Teorica &&
-                c.Weight > 0 &&
-                !module.Components.Any(child => child.ParentComponent == c));
 
         /// <summary>
         /// Finished stages are graded, the current stage is partly graded, future stages are left pending.
@@ -445,30 +418,6 @@ namespace GamP_SCPeriop.Server.Data
                 Status = status,
                 EvaluatedAt = evaluatedAt.ToUniversalTime() // the API stores UTC (DateTime.UtcNow)
             };
-        }
-
-        /// <summary>
-        /// Same formula as EvaluationController: % of weighted practice leaves graded AcimaDaMedia or Consistente
-        /// </summary>
-        private static int CalculateProgress(IEnumerable<ModuleComponent> components, IEnumerable<ComponentEvaluation> evaluations)
-        {
-            var list = components.ToList();
-            var parentIds = list.Where(c => c.ParentComponentId.HasValue).Select(c => c.ParentComponentId!.Value).ToHashSet();
-
-            var assessableIds = list
-                .Where(c => c.Stage == ModuleStage.PraticaSupervisionada || c.Stage == ModuleStage.PraticaAssistida)
-                .Where(c => !parentIds.Contains(c.Id))
-                .Where(c => c.Weight > 0)
-                .Select(c => c.Id)
-                .ToHashSet();
-
-            if (!assessableIds.Any()) return 0;
-
-            int completed = evaluations.Count(e =>
-                assessableIds.Contains(e.ModuleComponentId) &&
-                (e.Status == ComponentStatus.AcimaDaMedia || e.Status == ComponentStatus.Consistente));
-
-            return (int)((double)completed / assessableIds.Count * 100);
         }
 
         private Notification NewNotification(User receiver, User sender, DateTime createdAt, string title, string message, string targetUrl) => new()
@@ -530,20 +479,33 @@ namespace GamP_SCPeriop.Server.Data
         };
 
         /// <summary>
-        /// Start offsets are relative to today, so the data always has past, current and future pathways
+        /// The admins' Pathway Templates ("Moldes"); ModuleIndexes point into <see cref="ModuleCatalog"/>
         /// </summary>
-        private static readonly PathwayPlan[] PathwayPlans =
+        private static readonly TemplatePlan[] TemplatePlans =
         {
-            new("Estágio em Bloco Operatório — Hospital de Braga", 0, new[] { 0, 2, 3 }, -45, false, new[] { 0, 1, 2, 3 }),
-            new("Estágio em Anestesiologia — ULS Santo António", 1, new[] { 0, 1, 4 }, -25, false, new[] { 4, 5, 6, 7 }),
-            new("Estágio em Cirurgia Geral — ULS São João", 2, new[] { 0, 2, 3, 4 }, -70, false, new[] { 8, 9, 10, 11 }),
-            new("Estágio em Recobro (UCPA) — Hospital de Guimarães", 3, new[] { 0, 4 }, 10, false, new[] { 12, 13, 14, 15 }),
-            new("Estágio em Ortopedia — ULS Alto Minho", 4, new[] { 0, 2 }, -50, false, new[] { 16, 17, 18, 19 }),
-            new("Estágio em Bloco Operatório — 2.º Semestre 2025/26", 0, new[] { 0, 2, 3 }, -200, true, new[] { 0, 4, 8, 12, 16 })
+            new("Molde — Bloco Operatório", "Acolhimento, instrumentação e circulação em bloco operatório.", new[] { 0, 2, 3 }),
+            new("Molde — Anestesiologia", "Enfermagem de anestesia e cuidados pós-anestésicos.", new[] { 0, 1, 4 }),
+            new("Molde — Cirurgia Geral", "Percurso completo em bloco de cirurgia geral.", new[] { 0, 2, 3, 4 }),
+            new("Molde — Recobro (UCPA)", "Estágio curto na Unidade de Cuidados Pós-Anestésicos.", new[] { 0, 4 }),
+            new("Molde — Ortopedia", "Acolhimento e instrumentação em cirurgia ortopédica.", new[] { 0, 2 })
         };
 
         /// <summary>
-        /// Each module: theory items, then the parameters that the builder copies into all 4 practical stages
+        /// Supervisors' pathways, each created from a template. Start offsets are relative to today,
+        /// so the data always has past, current and future pathways.
+        /// </summary>
+        private static readonly PathwayPlan[] PathwayPlans =
+        {
+            new("Estágio em Bloco Operatório — Hospital de Braga", 0, 0, -45, false, new[] { 0, 1, 2, 3 }),
+            new("Estágio em Anestesiologia — ULS Santo António", 1, 1, -25, false, new[] { 4, 5, 6, 7 }),
+            new("Estágio em Cirurgia Geral — ULS São João", 2, 2, -70, false, new[] { 8, 9, 10, 11 }),
+            new("Estágio em Recobro (UCPA) — Hospital de Guimarães", 3, 3, 10, false, new[] { 12, 13, 14, 15 }),
+            new("Estágio em Ortopedia — ULS Alto Minho", 4, 4, -50, false, new[] { 16, 17, 18, 19 }),
+            new("Estágio em Bloco Operatório — 2.º Semestre 2025/26", 0, 0, -200, true, new[] { 0, 4, 8, 12, 16 })
+        };
+
+        /// <summary>
+        /// Each module: theory items, then the parameters that are copied into all 4 practical stages
         /// </summary>
         private static readonly ModuleBlueprint[] ModuleCatalog =
         {
@@ -632,7 +594,9 @@ namespace GamP_SCPeriop.Server.Data
 
         #region Types
 
-        private record PathwayPlan(string Title, int SupervisorIndex, int[] ModuleIndexes, int StartOffsetDays, bool IsArchived, int[] StudentIndexes);
+        private record TemplatePlan(string Title, string Description, int[] ModuleIndexes);
+
+        private record PathwayPlan(string Title, int SupervisorIndex, int TemplateIndex, int StartOffsetDays, bool IsArchived, int[] StudentIndexes);
 
         private record ModuleBlueprint(string Title, string BadgeName, string BadgeIcon, BadgeTier BadgeTier, TheoryBlueprint[] Theory, ParameterBlueprint[] Parameters);
 
@@ -660,6 +624,7 @@ namespace GamP_SCPeriop.Server.Data
         public int Admins { get; set; }
         public int Supervisors { get; set; }
         public int Students { get; set; }
+        public int Templates { get; set; }
         public int Pathways { get; set; }
         public int Enrollments { get; set; }
         public int Evaluations { get; set; }
@@ -668,7 +633,7 @@ namespace GamP_SCPeriop.Server.Data
         public string Password { get; set; } = string.Empty;
 
         public override string ToString() =>
-            $"{Admins} admins, {Supervisors} supervisors, {Students} students, {Pathways} pathways, " +
+            $"{Admins} admins, {Supervisors} supervisors, {Students} students, {Templates} templates, {Pathways} pathways, " +
             $"{Enrollments} enrollments, {Evaluations} evaluations, {BadgesEarned}/{Badges} badges earned";
     }
 }
