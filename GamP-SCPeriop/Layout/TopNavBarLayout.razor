@@ -158,11 +158,20 @@
     private int unreadCount => notifications?.Count(n => !n.IsRead) ?? 0;
 
     private bool isDarkMode = false;
+    private IJSObjectReference? themeModule;
 
     protected override async Task OnInitializedAsync()
     {
-        // Tema guardado no cookie (já aplicado pelo index.html): o botão tem de mostrar o ícone certo
-        isDarkMode = await JS.InvokeAsync<string>("gampTheme.get") == "dark";
+        // Tema guardado no cookie: aplica-o e mostra o ícone certo (se falhar, fica o tema claro em vez de partir a página)
+        try
+        {
+            themeModule = await JS.InvokeAsync<IJSObjectReference>("import", "./Layout/TopNavBarLayout.razor.js");
+            isDarkMode = await themeModule.InvokeAsync<string>("initTheme") == "dark";
+        }
+        catch (JSException ex)
+        {
+            Console.WriteLine($"Não foi possível carregar o tema: {ex.Message}");
+        }
 
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
         var tokenUser = authState.User;
@@ -287,7 +296,8 @@
         isDarkMode = !isDarkMode;
         var theme = isDarkMode ? "dark" : "light";
 
-        // Aplica o tema e guarda-o num cookie (index.html volta a aplicá-lo ao recarregar a página)
-        await JS.InvokeVoidAsync("gampTheme.set", theme);
+        // Aplica o tema e guarda-o num cookie (volta a ser aplicado ao recarregar a página)
+        if (themeModule != null)
+            await themeModule.InvokeVoidAsync("setTheme", theme);
     }
 }

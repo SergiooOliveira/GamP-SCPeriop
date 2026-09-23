@@ -22,20 +22,13 @@
 
     <script type="importmap"></script>
 
-    <!-- Theme (light/dark) remembered in a cookie; applied here, before the page draws, so a reload doesn't flash -->
+    <!-- Theme (light/dark) remembered in a cookie: applied here, before the page draws, so a reload doesn't flash.
+         Reading/changing it is done by Layout/TopNavBarLayout.razor.js. -->
     <script>
-        window.gampTheme = {
-            get: function () {
-                var match = document.cookie.match(/(?:^|;\s*)gamp-theme=(dark|light)/);
-                return match ? match[1] : "light";
-            },
-            set: function (theme) {
-                document.documentElement.setAttribute("data-bs-theme", theme);
-                document.cookie = "gamp-theme=" + theme + "; Path=/; Max-Age=31536000; SameSite=Lax" +
-                    (location.protocol === "https:" ? "; Secure" : "");
-            }
-        };
-        document.documentElement.setAttribute("data-bs-theme", window.gampTheme.get());
+        (function () {
+            var match = document.cookie.match(/(?:^|;\s*)gamp-theme=(dark|light)/);
+            document.documentElement.setAttribute("data-bs-theme", match ? match[1] : "light");
+        })();
     </script>
 </head>
 
