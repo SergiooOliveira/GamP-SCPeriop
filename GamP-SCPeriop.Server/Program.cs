@@ -125,8 +125,19 @@ else
 
 app.UseHttpsRedirection();
 
+// index.html must always be re-checked: a stale copy after a deploy would load old HTML with new app code.
+// (The app's other files are fingerprinted/versioned by Blazor, so they can stay cached.)
+var htmlNoCache = new StaticFileOptions
+{
+    OnPrepareResponse = context =>
+    {
+        if (context.File.Name.EndsWith(".html", StringComparison.OrdinalIgnoreCase))
+            context.Context.Response.Headers.CacheControl = "no-cache";
+    }
+};
+
 app.UseBlazorFrameworkFiles();
-app.UseStaticFiles();
+app.UseStaticFiles(htmlNoCache);
 app.UseRouting();
 
 app.UseRateLimiter();
@@ -137,7 +148,7 @@ app.UseAuthorization();
 app.MapRazorPages();
 app.MapControllers();
 
-app.MapFallbackToFile("index.html");
+app.MapFallbackToFile("index.html", htmlNoCache);
 
 using (var scope = app.Services.CreateScope())
 {
