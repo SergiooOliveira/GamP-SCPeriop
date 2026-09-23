@@ -16,11 +16,13 @@ namespace GamP_SCPeriop.Server.Controllers
     {
         private readonly AppDbContext _context;
         private readonly AccessService _access;
+        private readonly PathwayService _pathways;
 
-        public EnrollmentController(AppDbContext context, AccessService access)
+        public EnrollmentController(AppDbContext context, AccessService access, PathwayService pathways)
         {
             _context = context;
             _access = access;
+            _pathways = pathways;
         }
 
         #region HttpGet
@@ -265,78 +267,8 @@ namespace GamP_SCPeriop.Server.Controllers
             if (alreadyEnrolled)
                 return BadRequest("O aluno já se encontra inscrito neste percurso."); // 400 Bad Request
 
-            // Map the DTO to your real Entity
-            var enrollment = new Enrollment
-            {
-                StudentId = dto.StudentId,
-                PathwayId = dto.PathwayId,
-                ProgressPercentage = 0,
-            };
-            _context.Enrollments.Add(enrollment);
-
-            var pathwayModules = await _context.Modules
-                .AsNoTracking()
-                .Include(m => m.StageTimelines)
-                .Include(m => m.Components)
-                .Where(m => m.PathwayId == dto.PathwayId)
-                .ToListAsync();
-
-            // Every student gets an independent copy of the pathway's modules (dates, parameters and sub-parameters),
-            // built in memory and saved in ONE database trip (it used to save once per module and per parameter)
-            foreach (var baseModule in pathwayModules)
-            {
-                var clonedModule = new Module
-                {
-                    Title = baseModule.Title,
-                    Weight = baseModule.Weight,
-                    OrderIndex = baseModule.OrderIndex,
-                    PathwayId = null,
-                    IsFromTemplate = true,
-                    OriginalModuleId = baseModule.Id,
-                    StageTimelines = (baseModule.StageTimelines ?? new List<ModuleStageTimelineDto>())
-                        .Select(t => new ModuleStageTimelineDto
-                        {
-                            Stage = t.Stage,
-                            StartDate = t.StartDate,
-                            EndDate = t.EndDate
-                        }).ToList()
-                };
-
-                // Parents first, so each sub-parameter can point to its parent's copy
-                var copies = new Dictionary<int, ModuleComponent>();
-                foreach (var component in baseModule.Components.OrderBy(c => c.ParentComponentId.HasValue ? 1 : 0))
-                {
-                    ModuleComponent? parentCopy = null;
-                    if (component.ParentComponentId.HasValue && !copies.TryGetValue(component.ParentComponentId.Value, out parentCopy))
-                        continue; // orphaned sub-parameter: skip, as before
-
-                    var copy = new ModuleComponent
-                    {
-                        Stage = component.Stage,
-                        Title = component.Title,
-                        Description = component.Description,
-                        Weight = component.Weight,
-                        OrderIndex = component.OrderIndex,
-                        PdfFilePath = component.PdfFilePath,
-                        IsFromTemplate = true,
-                        ParentComponent = parentCopy
-                    };
-                    copies[component.Id] = copy;
-                    clonedModule.Components.Add(copy);
-                }
-
-                // Link the copy to the enrollment, with the module's overall dates
-                _context.EnrollmentModules.Add(new EnrollmentModule
-                {
-                    Enrollment = enrollment,
-                    Module = clonedModule,
-                    StartDate = clonedModule.StageTimelines.Where(t => t.StartDate.HasValue).Select(t => t.StartDate).Min(),
-                    EndDate = clonedModule.StageTimelines.Where(t => t.EndDate.HasValue).Select(t => t.EndDate).Max()
-                });
-            }
-
-            await _context.SaveChangesAsync();
-
+            // Copies the pathway's modules for this student (shared with the test data seeder)
+            var enrollment = await _pathways.EnrollStudentAsync(dto.StudentId, dto.PathwayId);
             return Ok(enrollment);
         }
         #endregion

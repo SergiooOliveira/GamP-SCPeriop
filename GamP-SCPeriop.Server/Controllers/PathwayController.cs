@@ -17,11 +17,13 @@ namespace GamP_SCPeriop.Server.Controllers
     {
         private readonly AppDbContext _context;
         private readonly AccessService _access;
+        private readonly PathwayService _pathways;
 
-        public PathwayController(AppDbContext context, AccessService access)
+        public PathwayController(AppDbContext context, AccessService access, PathwayService pathways)
         {
             _context = context;
             _access = access;
+            _pathways = pathways;
         }
 
         #region Subject Management
@@ -32,153 +34,8 @@ namespace GamP_SCPeriop.Server.Controllers
             // Supervisors always own the pathways they create; only admins may create one for someone else
             if (!User.IsAdmin()) dto.ProfessorId = User.GetUserId();
 
-            Dictionary<int, Module> moduleMap = new();
-
-            // 1. Cria a base do novo Percurso
-            var pathway = new Pathway
-            {
-                Title = dto.Title,
-                MinimumPassScore = dto.MinimumPassScore,
-                MinimumApprovalScore = dto.MinimumApprovalScore,
-                ProfessorId = dto.ProfessorId,
-                StartDate = dto.StartDate,
-                EndDate = dto.EndDate,
-                Modules = new List<Module>()
-            };
-
-            // 2. Clonagem Profunda se o utilizador escolheu um Molde
-            if (dto.TemplateId.HasValue && dto.TemplateId.Value > 0)
-            {
-                var template = await _context.PathwayTemplates
-                    .Include(p => p.ModuleTemplates)
-                        .ThenInclude(m => m.ComponentTemplates)
-                    .FirstOrDefaultAsync(p => p.Id == dto.TemplateId.Value);
-
-                if (template != null && template.ModuleTemplates != null)
-                {
-                    foreach (var modTpl in template.ModuleTemplates)
-                    {
-                        // Clona o Módulo (sem Description, de acordo com o teu modelo)
-                        var newModule = new Module
-                        {
-                            Title = modTpl.Title,
-                            Weight = modTpl.Weight,
-                            Components = new List<ModuleComponent>(),
-                            IsFromTemplate = true,
-                            StageTimelines = new List<ModuleStageTimelineDto>()
-                        };
-
-                        // FORÇAR A CRIAÇÃO DAS 5 FASES A NULL 
-                        foreach (var stage in ModuleStageHelper.GetTimelineStages())
-                        {
-                            newModule.StageTimelines.Add(new ModuleStageTimelineDto
-                            {
-                                Stage = stage,
-                                StartDate = null,
-                                EndDate = null
-                            });
-                        }
-
-                        // Dicionário para mapear quem é pai de quem
-                        var parentMap = new Dictionary<int, ModuleComponent>();
-
-                        // 2A. Copiar os PAIS primeiro
-                        var parentTemplates = modTpl.ComponentTemplates.Where(c => c.ParentComponentTemplateId == null);
-                        foreach (var parentTpl in parentTemplates)
-                        {
-                            var newParent = new ModuleComponent
-                            {
-                                Title = parentTpl.Title,
-                                Description = parentTpl.Description,
-                                Stage = parentTpl.Stage,
-                                Weight = parentTpl.Weight,
-                                PdfFilePath = parentTpl.PdfFilePath,
-                                IsFromTemplate = true
-                            };
-
-                            newModule.Components.Add(newParent);
-                            parentMap[parentTpl.Id] = newParent;
-                        }
-
-                        // 2B. Copiar os FILHOS a seguir
-                        var childTemplates = modTpl.ComponentTemplates.Where(c => c.ParentComponentTemplateId != null);
-                        foreach (var childTpl in childTemplates)
-                        {
-                            var newChild = new ModuleComponent
-                            {
-                                Title = childTpl.Title,
-                                Description = childTpl.Description,
-                                Stage = childTpl.Stage,
-                                Weight = childTpl.Weight,
-                                PdfFilePath = childTpl.PdfFilePath,
-                                IsFromTemplate = true
-                            };
-
-                            // Liga o filho ao PAI NOVO
-                            if (parentMap.ContainsKey(childTpl.ParentComponentTemplateId.Value))
-                            {
-                                newChild.ParentComponent = parentMap[childTpl.ParentComponentTemplateId.Value];
-                            }
-
-                            newModule.Components.Add(newChild);
-                        }
-
-                        pathway.Modules.Add(newModule);
-
-                        moduleMap[modTpl.Id] = newModule;
-                    }
-                }
-            }
-
-            _context.Pathways.Add(pathway);
-            await _context.SaveChangesAsync();
-
-            // --- 🏆 INÍCIO DA CÓPIA DAS BADGES (DEEP COPY) ---
-            if (dto.TemplateId.HasValue && dto.TemplateId.Value > 0)
-            {
-                // Vamos buscar todas as badges associadas a este Template
-                var badgeTemplates = await _context.BadgeTemplates
-                    .Where(b => b.PathwayTemplateId == dto.TemplateId.Value)
-                    .ToListAsync();
-
-                if (badgeTemplates.Any())
-                {
-                    // Para cada template de badge, criamos uma cópia congelada para este aluno/turma
-                    foreach (var badgeTpl in badgeTemplates)
-                    {
-                        string newTriggerValue = badgeTpl.TriggerValue;
-
-                        // Se for badge de módulo, traduz o ID antigo (Template) para o ID novo
-                        if (badgeTpl.TriggerType == BadgeTriggerType.ModuleCompletion &&
-                            int.TryParse(badgeTpl.TriggerValue, out int oldModuleId))
-                        {
-                            // Verifica se o ID antigo existe no nosso mapa de módulos clonados
-                            if (moduleMap.TryGetValue(oldModuleId, out Module mappedModule))
-                            {
-                                newTriggerValue = mappedModule.Id.ToString();
-                            }
-                        }
-
-                        var newBadge = new Badge
-                        {
-                            PathwayId = pathway.Id,
-                            Name = badgeTpl.Name,
-                            Description = badgeTpl.Description,
-                            Icon = badgeTpl.Icon,
-                            Tier = badgeTpl.Tier,
-                            TriggerType = badgeTpl.TriggerType,
-                            TriggerValue = newTriggerValue // Grava o valor traduzido
-                        };
-
-                        _context.Badges.Add(newBadge);
-                    }
-
-                    // Gravamos as novas badges na base de dados
-                    await _context.SaveChangesAsync();
-                }
-            }
-            // --- FIM DA CÓPIA DAS BADGES ---
-
+            // Criação (e cópia do molde, se escolhido) partilhada com o gerador de dados de teste
+            var pathway = await _pathways.CreatePathwayAsync(dto);
             return Ok(pathway);
         }
 
