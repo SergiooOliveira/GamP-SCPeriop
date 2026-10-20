@@ -104,9 +104,15 @@ using (var scope = app.Services.CreateScope())
     db.Database.Migrate();
 
     // Test data: dotnet run --project GamP-SCPeriop.Server -- --seed (wipes the database first)
-    if (app.Environment.IsDevelopment() && args.Contains("--seed"))
+    // Add --seed-only to stop after seeding instead of starting the site (used by scripts/seed.ps1 and scripts/seed.sh)
+    var seedOnly = args.Contains("--seed-only");
+    if (args.Contains("--seed") || seedOnly)
     {
+        if (!app.Environment.IsDevelopment())
+            throw new InvalidOperationException("Seeding wipes the database and only runs in the Development environment.");
+
         await scope.ServiceProvider.GetRequiredService<DbSeeder>().ResetAndSeedAsync();
+        if (seedOnly) return;
     }
 }
 

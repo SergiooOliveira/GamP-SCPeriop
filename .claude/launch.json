@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "server",
+      "runtimeExecutable": "dotnet",
+      "runtimeArgs": ["run", "--project", "GamP-SCPeriop.Server", "--launch-profile", "https"],
+      "port": 7038,
+      "url": "https://localhost:7038"
+    }
+  ]
+}
