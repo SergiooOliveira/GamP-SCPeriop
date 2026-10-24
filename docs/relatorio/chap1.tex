@@ -1,0 +1,44 @@
+\chapter{Introdução}
+
+A formação em enfermagem perioperatória combina teoria com observação e prática em bloco operatório, ao longo de semanas e sob a orientação de um supervisor. Este documento apresenta a análise e o desenho do \emph{GamP-SCPeriop}, uma aplicação web que organiza esses planos de formação e acrescenta-lhes um sistema de recompensas para motivar os estudantes.
+
+\section{Problema}
+
+Os planos de formação perioperatória são geridos, hoje, em documentos e folhas de cálculo dispersos. Cada supervisor monta o plano de cada estudante à mão, regista as avaliações em papel e calcula o progresso quando precisa dele. Deste processo resultam problemas recorrentes:
+
+\begin{itemize}
+    \item Trabalho repetido: planos semelhantes são reescritos para cada grupo e para cada estudante;
+    \item Falta de visibilidade: o supervisor não tem uma visão do progresso de todos os seus estudantes, e o estudante não sabe onde está no seu plano;
+    \item Avaliação pouco estruturada: os critérios e as fases de aprendizagem variam de supervisor para supervisor;
+    \item Pouca motivação: um plano longo, sem marcos visíveis, torna-se monótono para quem o percorre.
+\end{itemize}
+
+\section{Solução proposta}
+
+O GamP-SCPeriop estrutura cada plano como um \gls{percurso}, dividido em módulos e \glspl{componente}, e associa cada componente a uma das cinco fases de aprendizagem, da teoria à prática supervisionada. Os percursos são criados a partir de \glspl{molde}, o que evita reescrever estruturas comuns. Cada \gls{supervisionado} recebe uma cópia própria do percurso, que o supervisor pode ajustar sem alterar o percurso dos restantes.
+
+O supervisor avalia cada componente numa escala qualitativa de seis estados, e o sistema calcula automaticamente o progresso do estudante. Quando o estudante atinge uma meta, recebe uma \gls{badge} e uma notificação.
+
+
+\section{Objetivos}
+
+Os objetivos deste trabalho são:
+
+\begin{enumerate}
+    \item Analisar o processo de formação e avaliação e modelá-lo em \gls{bpmn};
+    \item Definir os requisitos funcionais e não funcionais da aplicação;
+    \item Caracterizar o utilizador principal e modelar a sua tarefa principal;
+    \item Organizar os conteúdos e os ecrãs da aplicação num site map;
+    \item Documentar o sistema visual da aplicação;
+    \item Descrever a arquitetura, as rotas e os endpoints da \gls{api}.
+\end{enumerate}
+
+\section{Âmbito}
+
+O trabalho cobre a aplicação web, nas suas três áreas de acesso: administração, supervisão e área do supervisionado. A aplicação é uma \gls{spa} em Blazor WebAssembly, servida por uma \gls{api} \gls{rest} em ASP.NET Core sobre SQL Server. Ficam fora do âmbito a integração com sistemas académicos e a criação de contas pelos próprios estudantes.
+
+\porcompletar{unidade curricular, docente e restantes elementos do grupo, se aplicável.}
+
+\section{Estrutura do documento}
+
+O Capítulo~\ref{cap:analise} descreve os processos de negócio em \gls{bpmn}, os perfis de acesso e os requisitos. O Capítulo~\ref{cap:utilizador} caracteriza o utilizador principal e modela a sua tarefa. O Capítulo~\ref{cap:sitemap} apresenta o site map, e o Capítulo~\ref{cap:visual} o sistema visual. O Capítulo~\ref{cap:arquitetura} descreve a arquitetura, as rotas e os endpoints. O Capítulo~\ref{cap:conclusao} conclui.

@@ -1,0 +1,58 @@
+\chapter{Site map}
+\label{cap:sitemap}
+
+A aplicação divide-se numa área pública, com a entrada, e numa área autenticada com uma secção por perfil. Depois do login, cada utilizador é levado para a página inicial do seu perfil e só vê os ecrãs dessa secção, mais os que são comuns a todos (Figura~\ref{fig:sitemap}).
+
+\begin{figure}[H]
+    \centering
+    \resizebox{\linewidth}{!}{\input{figuras/sitemap}}
+    \caption{Site map do GamP-SCPeriop. Cada caixa é um ecrã, com a rota por baixo; as setas cheias são a navegação principal e a tracejada um atalho.}
+    \label{fig:sitemap}
+\end{figure}
+
+\section{Organização dos conteúdos}
+
+Os conteúdos seguem a hierarquia do domínio: um percurso tem módulos, e um módulo tem componentes. O site map reproduz essa hierarquia nas duas áreas que a mostram:
+
+\begin{itemize}
+    \item Na área do supervisor, o painel lista os percursos; cada percurso abre a lista de inscritos, e cada inscrito abre a sua ficha de avaliação.
+    \item Na área do supervisionado, \emph{Os meus percursos} lista os percursos; cada percurso abre os seus módulos, e cada módulo as suas componentes e documentos.
+\end{itemize}
+
+\section{Áreas e diferenças de acesso}
+
+A Tabela~\ref{tab:acessos} indica, para cada área, quem lhe pode aceder e por onde se entra.
+
+\begin{table}[H]
+    \centering
+    \small
+    \begin{tabularx}{\linewidth}{llX}
+        \toprule
+        \textbf{Área} & \textbf{Acesso} & \textbf{Entrada e ecrãs principais} \\
+        \midrule
+        Pública & Qualquer visitante & Entrada e login (\texttt{/}); página não encontrada. \\
+        \midrule
+        Administrador & Perfil Administrador & Painel de administração; gestão de utilizadores; moldes de percurso e respetivo construtor. \\
+        \midrule
+        Supervisor & Perfil Supervisor & Painel com os percursos; gestão de cada percurso e dos inscritos; ficha de avaliação; construtor de percursos; moldes. \\
+        \midrule
+        Supervisionado & Perfil Supervisionado & Os meus percursos; detalhe do percurso e do módulo; conquistas; relatório de avaliação em PDF. \\
+        \midrule
+        Comum & Os três perfis & Notificações e alternância de tema no cabeçalho; definições (alterar a palavra-passe); terminar sessão. \\
+        \bottomrule
+    \end{tabularx}
+    \caption{Áreas da aplicação e respetivo acesso.}
+    \label{tab:acessos}
+\end{table}
+
+\section{Ligações entre ecrãs}
+
+Além da navegação hierárquica, há três tipos de ligação que atravessam o site map:
+
+\begin{itemize}
+    \item \textbf{Construtor de percursos.} É o mesmo ecrã em três modos. O administrador usa-o em modo \emph{Molde}; o supervisor usa-o em modo \emph{Geral}, a partir do painel ou da gestão do percurso, e em modo \emph{Individual}, a partir de um inscrito.
+    \item \textbf{Notificações.} Cada notificação leva diretamente ao ecrã a que diz respeito: uma nova avaliação abre o detalhe do percurso, e uma nova badge abre as conquistas.
+    \item \textbf{Moldes.} O ecrã de moldes é partilhado pelo administrador, que gere os moldes-base, e pelo supervisor, que os consulta para criar percursos.
+\end{itemize}
+
+Os ecrãs abaixo da página inicial de cada perfil têm um botão para voltar ao ecrã de cima, e o cabeçalho é igual em todos os ecrãs autenticados.

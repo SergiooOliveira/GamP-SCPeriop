@@ -1,0 +1,48 @@
+% Task model (HTA): avaliar um supervisionado após uma sessão prática.
+\begin{tikzpicture}[sub/.style={tarefahta, fill=white, text width=2.2cm, minimum height=0.9cm}]
+  % Tarefa principal
+  \node[tarefaraiz] (r) at (5.85,2.3) {\textbf{0.} Avaliar um supervisionado após uma sessão prática};
+
+  % Subtarefas
+  \node[tarefahta] (n1) at (0,0)    {\textbf{1.} Entrar na aplicação};
+  \node[tarefahta] (n2) at (3.9,0)  {\textbf{2.} Abrir a ficha do supervisionado};
+  \node[tarefahta] (n3) at (7.8,0)  {\textbf{3.} Classificar as componentes};
+  \node[tarefahta] (n4) at (11.7,0) {\textbf{4.} Guardar e confirmar};
+
+  \draw[gInk, line width=0.6pt] (r.south) -- (5.85,1.15);
+  \draw[gInk, line width=0.6pt] (0,1.15) -- (11.7,1.15);
+  \foreach \nd/\x in {n1/0, n2/3.9, n3/7.8, n4/11.7}
+    \draw[gInk, line width=0.6pt] (\x,1.15) -- (\nd.north);
+
+  % Ações
+  \node[sub] (c11) at (0.6,-1.5)  {\textbf{1.1} Inserir email e palavra-passe};
+  \node[sub] (c12) at (0.6,-2.8)  {\textbf{1.2} Carregar em \emph{Login}};
+
+  \node[sub] (c21) at (4.5,-1.5)  {\textbf{2.1} No painel, abrir o percurso};
+  \node[sub] (c22) at (4.5,-2.8)  {\textbf{2.2} Na lista de inscritos, abrir o aluno};
+
+  \node[sub] (c31) at (8.4,-1.5)  {\textbf{3.1} Abrir um módulo};
+  \node[sub] (c32) at (8.4,-2.8)  {\textbf{3.2} Escolher a fase};
+  \node[sub] (c33) at (8.4,-4.1)  {\textbf{3.3} Escolher o estado de cada componente};
+
+  \node[sub] (c41) at (12.3,-1.5) {\textbf{4.1} Carregar em \emph{Guardar Avaliações}};
+  \node[sub] (c42) at (12.3,-2.8) {\textbf{4.2} Confirmar o progresso na lista de inscritos};
+
+  \begin{scope}[gInk, line width=0.5pt]
+    \draw ($(n1.south)+(-1.0,0)$) |- (c11.west);
+    \draw ($(n1.south)+(-1.0,0)$) |- (c12.west);
+    \draw ($(n2.south)+(-1.0,0)$) |- (c21.west);
+    \draw ($(n2.south)+(-1.0,0)$) |- (c22.west);
+    \draw ($(n3.south)+(-1.0,0)$) |- (c31.west);
+    \draw ($(n3.south)+(-1.0,0)$) |- (c32.west);
+    \draw ($(n3.south)+(-1.0,0)$) |- (c33.west);
+    \draw ($(n4.south)+(-1.0,0)$) |- (c41.west);
+    \draw ($(n4.south)+(-1.0,0)$) |- (c42.west);
+  \end{scope}
+
+  % Planos
+  \node[plano, anchor=north west, text width=14.5cm] at (-1.35,-4.9) {%
+    \textbf{Plano 0:} fazer 1--2--3--4; o passo 1 só é necessário se não houver sessão iniciada.\\
+    \textbf{Plano 3:} para cada módulo, fazer 3.1; depois, para cada fase prática, fazer 3.2--3.3.\\
+    \textbf{Plano 4:} fazer 4.1--4.2; se o progresso não mudou, voltar a 3.};
+\end{tikzpicture}

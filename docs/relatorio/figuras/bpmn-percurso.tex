@@ -1,0 +1,51 @@
+% BPMN: preparar um percurso e inscrever os supervisionados.
+% Pistas: Supervisor (y=4.8), Sistema (y=2.4), Administrador (y=0).
+\begin{tikzpicture}[bpmn]
+  % --- Pool e pistas ---
+  \draw[pista] (-2.2,-1.2) rectangle (22.7,6.4);
+  \draw[pista] (-1.4,-1.2) -- (-1.4,6.4);
+  \draw[pista] (-0.6,-1.2) -- (-0.6,6.4);
+  \draw[pista] (-1.4,1.2) -- (22.7,1.2);
+  \draw[pista] (-1.4,3.6) -- (22.7,3.6);
+  \node[nomepista] at (-1.8,2.4) {GamP-SCPeriop};
+  \node[nomepista] at (-1.0,5.0) {Supervisor};
+  \node[nomepista] at (-1.0,2.4) {Sistema};
+  \node[nomepista] at (-1.0,0) {Administrador};
+
+  % --- Supervisor ---
+  \node[inicio] (s) at (0.4,4.8) {};
+  \node[evento, above=1mm of s, text width=1.2cm] {Novo grupo de supervisionados};
+  \node[gateway] (g1) at (2.1,4.8) {\gwx};
+  \node[evento, above=1mm of g1, text width=1.6cm] {Existe molde adequado?};
+  \node[tarefa] (t1) at (4.4,4.8) {Criar percurso a partir do molde};
+  \node[tarefa] (t3) at (9.2,4.8) {Ajustar percurso e datas das fases};
+  \node[tarefa] (t4) at (11.8,4.8) {Inscrever supervisionados};
+  \node[gateway] (g2) at (16.4,4.8) {\gwx};
+  \node[evento, above left=0mm and 0mm of g2.west, text width=1.6cm, anchor=south east] {Precisa de ajustes individuais?};
+  \node[tarefa] (t6) at (18.9,4.8) {Ajustar o plano do aluno (modo Individual)};
+  \node[gateway] (g3) at (20.7,4.8) {\gwx};
+  \node[fim] (e) at (21.9,4.8) {};
+  \node[evento, above=1mm of e, text width=1.4cm] {Supervisio\-nados inscritos};
+
+  % --- Sistema ---
+  \node[tarefasis] (t2) at (6.6,2.4) {Copiar módulos, componentes e badges};
+  \node[tarefasis] (t5) at (14.4,2.4) {Criar uma cópia do percurso por aluno};
+
+  % --- Administrador ---
+  \node[tarefa] (t0) at (2.1,0) {Criar molde com módulos, componentes e badges};
+
+  % --- Fluxos ---
+  \draw[fluxo] (s) -- (g1);
+  \draw[fluxo] (g1) -- node[rotulo, above] {sim} (t1);
+  \draw[fluxo] (g1) -- node[rotulo, right] {não} (t0);
+  \draw[fluxo] (t0.east) -| (t1.south);
+  \draw[fluxo] (t1.east) -| (t2.north);
+  \draw[fluxo] (t2.east) -| (t3.south);
+  \draw[fluxo] (t3) -- (t4);
+  \draw[fluxo] (t4.east) -| (t5.north);
+  \draw[fluxo] (t5.east) -| (g2.south);
+  \draw[fluxo] (g2) -- node[rotulo, above] {sim} (t6);
+  \draw[fluxo] (g2.north) -- ++(0,0.5) -| node[rotulo, above, pos=0.25] {não} (g3.north);
+  \draw[fluxo] (t6) -- (g3);
+  \draw[fluxo] (g3) -- (e);
+\end{tikzpicture}

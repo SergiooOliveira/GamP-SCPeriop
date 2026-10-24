@@ -1,0 +1,132 @@
+\chapter{Sistema visual}
+\label{cap:visual}
+
+O sistema visual parte de um azul-acinzentado calmo, adequado a um contexto clínico, e reserva as cores fortes para comunicar o estado da avaliação. Todos os valores deste capítulo foram retirados da folha de estilos da aplicação (\texttt{wwwroot/css/app.css}).
+
+\section{Logótipo e identidade visual}
+
+A aplicação ainda não tem logótipo. O cabeçalho mostra o nome da instituição (\emph{Universidade do Minho}) em texto, e os ícones da aplicação instalável são os ícones por omissão do Blazor.
+
+\porcompletar{logótipo ou símbolo do GamP-SCPeriop, versões para fundo claro e escuro, área de proteção e tamanho mínimo.}
+
+\section{Paleta cromática}
+
+A paleta está definida como variáveis CSS, com um valor para o tema claro e outro para o tema escuro (Tabela~\ref{tab:paleta}). A mudança de tema troca os valores das variáveis, sem alterar os ecrãs.
+
+\begin{table}[H]
+    \centering
+    \small
+    \begin{tabularx}{\linewidth}{lcllX}
+        \toprule
+        \textbf{Variável} & \textbf{Claro} & \textbf{Hex claro} & \textbf{Hex escuro} & \textbf{Função} \\
+        \midrule
+        \texttt{-{}-brand} & \amostra{gBrand} & \#6A96A6 & \#8FB6C4 & Cor da marca: ícones do cabeçalho, barras de progresso \emph{em curso}, ligações no tema escuro. \\
+        \texttt{-{}-brand-dark} & \amostra{gBrandDark} & \#4D7686 & \#6A96A6 & Texto do estado \emph{em curso} e percentagens de progresso. \\
+        \texttt{-{}-ink} & \amostra{gInk} & \#26343C & \#E7E8E9 & Texto principal e títulos. \\
+        \texttt{-{}-ink-soft} & \amostra{gInkSoft} & \#64767D & \#9DA0A3 & Texto secundário, legendas e metadados. \\
+        \texttt{-{}-paper} & \amostra{gPaper} & \#E9EAEB & \#1B1C1E & Fundo da página. \\
+        \texttt{-{}-card-bg} & \amostra{gCard} & \#F6F6F7 & \#28292B & Fundo dos cartões. \\
+        \texttt{-{}-line} & \amostra{gLine} & \#DADCDD & \#3A3B3D & Contornos, divisórias e trilho das barras de progresso. \\
+        \midrule
+        \texttt{-{}-approved} & \amostra{gApproved} & \#3F7D5C & \#6FB98D & Estado positivo: concluído, aprovado, consistente. \\
+        \texttt{-{}-reproved} & \amostra{gReproved} & \#B24949 & \#D97A7A & Estado negativo: reprovado, inconsistente. \\
+        \texttt{-{}-pendente} & \amostra{gPendente} & \#C08A3E & \#E0B36E & Estado intermédio: em curso, a aguardar. \\
+        \texttt{-{}-por-iniciar} & \amostra{gPorIniciar} & \#7A8B90 & \#7A8B90 & Estado neutro: ainda não iniciado. \\
+        \texttt{-{}-star} & \amostra{gStar} & \#D9A441 & \#D9A441 & Inscrições favoritas (estrela). \\
+        \bottomrule
+    \end{tabularx}
+    \caption{Paleta cromática da aplicação, com a função de cada cor.}
+    \label{tab:paleta}
+\end{table}
+
+Cada cor de estado tem uma variante de fundo (\texttt{-{}-approved-bg}, \texttt{-{}-reproved-bg}, \texttt{-{}-pendente-bg} e \texttt{-{}-por-iniciar-bg}), usada nas etiquetas de estado: o texto leva a cor do estado e o fundo a sua variante clara.
+
+Há três desvios à paleta na implementação atual: os botões principais usam o azul \#1B6EC2 do modelo-base do Blazor, que não pertence à paleta; os ecrãs ainda têm 74 códigos de cor escritos diretamente, que não mudam com o tema; e \texttt{-{}-em-curso-bg} só está definida no tema escuro. Propõe-se usar \texttt{-{}-brand-dark} nos botões principais e substituir os códigos diretos pelas variáveis.
+
+\subsection{Função das cores principais}
+
+\begin{itemize}
+    \item \textbf{Marca} (\texttt{-{}-brand}, \texttt{-{}-brand-dark}): identifica o que pertence à aplicação ou está em curso, como os ícones do cabeçalho, as ligações e as barras de progresso.
+    \item \textbf{Neutros} (\texttt{-{}-ink}, \texttt{-{}-paper}, \texttt{-{}-card-bg}, \texttt{-{}-line}): estruturam a página. O fundo é ligeiramente mais escuro que os cartões, para que estes se destaquem sem precisarem de contornos fortes.
+    \item \textbf{Estados} (verde, vermelho, âmbar, cinzento): comunicam o resultado de uma avaliação ou o estado de um percurso. São as únicas cores saturadas da interface, para que um problema se veja de relance.
+\end{itemize}
+
+\subsection{Contraste}
+
+A Tabela~\ref{tab:contraste} mostra o contraste das combinações mais usadas, calculado segundo as \gls{wcag} 2.2~\citep{w3c-wcag22}. O requisito RNF05 exige pelo menos 4,5:1 para texto.
+
+\begin{table}[H]
+    \centering
+    \small
+    \begin{tabularx}{\linewidth}{Xrrl}
+        \toprule
+        \textbf{Texto sobre fundo} & \textbf{Claro} & \textbf{Escuro} & \textbf{Cumpre 4,5:1} \\
+        \midrule
+        \texttt{-{}-ink} sobre \texttt{-{}-card-bg} & 11,86 & 11,87 & Sim \\
+        \texttt{-{}-ink-soft} sobre \texttt{-{}-card-bg} & 4,39 & 5,54 & Só no escuro \\
+        \texttt{-{}-brand-dark} sobre \texttt{-{}-card-bg} & 4,57 & 4,52 & Sim \\
+        Branco sobre o botão principal (\#1B6EC2) & 5,18 & 5,18 & Sim \\
+        \texttt{-{}-approved} sobre \texttt{-{}-approved-bg} & 4,16 & 5,23 & Só no escuro \\
+        \texttt{-{}-reproved} sobre \texttt{-{}-reproved-bg} & 4,43 & 4,86 & Só no escuro \\
+        \texttt{-{}-pendente} sobre \texttt{-{}-pendente-bg} & 2,53 & 6,83 & Só no escuro \\
+        \texttt{-{}-por-iniciar} sobre \texttt{-{}-por-iniciar-bg} & 3,03 & 3,03 & Não \\
+        \bottomrule
+    \end{tabularx}
+    \caption{Contraste das principais combinações de cor.}
+    \label{tab:contraste}
+\end{table}
+
+No tema claro, as etiquetas de estado e o texto secundário ficam abaixo de 4,5:1. A correção mais simples é escurecer a cor do texto de cada estado (por exemplo, \texttt{-{}-pendente} para um âmbar mais escuro) mantendo os fundos. No tema escuro, \texttt{-{}-por-iniciar-bg} mantém o valor claro, que deve ser substituído por um cinzento escuro.
+
+\section{Tipografia}
+
+A aplicação usa uma única família, a \emph{Plus Jakarta Sans}~\citep{plus-jakarta-sans}, carregada do Google Fonts nos pesos 400, 500, 600 e 700. É uma letra sem serifa, geométrica e muito legível em tamanhos pequenos, o que importa em ecrãs densos como a ficha de avaliação.
+
+\begin{table}[H]
+    \centering
+    \small
+    \begin{tabularx}{\linewidth}{llX}
+        \toprule
+        \textbf{Uso} & \textbf{Peso} & \textbf{Onde} \\
+        \midrule
+        Títulos de página e de secção & 700 (bold) & Nome do percurso, títulos dos ecrãs. \\
+        Nomes e rótulos & 600 (semibold) & Nomes de módulos e componentes, botões, etiquetas de estado (0,72~rem). \\
+        Texto corrente & 400 (regular) & Descrições, listas e formulários. \\
+        Texto secundário & 400, cor \texttt{-{}-ink-soft} & Datas, legendas e metadados. \\
+        \bottomrule
+    \end{tabularx}
+    \caption{Utilização da tipografia.}
+    \label{tab:tipografia}
+\end{table}
+
+Os ícones são da biblioteca \emph{Bootstrap Icons} 1.11.3, em traço simples, coerentes com o peso da letra. As badges usam o mesmo conjunto de ícones (por omissão, \texttt{bi-trophy}).
+
+\section{Grelha, margens e espaçamento}
+
+A disposição assenta na grelha de 12 colunas do Bootstrap 5.3~\citep{bootstrap-grid}, dentro de um contentor centrado cuja largura e margens variam com o ecrã (Tabela~\ref{tab:grelha}).
+
+\begin{table}[H]
+    \centering
+    \small
+    \begin{tabularx}{\linewidth}{lllX}
+        \toprule
+        \textbf{Ecrã} & \textbf{Largura máxima} & \textbf{Margem interior} & \textbf{Notas} \\
+        \midrule
+        Telemóvel (< 576 px) & 100\% & 16 px (1 rem) & Letra base reduzida para 14 px (0,875 rem). \\
+        Tablet e portátil (576--1199 px) & 960 px & 24 px (1,5 rem) & \\
+        Computador ($\geq$ 1200 px) & 1400 px & 32 px (2 rem) & \\
+        \bottomrule
+    \end{tabularx}
+    \caption{Contentor principal por tamanho de ecrã.}
+    \label{tab:grelha}
+\end{table}
+
+Os princípios de espaçamento são:
+
+\begin{itemize}
+    \item \textbf{Escala de 4 px.} Os espaçamentos usam a escala do Bootstrap: 4, 8, 16, 24 e 48~px.
+    \item \textbf{Cartões como unidade.} Cada percurso, aluno ou módulo é um cartão com cantos de 16~px, sombra leve e sem contorno. Ao passar o rato, o cartão sobe 5~px para indicar que é clicável.
+    \item \textbf{Formas arredondadas.} Etiquetas de estado em forma de pílula (raio 20~px) e barras de progresso com 8~px de altura e cantos arredondados.
+\end{itemize}
+
+Os raios dos cantos variam hoje entre 8, 10, 12, 15, 16 e 20~px de ecrã para ecrã. Propõe-se reduzi-los a três valores: 8~px para botões e campos, 16~px para cartões, e forma de pílula para etiquetas.

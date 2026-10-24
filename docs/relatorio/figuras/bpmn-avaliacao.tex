@@ -1,0 +1,57 @@
+% BPMN: avaliar um supervisionado e atribuir badges.
+% Pistas: Supervisor (y=5.2), Sistema (y=2.6), Supervisionado (y=0).
+\begin{tikzpicture}[bpmn]
+  % --- Pool e pistas ---
+  \draw[pista] (-2.2,-1.2) rectangle (25.0,6.8);
+  \draw[pista] (-1.4,-1.2) -- (-1.4,6.8);
+  \draw[pista] (-0.6,-1.2) -- (-0.6,6.8);
+  \draw[pista] (-1.4,1.2) -- (25.0,1.2);
+  \draw[pista] (-1.4,4.0) -- (25.0,4.0);
+  \node[nomepista] at (-1.8,2.6) {GamP-SCPeriop};
+  \node[nomepista] at (-1.0,5.4) {Supervisor};
+  \node[nomepista] at (-1.0,2.6) {Sistema};
+  \node[nomepista] at (-1.0,0) {Supervisionado};
+
+  % --- Supervisor ---
+  \node[inicio] (s) at (0.4,5.2) {};
+  \node[evento, above=1mm of s, text width=1.5cm] {Sessão prática concluída};
+  \node[tarefa] (a1) at (2.4,5.2) {Abrir a ficha de avaliação do aluno};
+  \node[tarefa] (a2) at (4.9,5.2) {Classificar componentes por módulo e fase};
+  \node[tarefa] (a3) at (7.4,5.2) {Guardar a avaliação};
+
+  % --- Sistema ---
+  \node[tarefasis] (b1) at (7.4,2.6) {Registar as avaliações};
+  \node[tarefasis] (b2) at (9.9,2.6) {Recalcular o progresso do percurso e dos módulos};
+  \node[gateway] (g1) at (11.9,2.6) {\gwx};
+  \node[evento, below=1mm of g1] {Módulo a 65\% e com badge?};
+  \node[tarefasis] (b3) at (14.3,2.6) {Atribuir badge de módulo e notificar};
+  \node[gateway] (g2) at (16.1,2.6) {\gwx};
+  \node[gateway] (g3) at (17.5,2.6) {\gwx};
+  \node[evento, below=1mm of g3] {Percurso a 100\%?};
+  \node[tarefasis] (b4) at (19.9,2.6) {Atribuir badge de percurso e notificar};
+  \node[gateway] (g4) at (21.7,2.6) {\gwx};
+  \node[tarefasis] (b5) at (23.5,2.6) {Notificar a atualização da avaliação};
+
+  % --- Supervisionado ---
+  \node[tarefa] (c1) at (23.5,0) {Consultar progresso e conquistas};
+  \node[fim] (e) at (21.4,0) {};
+  \node[evento, below=1mm of e] {Progresso consultado};
+
+  % --- Fluxos ---
+  \draw[fluxo] (s) -- (a1);
+  \draw[fluxo] (a1) -- (a2);
+  \draw[fluxo] (a2) -- (a3);
+  \draw[fluxo] (a3) -- (b1);
+  \draw[fluxo] (b1) -- (b2);
+  \draw[fluxo] (b2) -- (g1);
+  \draw[fluxo] (g1) -- node[rotulo, above] {sim} (b3);
+  \draw[fluxo] (g1.north) -- ++(0,0.55) -| node[rotulo, above, pos=0.25] {não} (g2.north);
+  \draw[fluxo] (b3) -- (g2);
+  \draw[fluxo] (g2) -- (g3);
+  \draw[fluxo] (g3) -- node[rotulo, above] {sim} (b4);
+  \draw[fluxo] (g3.north) -- ++(0,0.55) -| node[rotulo, above, pos=0.25] {não} (g4.north);
+  \draw[fluxo] (b4) -- (g4);
+  \draw[fluxo] (g4) -- (b5);
+  \draw[fluxo] (b5) -- (c1);
+  \draw[fluxo] (c1) -- (e);
+\end{tikzpicture}

@@ -1,0 +1,51 @@
+% Como um URL é resolvido: primeiro pelo servidor, depois (se for o caso) pelo Router do Blazor.
+\begin{tikzpicture}[
+    passo/.style={draw=gInk, fill=white, rounded corners=3pt, font=\scriptsize, align=center,
+      text width=3.0cm, minimum height=0.9cm, inner sep=2pt, line width=0.6pt},
+    passosis/.style={passo, fill=gBrand!12},
+    decisao/.style={draw=gInk, fill=white, diamond, aspect=2.2, font=\scriptsize, align=center,
+      inner sep=1pt, text width=2.0cm, line width=0.6pt},
+    fim/.style={passo, fill=gApprovedBg, draw=gApproved},
+    erro/.style={passo, fill=gReprovedBg, draw=gReproved},
+    seta/.style={->, >={Stealth[length=2mm]}, draw=gInk, line width=0.6pt},
+    rot/.style={font=\tiny\itshape, text=gInkSoft, inner sep=1.5pt},
+    zona/.style={font=\scriptsize\bfseries, text=gInk, anchor=west},
+  ]
+  \node[passo] (p0) at (0,0) {Pedido do navegador\\{\tiny\ttfamily GET /pathway/7}};
+
+  % ---- Servidor ----
+  \node[zona] (zs) at (1.0,-0.95) {No servidor (\texttt{Program.cs})};
+  \node[decisao] (d1) at (0,-2.1) {Ficheiro estático existe?};
+  \node[fim] (r1) at (4.4,-2.1) {Devolve o ficheiro\\{\tiny\ttfamily .js, .css, .wasm, .dll}};
+  \node[decisao] (d2) at (0,-4.0) {Rota de um controlador?};
+  \node[passosis] (r2) at (4.4,-4.0) {Controlador e ação\\{\tiny\ttfamily api/[controller] + [HttpGet(\ldots)]}};
+  \node[passosis] (r2b) at (8.6,-4.0) {Valida o JWT e o\\atributo \texttt{[Authorize]}};
+  \node[fim] (r2c) at (8.6,-2.1) {Resposta JSON\\{\tiny 200, 400, 401, 404}};
+  \node[passosis] (r3) at (0,-5.8) {\texttt{MapFallbackToFile}\\devolve \texttt{index.html}};
+
+  % ---- Cliente ----
+  \node[zona] (zc) at (1.0,-7.45) {No navegador (\texttt{App.razor})};
+  \node[decisao] (d3) at (0,-8.6) {Alguma página tem esta rota?};
+  \node[erro] (r4) at (4.4,-8.6) {\emph{NotFound}: \\«Página não encontrada»};
+  \node[decisao] (d4) at (0,-10.5) {Tem o perfil exigido?};
+  \node[fim] (r5) at (4.4,-10.5) {Mostra a página\\{\tiny\ttfamily @page /pathway/\{Id:int\}}};
+  \node[erro] (r6) at (0,-12.2) {\emph{NotAuthorized}:\\redireciona para \texttt{/}};
+
+  \draw[seta] (p0) -- (d1);
+  \draw[seta] (d1) -- node[rot, above] {sim} (r1);
+  \draw[seta] (d1) -- node[rot, right] {não} (d2);
+  \draw[seta] (d2) -- node[rot, above] {sim} (r2);
+  \draw[seta] (r2) -- (r2b);
+  \draw[seta] (r2b) -- (r2c);
+  \draw[seta] (d2) -- node[rot, right] {não} (r3);
+  \draw[seta] (r3) -- (d3);
+  \draw[seta] (d3) -- node[rot, above] {não} (r4);
+  \draw[seta] (d3) -- node[rot, right] {sim} (d4);
+  \draw[seta] (d4) -- node[rot, above] {sim} (r5);
+  \draw[seta] (d4) -- node[rot, right] {não} (r6);
+
+  \begin{scope}[on background layer]
+    \node[area=gBrandDark, fit=(zs)(d1)(r1)(r2b)(r3), inner sep=6pt] {};
+    \node[area=gApproved, fit=(zc)(d3)(r4)(r5)(r6), inner sep=6pt] {};
+  \end{scope}
+\end{tikzpicture}
