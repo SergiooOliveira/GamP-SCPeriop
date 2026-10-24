@@ -455,3 +455,4 @@ Thumbs.db
 ## Environment Configs (Optional but Recommended)
 # If you have a local config file with secrets for development
 appsettings.Local.json
+.claude/launch.json
