@@ -1,4 +1,5 @@
 ﻿using GamP_SCPeriop.Server.Data;
+using GamP_SCPeriop.Server.Services;
 using GamP_SCPeriop.Shared.Data;
 using GamP_SCPeriop.Shared.Entity.Model;
 using GamP_SCPeriop.Shared.Enum;
@@ -14,20 +15,29 @@ namespace GamP_SCPeriop.Server.Controllers
     public class ModuleController : ControllerBase
     {
         private readonly AppDbContext _context;
+        private readonly AccessService _access;
 
-        public ModuleController(AppDbContext context)
+        public ModuleController(AppDbContext context, AccessService access)
         {
             _context = context;
+            _access = access;
         }
 
         [HttpPost]
+        [Authorize(Roles = Roles.Staff)]
         public async Task<ActionResult<Module>> CreateModule(ModuleCreateDto dto)
         {
+            // Um módulo pertence ao plano de um aluno (EnrollmentId) ou ao percurso geral (PathwayId)
+            var allowed = dto.EnrollmentId.HasValue
+                ? await _access.CanManageEnrollmentAsync(User, dto.EnrollmentId.Value)
+                : dto.PathwayId.HasValue && await _access.CanManagePathwayAsync(User, dto.PathwayId.Value);
+            if (!allowed) return Forbid();
+
             var module = new Module
             {
                 Title = dto.Title,
                 PathwayId = dto.EnrollmentId.HasValue ? null : dto.PathwayId,
-                Weight = dto.Weight,
+                Weight = (float)Math.Round(dto.Weight, 2), // weights have at most 2 decimals
                 IsFromTemplate = false
             };
 
@@ -52,6 +62,8 @@ namespace GamP_SCPeriop.Server.Controllers
         [HttpGet("{id}")]
         public async Task<ActionResult<Module>> GetModule(int id)
         {
+            if (!await _access.CanViewModuleAsync(User, id)) return Forbid();
+
             var module = await _context.Modules
                 // 1. Grab the components inside the module
                 .Include(m => m.Components)
@@ -69,6 +81,8 @@ namespace GamP_SCPeriop.Server.Controllers
         [HttpGet("{moduleId}/student/{studentId}")]
         public async Task<ActionResult<Module>> GetModuleForStudent(int moduleId, int studentId)
         {
+            if (!await _access.CanViewStudentAsync(User, studentId)) return Forbid();
+
             // 1. Procurar na tabela ponte (EnrollmentModule) para encontrar o clone exato e a inscrição
             var enrollmentModule = await _context.EnrollmentModules
                 .Include(em => em.Enrollment)
@@ -105,8 +119,11 @@ namespace GamP_SCPeriop.Server.Controllers
         }
 
         [HttpPut("{id}")]
+        [Authorize(Roles = Roles.Staff)]
         public async Task<IActionResult> UpdateModule(int id, Module updatedModule)
         {
+            if (!await _access.CanManageModuleAsync(User, id)) return Forbid();
+
             if (id != updatedModule.Id) return BadRequest();
 
             // 1. Vai buscar o módulo e as datas atuais
@@ -118,7 +135,7 @@ namespace GamP_SCPeriop.Server.Controllers
 
             // 2. Atualiza os dados do Módulo
             existingModule.Title = updatedModule.Title;
-            existingModule.Weight = updatedModule.Weight;
+            existingModule.Weight = (float)Math.Round(updatedModule.Weight, 2);
             existingModule.OrderIndex = updatedModule.OrderIndex;
 
             if (updatedModule.StageTimelines != null)
@@ -174,8 +191,11 @@ namespace GamP_SCPeriop.Server.Controllers
         }
 
         [HttpPut("{id}/timeline")]
+        [Authorize(Roles = Roles.Staff)]
         public async Task<IActionResult> UpdateStudentTimeline(int id, [FromBody] Module updatedModule)
         {
+            if (!await _access.CanManageModuleAsync(User, id)) return Forbid();
+
             if (id != updatedModule.Id) return BadRequest();
 
             var existingModule = await _context.Modules
@@ -227,13 +247,21 @@ namespace GamP_SCPeriop.Server.Controllers
         }
 
         [HttpDelete("{id}")]
+        [Authorize(Roles = Roles.Staff)]
         public async Task<IActionResult> DeleteModule(int id)
         {
+            if (!await _access.CanManageModuleAsync(User, id)) return Forbid();
+
             var module = await _context.Modules.FindAsync(id);
             if (module == null) return NotFound();
 
-            // 1. Limpar Componentes do Módulo
+            // 1. Limpar Componentes do Módulo (e as avaliações que já tenham, que antes bloqueavam a eliminação)
             var components = await _context.ModuleComponents.Where(c => c.ModuleId == id).ToListAsync();
+            var componentIds = components.Select(c => c.Id).ToList();
+            var evaluations = await _context.ComponentEvaluations.Where(ce => componentIds.Contains(ce.ModuleComponentId)).ToListAsync();
+            var gradedEnrollmentIds = evaluations.Select(ce => ce.EnrollmentId).Distinct().ToList();
+
+            if (evaluations.Any()) _context.ComponentEvaluations.RemoveRange(evaluations);
             if (components.Any()) _context.ModuleComponents.RemoveRange(components);
 
             // 2. Limpar Datas (Timelines)
@@ -247,6 +275,11 @@ namespace GamP_SCPeriop.Server.Controllers
             // 4. Agora sim, podemos apagar o Módulo com segurança
             _context.Modules.Remove(module);
             await _context.SaveChangesAsync();
+
+            // 5. The deleted grades no longer count towards those students' progress
+            foreach (var enrollmentId in gradedEnrollmentIds)
+                await EvaluationRules.RecalculateEnrollmentProgressAsync(_context, enrollmentId);
+            if (gradedEnrollmentIds.Any()) await _context.SaveChangesAsync();
 
             return Ok();
         }

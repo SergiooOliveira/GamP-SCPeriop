@@ -1,20 +1,32 @@
-﻿@inject NavigationManager NavManager
+@using GamP_SCPeriop.Components
+@using GamP_SCPeriop.Helpers
+@using Microsoft.AspNetCore.Components.WebAssembly.Hosting
+@inject NavigationManager NavManager
+@inject IWebAssemblyHostEnvironment HostEnvironment
 
-<CascadingAuthenticationState>
-    <Router AppAssembly="@typeof(App).Assembly">
-        <Found Context="routeData">
-            <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)">
-                <NotAuthorized>
-                    @{ NavManager.NavigateTo("/"); }
-                </NotAuthorized>
-            </AuthorizeRouteView>
-            <FocusOnNavigate RouteData="@routeData" Selector="h1" />
-        </Found>
-        <NotFound>
-            <PageTitle>Not found</PageTitle>
-            <LayoutView Layout="@typeof(MainLayout)">
-                <p role="alert">Página não encontrada.</p>
-            </LayoutView>
-        </NotFound>
-    </Router>
-</CascadingAuthenticationState>
+@if (HostEnvironment.IsDevelopment() && DevDashboardUrls.IsDashboardHost(NavManager.BaseUri))
+{
+    @* dashboard.dev.localhost: the test dashboard replaces the whole app *@
+    <DevDashboard />
+}
+else
+{
+    <CascadingAuthenticationState>
+        <Router AppAssembly="@typeof(App).Assembly">
+            <Found Context="routeData">
+                <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)">
+                    <NotAuthorized>
+                        @{ NavManager.NavigateTo("/"); }
+                    </NotAuthorized>
+                </AuthorizeRouteView>
+                <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+            </Found>
+            <NotFound>
+                <PageTitle>Not found</PageTitle>
+                <LayoutView Layout="@typeof(MainLayout)">
+                    <p role="alert">Página não encontrada.</p>
+                </LayoutView>
+            </NotFound>
+        </Router>
+    </CascadingAuthenticationState>
+}

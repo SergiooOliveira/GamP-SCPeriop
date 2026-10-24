@@ -1,13 +1,13 @@
 ﻿using GamP_SCPeriop.Server.Data;
+using GamP_SCPeriop.Server.Services;
 using GamP_SCPeriop.Shared.Data;
 using GamP_SCPeriop.Shared.Entity.Model;
+using GamP_SCPeriop.Shared.Enum;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
-using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
-using System.Text;
 
 namespace GamP_SCPeriop.Server.Controllers
 {
@@ -15,16 +15,23 @@ namespace GamP_SCPeriop.Server.Controllers
     [ApiController]
     public class AuthController : ControllerBase
     {
-        private readonly AppDbContext _context;
-        private readonly IConfiguration _configuration;
+        // Hash of a random password nobody knows, checked when the email doesn't exist
+        private static readonly string UnknownUserHash = BCrypt.Net.BCrypt.HashPassword(Guid.NewGuid().ToString());
 
-        public AuthController(AppDbContext context, IConfiguration configuration)
+        private readonly AppDbContext _context;
+        private readonly TokenService _tokenService;
+        private readonly LoginAttemptTracker _loginAttempts;
+
+        public AuthController(AppDbContext context, TokenService tokenService, LoginAttemptTracker loginAttempts)
         {
             _context = context;
-            _configuration = configuration;
+            _tokenService = tokenService;
+            _loginAttempts = loginAttempts;
         }
 
+        // Só os Administradores criam contas (qualquer pessoa podia criar uma conta de Admin)
         [HttpPost("register")]
+        [Authorize(Roles = nameof(UserRole.Admin))]
         public async Task<ActionResult<User>> Register(UserRegisterDto request)
         {
             var emailExists = await _context.Users.AnyAsync(u => u.Email == request.Email);
@@ -49,45 +56,34 @@ namespace GamP_SCPeriop.Server.Controllers
         }
 
         [HttpPost("login")]
+        [EnableRateLimiting("login")]
         public async Task<ActionResult> Login(UserLoginDto request)
         {
+            // Demasiadas passwords erradas para este email: pausa antes de voltar a tentar
+            if (_loginAttempts.IsLockedOut(request.Email))
+            {
+                return StatusCode(StatusCodes.Status429TooManyRequests,
+                    $"Demasiadas tentativas falhadas. Tente novamente dentro de {LoginAttemptTracker.LockoutDuration.TotalMinutes:0} minutos.");
+            }
+
             // Verifica na base de dados se as credenciais estão corretas
             var user = await _context.Users
                 .FirstOrDefaultAsync(u => u.Email == request.Email);
 
-            if (user == null || !BCrypt.Net.BCrypt.Verify(request.Password, user.Password))
+            // BCrypt runs even for unknown emails, so the response time doesn't reveal which emails exist
+            var passwordOk = BCrypt.Net.BCrypt.Verify(request.Password, user?.Password ?? UnknownUserHash);
+            if (user == null || !passwordOk)
             {
-                return BadRequest("User not found or password incorrect");
+                _loginAttempts.RecordFailure(request.Email);
+                return BadRequest("Email ou password incorretos.");
             }
 
-            // 1. Criar a lista de informações do crachá (Claims)
-            var claims = new List<Claim>
-            {
-                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-                new Claim(ClaimTypes.Name, user.FullName),
-                new Claim(ClaimTypes.Email, user.Email),
-                new Claim(ClaimTypes.Role, user.Role.ToString()) // Guarda se é Admin, Supervisor ou Supervisionado
-            };
+            _loginAttempts.Reset(request.Email);
 
-            // 2. Assinar o crachá com a tua chave secreta
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]));
-            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256Signature);
+            // Cria o Token assinado (com validade de 7 dias)
+            var tokenString = _tokenService.CreateToken(user);
 
-            // 3. Montar o Token (com validade de 7 dias)
-            var tokenDescriptor = new SecurityTokenDescriptor
-            {
-                Subject = new ClaimsIdentity(claims),
-                Expires = DateTime.UtcNow.AddDays(7),
-                Issuer = _configuration["Jwt:Issuer"],
-                Audience = _configuration["Jwt:Audience"],
-                SigningCredentials = creds
-            };
-
-            var tokenHandler = new JwtSecurityTokenHandler();
-            var securityToken = tokenHandler.CreateToken(tokenDescriptor);
-            var tokenString = tokenHandler.WriteToken(securityToken);
-
-            // 4. Limpamos a password por segurança e devolvemos o Token + Dados do Utilizador
+            // Limpamos a password por segurança e devolvemos o Token + Dados do Utilizador
             user.Password = string.Empty;
 
             return Ok(new LoginResponseDto
@@ -98,6 +94,7 @@ namespace GamP_SCPeriop.Server.Controllers
         }
 
         [HttpPost("change-password")]
+        [EnableRateLimiting("login")]
         [Authorize]
         public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordDto request)
         {
@@ -122,7 +119,7 @@ namespace GamP_SCPeriop.Server.Controllers
         }
 
         [HttpPost("reset-password")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = nameof(UserRole.Admin))]
         public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto request)
         {
             var user = await _context.Users.FindAsync(request.UserId);

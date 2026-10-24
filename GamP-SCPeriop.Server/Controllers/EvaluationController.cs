@@ -16,17 +16,22 @@ namespace GamP_SCPeriop.Server.Controllers
     {
         private readonly AppDbContext _context;
         private readonly BadgeService _badgeService;
+        private readonly AccessService _access;
 
-        public EvaluationController(AppDbContext context, BadgeService badgeService)
+        public EvaluationController(AppDbContext context, BadgeService badgeService, AccessService access)
         {
             _context = context;
             _badgeService = badgeService;
+            _access = access;
         }
 
         // 1. CARREGAR A PÁGINA: Devolve o aluno, o percurso e as notas
         [HttpGet("enrollment/{id}")]
+        [Authorize(Roles = Roles.Staff)]
         public async Task<ActionResult<List<EnrollmentModule>>> GetEnrollmentForEvaluation(int id)
         {
+            if (!await _access.CanManageEnrollmentAsync(User, id)) return Forbid();
+
             // Vai buscar TODOS os módulos clonados que pertencem a esta inscrição
             var enrollmentModules = await _context.EnrollmentModules
                 .Include(em => em.Enrollment)
@@ -46,7 +51,9 @@ namespace GamP_SCPeriop.Server.Controllers
                 .Where(ce => ce.EnrollmentId == id)
                 .ToListAsync();
 
-            // Injeta as notas nas componentes
+            var today = EvaluationWindow.TodayInPortugal(DateTime.UtcNow);
+
+            // Injeta as notas nas componentes (e se o período de avaliação da fase já terminou)
             foreach (var em in enrollmentModules)
             {
                 if (em.Module?.Components != null)
@@ -54,7 +61,11 @@ namespace GamP_SCPeriop.Server.Controllers
                     foreach (var component in em.Module.Components)
                     {
                         var eval = evaluations.FirstOrDefault(e => e.ModuleComponentId == component.Id);
+                        var timeline = em.Module.StageTimelines?.FirstOrDefault(t => t.Stage == component.Stage);
+
                         component.Status = eval != null ? eval.Status : ComponentStatus.Pending;
+                        component.EvaluatedAt = eval?.EvaluatedAt;
+                        component.IsGradeLocked = EvaluationWindow.HasEnded(timeline?.EndDate, today);
                     }
                 }
             }
@@ -64,11 +75,42 @@ namespace GamP_SCPeriop.Server.Controllers
 
         // 2. GRAVAR AVALIAÇÃO: Quando o professor clica num botão colorido
         [HttpPost]
+        [Authorize(Roles = Roles.Staff)]
         public async Task<IActionResult> SaveEvaluations([FromBody] List<EvaluationRequestDto> requests)
         {
             if (requests == null || !requests.Any()) return BadRequest("Invalid evaluation requests.");
 
             int enrollmentId = requests.First().EnrollmentId;
+
+            // Só o supervisor do percurso (ou um admin) avalia, e só componentes desta inscrição
+            if (requests.Any(r => r.EnrollmentId != enrollmentId)) return BadRequest("Todas as avaliações têm de ser da mesma inscrição.");
+            if (!await _access.CanManageEnrollmentAsync(User, enrollmentId)) return Forbid();
+
+            var componentIds = requests.Select(r => r.ModuleComponentId).Distinct().ToList();
+            var components = await _context.EnrollmentModules
+                .Where(em => em.EnrollmentId == enrollmentId)
+                .SelectMany(em => em.Module!.Components)
+                .Where(c => componentIds.Contains(c.Id))
+                .Select(c => new { c.Id, c.ModuleId, c.Stage })
+                .ToListAsync();
+            if (components.Count != componentIds.Count) return BadRequest("Há componentes que não pertencem a esta inscrição.");
+
+            // Each stage can only be graded (and re-graded) within its evaluation period: start date to end date
+            var moduleIds = components.Select(c => c.ModuleId).Distinct().ToList();
+            var timelines = await _context.ModuleStageTimelines
+                .Where(t => moduleIds.Contains(t.ModuleId))
+                .Select(t => new { t.ModuleId, t.Stage, t.StartDate, t.EndDate })
+                .ToListAsync();
+            var today = EvaluationWindow.TodayInPortugal(DateTime.UtcNow);
+
+            var stageWindows = components
+                .Select(c => timelines.FirstOrDefault(t => t.ModuleId == c.ModuleId && t.Stage == c.Stage))
+                .Where(t => t != null)
+                .ToList();
+            if (stageWindows.Any(t => EvaluationWindow.HasNotStarted(t!.StartDate, today)))
+                return BadRequest("Não é possível avaliar uma fase que ainda não começou.");
+            if (stageWindows.Any(t => EvaluationWindow.HasEnded(t!.EndDate, today)))
+                return BadRequest("O período de avaliação desta fase já terminou: as avaliações são definitivas.");
 
             // 1. Load existing evaluations
             var existingEval = await _context.ComponentEvaluations
@@ -80,6 +122,9 @@ namespace GamP_SCPeriop.Server.Controllers
             {
                 if (existingEval.TryGetValue(req.ModuleComponentId, out var eval))
                 {
+                    // Only a real change updates the date (re-saving the same grade must not restart the week)
+                    if (eval.Status == req.Status) continue;
+
                     eval.Status = req.Status;
                     eval.EvaluatedAt = DateTime.UtcNow;
                 }
@@ -116,70 +161,33 @@ namespace GamP_SCPeriop.Server.Controllers
                     .Where(ce => ce.EnrollmentId == enrollmentId)
                     .ToListAsync();
 
-                // 4. Calculate Global Progress (Pathway) with Strict Filtering
+                // 4. Global progress of the pathway (same rules as everywhere: see EvaluationRules)
                 var allComponents = enrollmentModules
                     .SelectMany(em => em.Module?.Components ?? new List<ModuleComponent>())
                     .ToList();
-
-                var parentsIds = allComponents
-                    .Where(c => c.ParentComponentId.HasValue)
-                    .Select(c => c.ParentComponentId.Value)
-                    .ToHashSet();
-
-                var assessableIds = allComponents
-                    .Where(c => c.Stage == ModuleStage.PraticaSupervisionada || c.Stage == ModuleStage.PraticaAssistida)
-                    .Where(c => !parentsIds.Contains(c.Id))
-                    .Where(c => c.Weight > 0)
-                    .Select(c => c.Id)
-                    .ToList();
-
-                if (assessableIds.Any())
-                {
-                    int completedGlobal = allEvaluations.Count(ce =>
-                        assessableIds.Contains(ce.ModuleComponentId) &&
-                        (ce.Status == ComponentStatus.AcimaDaMedia || ce.Status == ComponentStatus.Consistente));
-
-                    enrollment.ProgressPercentage = (int)((double)completedGlobal / assessableIds.Count * 100);
-                }
+                enrollment.ProgressPercentage = EvaluationRules.CalculateProgress(allComponents, allEvaluations);
 
                 // 5. Discover changed modules
                 var changedComponentsIds = requests.Select(r => r.ModuleComponentId).ToHashSet();
-                var affectedModdules = enrollmentModules
-                    .Select(em => em.Module)
-                    .Where(m => m.Components != null && m.Components.Any(c => changedComponentsIds.Contains(c.Id)))
+                var affectedModules = enrollmentModules
+                    .Select(em => em.Module!)
+                    .Where(m => m.Components.Any(c => changedComponentsIds.Contains(c.Id)))
                     .ToList();
 
-                // 6. Calculate progress and evaluate badges ONLY for affected modules
-                foreach (var currentModule in affectedModdules)
+                // 6. Module progress and badges ONLY for affected modules that have practice items
+                foreach (var currentModule in affectedModules)
                 {
-                    var moduleParentesIds = currentModule.Components
-                        .Where(c => c.ParentComponentId.HasValue)
-                        .Select(c => c.ParentComponentId.Value)
-                        .ToHashSet();
+                    if (!currentModule.Components.Any(c => EvaluationRules.CountsForProgress(c, currentModule.Components))) continue;
 
-                    var moduleAssessableIds = currentModule.Components
-                        .Where(c => c.Stage == ModuleStage.PraticaSupervisionada || c.Stage == ModuleStage.PraticaAssistida)
-                        .Where(c => !moduleParentesIds.Contains(c.Id))
-                        .Where(c => c.Weight > 0)
-                        .Select(c => c.Id)
-                        .ToList();
+                    int modulePercentage = EvaluationRules.CalculateProgress(currentModule.Components, allEvaluations);
+                    int badgeTargetModuleId = currentModule.OriginalModuleId ?? currentModule.Id;
 
-                    if (moduleAssessableIds.Any())
-                    {
-                        int completedModule = allEvaluations.Count(ce =>
-                            moduleAssessableIds.Contains(ce.ModuleComponentId) &&
-                            (ce.Status == ComponentStatus.AcimaDaMedia || ce.Status == ComponentStatus.Consistente));
-
-                        int modulePercentage = (int)((double)completedModule / moduleAssessableIds.Count * 100);
-                        int badgeTargetModuleId = currentModule.OriginalModuleId ?? currentModule.Id;
-
-                        await _badgeService.EvaluateModuleBadgeAsync(
-                            enrollment.StudentId,
-                            enrollment.Pathway.ProfessorId,
-                            badgeTargetModuleId,
-                            enrollment.PathwayId,
-                            modulePercentage);
-                    }
+                    await _badgeService.EvaluateModuleBadgeAsync(
+                        enrollment.StudentId,
+                        enrollment.Pathway!.ProfessorId,
+                        badgeTargetModuleId,
+                        enrollment.PathwayId,
+                        modulePercentage);
                 }
 
                 await _badgeService.EvaluatePathwayBadgeAsync(
@@ -195,7 +203,7 @@ namespace GamP_SCPeriop.Server.Controllers
                     Title = "Atualização de Avaliação 📊",
                     Message = $"O professor atualizou as tuas avaliações no percurso '{enrollment.Pathway.Title}'.",
                     TargetUrl = $"/pathway/{enrollment.PathwayId}",
-                    CreatedAt = DateTime.Now,
+                    CreatedAt = DateTime.UtcNow, // every other date is stored in UTC
                     IsRead = false
                 });
 
@@ -208,6 +216,8 @@ namespace GamP_SCPeriop.Server.Controllers
         [HttpGet("student/{studentId}/pdf")]
         public async Task<IActionResult> DownloadGlobalStudentPdf(int studentId)
         {
+            if (!await _access.CanViewStudentAsync(User, studentId)) return Forbid();
+
             // 1. Vai buscar a estrutura base (Grelha Limpa) e as Inscrições
             var enrollments = await _context.Enrollments
                 .Include(e => e.Student)

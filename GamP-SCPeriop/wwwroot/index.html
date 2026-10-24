@@ -21,6 +21,15 @@
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 
     <script type="importmap"></script>
+
+    <!-- Theme (light/dark) remembered in a cookie: applied here, before the page draws, so a reload doesn't flash.
+         Reading/changing it is done by Layout/TopNavBarLayout.razor.js. -->
+    <script>
+        (function () {
+            var match = document.cookie.match(/(?:^|;\s*)gamp-theme=(dark|light)/);
+            document.documentElement.setAttribute("data-bs-theme", match ? match[1] : "light");
+        })();
+    </script>
 </head>
 
 <body>

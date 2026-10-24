@@ -4,11 +4,14 @@
 @using GamP_SCPeriop.Shared.Enum
 @using System.Security.Claims
 @using GamP_SCPeriop.Client.Auth
+@using Microsoft.AspNetCore.Components.WebAssembly.Hosting
+@using GamP_SCPeriop.Helpers
 @inherits LayoutComponentBase
 @inject AuthenticationStateProvider AuthStateProvider
 @inject NavigationManager Nav
 @inject HttpClient Http
 @inject IJSRuntime JS
+@inject IWebAssemblyHostEnvironment HostEnvironment
 @implements IDisposable
 
 <AuthorizeView>
@@ -113,6 +116,14 @@
                                         </button>
                                         <hr class="dropdown-divider my-1">
 
+                                        @if (HostEnvironment.IsDevelopment())
+                                        {
+                                            <a class="btn btn-white text-dark text-start px-3 py-2 w-100 border-0" href="@DevDashboardUrls.GetDashboardUrl(Nav.BaseUri)" target="_blank" @onclick="CloseDropdown">
+                                                <i class="bi bi-cone-striped me-2 text-warning"></i> Painel de Testes
+                                            </a>
+                                            <hr class="dropdown-divider my-1">
+                                        }
+
                                         <button class="btn btn-white text-danger text-start px-3 py-2 w-100 border-0" @onclick="Logout">
                                             <i class="bi bi-box-arrow-right me-2"></i> Sair
                                         </button>
@@ -147,9 +158,21 @@
     private int unreadCount => notifications?.Count(n => !n.IsRead) ?? 0;
 
     private bool isDarkMode = false;
+    private IJSObjectReference? themeModule;
 
     protected override async Task OnInitializedAsync()
     {
+        // Tema guardado no cookie: aplica-o e mostra o ícone certo (se falhar, fica o tema claro em vez de partir a página)
+        try
+        {
+            themeModule = await JS.InvokeAsync<IJSObjectReference>("import", "./Layout/TopNavBarLayout.razor.js");
+            isDarkMode = await themeModule.InvokeAsync<string>("initTheme") == "dark";
+        }
+        catch (JSException ex)
+        {
+            Console.WriteLine($"Não foi possível carregar o tema: {ex.Message}");
+        }
+
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
         var tokenUser = authState.User;
 
@@ -273,7 +296,8 @@
         isDarkMode = !isDarkMode;
         var theme = isDarkMode ? "dark" : "light";
 
-        // Injeta a mudança diretamente na tag <html> apenas para a sessão atual
-        await JS.InvokeVoidAsync("document.documentElement.setAttribute", "data-bs-theme", theme);
+        // Aplica o tema e guarda-o num cookie (volta a ser aplicado ao recarregar a página)
+        if (themeModule != null)
+            await themeModule.InvokeVoidAsync("setTheme", theme);
     }
 }

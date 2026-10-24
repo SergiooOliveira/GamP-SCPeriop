@@ -280,11 +280,13 @@
                 enrollments = response;
             }
 
-            // 3. NOVO: Vai buscar todos os alunos do supervisor para popular a dropdown
-            var studentsResponse = await Http.GetFromJsonAsync<List<StudentManagementDto>>("api/Enrollment/management");
+            // 3. Todos os alunos da plataforma, para poder inscrever alunos novos neste percurso
+            var studentsResponse = await Http.GetFromJsonAsync<List<User>>("api/User/students");
             if (studentsResponse != null)
             {
-                allMyStudents = studentsResponse;
+                allMyStudents = studentsResponse
+                    .Select(u => new StudentManagementDto { StudentId = u.Id, FullName = u.FullName, Email = u.Email })
+                    .ToList();
             }
         }
         catch (Exception ex)
