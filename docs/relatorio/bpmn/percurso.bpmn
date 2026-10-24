@@ -1,0 +1,202 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="Defs_Proc_Percurso" targetNamespace="http://bpmn.io/schema/bpmn" exporter="GamP-SCPeriop relatorio" exporterVersion="1.0">
+  <bpmn:collaboration id="Collab_Proc_Percurso">
+    <bpmn:participant id="Pool_Proc_Percurso" name="GamP-SCPeriop" processRef="Proc_Percurso" />
+  </bpmn:collaboration>
+  <bpmn:process id="Proc_Percurso" isExecutable="false">
+    <bpmn:laneSet id="LaneSet_Proc_Percurso">
+      <bpmn:lane id="Lane_Proc_Percurso_0" name="Supervisor">
+        <bpmn:flowNodeRef>Inicio_NovoGrupo</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gw_ExisteMolde</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T_CriarPercurso</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T_AjustarPercurso</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T_Inscrever</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gw_AjustesInd</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T_AjustarPlano</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gw_Juntar</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Fim_Inscritos</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_Proc_Percurso_1" name="Sistema">
+        <bpmn:flowNodeRef>S_CopiarMolde</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>S_CopiaPorAluno</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_Proc_Percurso_2" name="Administrador">
+        <bpmn:flowNodeRef>T_CriarMolde</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="Inicio_NovoGrupo" name="Novo grupo de supervisionados">
+      <bpmn:outgoing>F01</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:exclusiveGateway id="Gw_ExisteMolde" name="Existe molde adequado?">
+      <bpmn:incoming>F01</bpmn:incoming>
+      <bpmn:outgoing>F02</bpmn:outgoing>
+      <bpmn:outgoing>F03</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:userTask id="T_CriarPercurso" name="Criar percurso a partir do molde">
+      <bpmn:incoming>F02</bpmn:incoming>
+      <bpmn:incoming>F04</bpmn:incoming>
+      <bpmn:outgoing>F05</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="T_AjustarPercurso" name="Ajustar percurso e datas das fases">
+      <bpmn:incoming>F06</bpmn:incoming>
+      <bpmn:outgoing>F07</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="T_Inscrever" name="Inscrever supervisionados">
+      <bpmn:incoming>F07</bpmn:incoming>
+      <bpmn:outgoing>F08</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="Gw_AjustesInd" name="Precisa de ajustes individuais?">
+      <bpmn:incoming>F09</bpmn:incoming>
+      <bpmn:outgoing>F10</bpmn:outgoing>
+      <bpmn:outgoing>F11</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:userTask id="T_AjustarPlano" name="Ajustar o plano do aluno (modo Individual)">
+      <bpmn:incoming>F10</bpmn:incoming>
+      <bpmn:outgoing>F12</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="Gw_Juntar">
+      <bpmn:incoming>F11</bpmn:incoming>
+      <bpmn:incoming>F12</bpmn:incoming>
+      <bpmn:outgoing>F13</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:endEvent id="Fim_Inscritos" name="Supervisionados inscritos">
+      <bpmn:incoming>F13</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:serviceTask id="S_CopiarMolde" name="Copiar módulos, componentes e badges">
+      <bpmn:incoming>F05</bpmn:incoming>
+      <bpmn:outgoing>F06</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="S_CopiaPorAluno" name="Criar uma cópia do percurso por aluno">
+      <bpmn:incoming>F08</bpmn:incoming>
+      <bpmn:outgoing>F09</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:userTask id="T_CriarMolde" name="Criar molde com módulos, componentes e badges">
+      <bpmn:incoming>F03</bpmn:incoming>
+      <bpmn:outgoing>F04</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:sequenceFlow id="F01" sourceRef="Inicio_NovoGrupo" targetRef="Gw_ExisteMolde" />
+    <bpmn:sequenceFlow id="F02" name="sim" sourceRef="Gw_ExisteMolde" targetRef="T_CriarPercurso" />
+    <bpmn:sequenceFlow id="F03" name="não" sourceRef="Gw_ExisteMolde" targetRef="T_CriarMolde" />
+    <bpmn:sequenceFlow id="F04" sourceRef="T_CriarMolde" targetRef="T_CriarPercurso" />
+    <bpmn:sequenceFlow id="F05" sourceRef="T_CriarPercurso" targetRef="S_CopiarMolde" />
+    <bpmn:sequenceFlow id="F06" sourceRef="S_CopiarMolde" targetRef="T_AjustarPercurso" />
+    <bpmn:sequenceFlow id="F07" sourceRef="T_AjustarPercurso" targetRef="T_Inscrever" />
+    <bpmn:sequenceFlow id="F08" sourceRef="T_Inscrever" targetRef="S_CopiaPorAluno" />
+    <bpmn:sequenceFlow id="F09" sourceRef="S_CopiaPorAluno" targetRef="Gw_AjustesInd" />
+    <bpmn:sequenceFlow id="F10" name="sim" sourceRef="Gw_AjustesInd" targetRef="T_AjustarPlano" />
+    <bpmn:sequenceFlow id="F11" name="não" sourceRef="Gw_AjustesInd" targetRef="Gw_Juntar" />
+    <bpmn:sequenceFlow id="F12" sourceRef="T_AjustarPlano" targetRef="Gw_Juntar" />
+    <bpmn:sequenceFlow id="F13" sourceRef="Gw_Juntar" targetRef="Fim_Inscritos" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="Diagram_Proc_Percurso">
+    <bpmndi:BPMNPlane id="Plane_Proc_Percurso" bpmnElement="Collab_Proc_Percurso">
+      <bpmndi:BPMNShape id="Pool_Proc_Percurso_di" bpmnElement="Pool_Proc_Percurso" isHorizontal="true">
+        <dc:Bounds x="0" y="0" width="1920" height="450" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_Proc_Percurso_0_di" bpmnElement="Lane_Proc_Percurso_0" isHorizontal="true">
+        <dc:Bounds x="30" y="0" width="1890" height="150" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_Proc_Percurso_1_di" bpmnElement="Lane_Proc_Percurso_1" isHorizontal="true">
+        <dc:Bounds x="30" y="150" width="1890" height="150" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_Proc_Percurso_2_di" bpmnElement="Lane_Proc_Percurso_2" isHorizontal="true">
+        <dc:Bounds x="30" y="300" width="1890" height="150" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Inicio_NovoGrupo_di" bpmnElement="Inicio_NovoGrupo">
+        <dc:Bounds x="114" y="57" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gw_ExisteMolde_di" bpmnElement="Gw_ExisteMolde" isMarkerVisible="true">
+        <dc:Bounds x="243" y="50" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="T_CriarPercurso_di" bpmnElement="T_CriarPercurso">
+        <dc:Bounds x="402" y="35" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="T_AjustarPercurso_di" bpmnElement="T_AjustarPercurso">
+        <dc:Bounds x="786" y="35" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="T_Inscrever_di" bpmnElement="T_Inscrever">
+        <dc:Bounds x="994" y="35" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gw_AjustesInd_di" bpmnElement="Gw_AjustesInd" isMarkerVisible="true">
+        <dc:Bounds x="1387" y="50" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="T_AjustarPlano_di" bpmnElement="T_AjustarPlano">
+        <dc:Bounds x="1562" y="35" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gw_Juntar_di" bpmnElement="Gw_Juntar" isMarkerVisible="true">
+        <dc:Bounds x="1731" y="50" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Fim_Inscritos_di" bpmnElement="Fim_Inscritos">
+        <dc:Bounds x="1834" y="57" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_CopiarMolde_di" bpmnElement="S_CopiarMolde">
+        <dc:Bounds x="578" y="185" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_CopiaPorAluno_di" bpmnElement="S_CopiaPorAluno">
+        <dc:Bounds x="1202" y="185" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="T_CriarMolde_di" bpmnElement="T_CriarMolde">
+        <dc:Bounds x="218" y="335" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="F01_di" bpmnElement="F01">
+        <di:waypoint x="150" y="75" />
+        <di:waypoint x="243" y="75" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F02_di" bpmnElement="F02">
+        <di:waypoint x="293" y="75" />
+        <di:waypoint x="402" y="75" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F03_di" bpmnElement="F03">
+        <di:waypoint x="268" y="100" />
+        <di:waypoint x="268" y="335" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F04_di" bpmnElement="F04">
+        <di:waypoint x="318" y="375" />
+        <di:waypoint x="452" y="375" />
+        <di:waypoint x="452" y="115" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F05_di" bpmnElement="F05">
+        <di:waypoint x="502" y="75" />
+        <di:waypoint x="628" y="75" />
+        <di:waypoint x="628" y="185" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F06_di" bpmnElement="F06">
+        <di:waypoint x="678" y="225" />
+        <di:waypoint x="836" y="225" />
+        <di:waypoint x="836" y="115" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F07_di" bpmnElement="F07">
+        <di:waypoint x="886" y="75" />
+        <di:waypoint x="994" y="75" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F08_di" bpmnElement="F08">
+        <di:waypoint x="1094" y="75" />
+        <di:waypoint x="1252" y="75" />
+        <di:waypoint x="1252" y="185" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F09_di" bpmnElement="F09">
+        <di:waypoint x="1302" y="225" />
+        <di:waypoint x="1412" y="225" />
+        <di:waypoint x="1412" y="100" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F10_di" bpmnElement="F10">
+        <di:waypoint x="1437" y="75" />
+        <di:waypoint x="1562" y="75" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F11_di" bpmnElement="F11">
+        <di:waypoint x="1412" y="50" />
+        <di:waypoint x="1412" y="20" />
+        <di:waypoint x="1756" y="20" />
+        <di:waypoint x="1756" y="50" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F12_di" bpmnElement="F12">
+        <di:waypoint x="1662" y="75" />
+        <di:waypoint x="1731" y="75" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F13_di" bpmnElement="F13">
+        <di:waypoint x="1781" y="75" />
+        <di:waypoint x="1834" y="75" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

@@ -1,0 +1,143 @@
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{graphicx}       % image package
+\usepackage{subcaption}     % package to allow images side by side (used in the first page)
+% \usepackage{setspace}       % line spacing package
+\usepackage{array}          % table package
+\usepackage{indentfirst}    % package to allow to indent first paragraph after a heading
+\usepackage[portuges]{babel}
+\usepackage[left=25mm,top=25mm,bottom=25mm,right=25mm]{geometry}
+\usepackage{ifthen}
+\usepackage{natbib}
+\usepackage{url}
+\usepackage{booktabs}
+\usepackage{listings}
+\usepackage{hyperref}
+
+\lstset{basicstyle=\small,
+        captionpos=b,
+        float=tp,
+        xleftmargin=1.5em,
+        xrightmargin=1.5em,
+        frameround=ttff,
+        frame=single,
+       floatplacement=tbp}
+\def\lstlistlistingname{Listagens de Código}
+\def\lstlistingname{Listagem}
+
+\usepackage{xcolor}
+\hypersetup{
+    colorlinks,
+    linkcolor={blue!20!black},
+    citecolor={blue!20!black},
+    urlcolor={blue!20!black}
+}
+
+
+\bibliographystyle{upca/sp_por}
+\setlength{\parskip}{1ex}
+
+\makeatletter
+\def\curso{~~}
+\def\MEI{\def\curso{Mestrado em Engenharia Informática}}
+\def\LESI{\def\curso{Licenciatura em Engenharia em Sistemas Informáticos}}
+
+\def\nraluno{~~}
+\newcommand{\nrAluno}[1]{\def\nraluno{#1}}
+
+\newcommand{\empresa}[1]{\def\@empresa{#1}}
+\def\enderecoEmpresa#1{\def\@eempresa{#1}}
+\newcommand{\supervisor}[1]{\def\@supervisor{#1}}
+
+\def\regime{~~}
+\def\regimeDiurno{\renewcommand{\regime}{regime diurno}}
+\def\regimePosLaboral{\renewcommand{\regime}{regime pós-laboral}}
+\def\AND{~\\[2mm]}
+\def\orient{~~}
+\newcommand{\orientador}[1]{\def\orient{#1}}
+% ou \regimePosLaboral
+
+
+
+\renewcommand{\maketitle}{%
+    \thispagestyle{empty}
+    \includegraphics[height=2cm]{upca/logos/upca}
+    \hfill
+    \includegraphics[height=2cm]{upca/logos/logo_est}
+    \vfill
+    \vfill
+    \begin{center}
+        {\LARGE \@title}\\[7mm]
+        {\large \@author}
+    \vfill
+    \textsc{\curso}\\[2mm]
+    \textsc{Escola Superior de Tecnologia}\\[2mm]
+    \textsc{Instituto Politécnico do Cávado e do Ave}
+    \end{center}
+    \newpage
+}
+
+\def\backtitle{
+\mbox{}
+\vfill
+\noindent {\large \textbf{Identificação dos alunos}}\\[2mm]
+\noindent \@author \\[2mm]
+\curso\\[5mm]
+\ifthenelse{\isundefined{\@empresa}}{}{
+\noindent{\large \textbf{Informação sobre o Estágio}}\\[2mm]
+\noindent \@empresa \newline
+\@eempresa\newline
+\@supervisor
+}
+}
+
+\newenvironment{resumo}{
+\clearpage\mbox{}
+\vfill
+\begin{center}
+    {\large\textbf{Resumo}}\\[7mm]
+    
+    \begin{minipage}{.8\linewidth}
+    \setlength{\parskip}{2ex}
+}{
+    \end{minipage}
+    \end{center}
+    \vfill\newpage
+}
+
+\newenvironment{abstract}{
+\cleardoublepage\mbox{}
+\vfill
+\begin{center}
+    {\large\textbf{Abstract}}\\[7mm]
+    
+\begin{minipage}{.8\linewidth}
+    \setlength{\parskip}{2ex}
+}{
+    \end{minipage}
+    \end{center}
+    \vfill\newpage
+}
+
+\newenvironment{agradecimentos}{
+\cleardoublepage\mbox{}
+\vfill
+\begin{center}
+    {\large\textbf{Agradecimentos}}\\[7mm]
+    
+\begin{minipage}{.8\linewidth}
+    \setlength{\parskip}{2ex}
+}{
+    \end{minipage}
+    \end{center}
+    \vfill\newpage
+    }
+    
+\usepackage{titlesec}
+
+\titleformat{\chapter}{\bfseries\huge}{\thechapter.}{20pt}{\huge\bfseries}    
+
+\usepackage[acronym]{glossaries}
+    
+\makeatother

@@ -1,0 +1,58 @@
+% Arquitetura do monólito: cliente Blazor WebAssembly, servidor ASP.NET Core e dados.
+\begin{tikzpicture}[
+    comp/.style={draw=gInk, fill=white, rounded corners=3pt, font=\scriptsize, align=center,
+      text width=3.9cm, minimum height=1.0cm, inner sep=3pt, line width=0.6pt},
+    compsis/.style={comp, fill=gBrand!12},
+    titulo/.style={font=\scriptsize\bfseries, text=gInk, anchor=west},
+    seta/.style={->, >={Stealth[length=2mm]}, draw=gInk, line width=0.6pt},
+    nota/.style={font=\tiny\itshape, text=gInkSoft, align=center},
+  ]
+  % ---------- Navegador ----------
+  \node[titulo] (tc) at (-2.1,4.9) {Navegador (Blazor WebAssembly)};
+  \node[comp] (c1) at (0,3.9)   {Páginas, layouts e componentes\\{\tiny\ttfamily Pages/ Layout/ Components/}};
+  \node[comp] (c2) at (0,2.45)  {Router +\\AuthorizeRouteView\\{\tiny\ttfamily App.razor}};
+  \node[comp] (c3) at (0,1.0)   {CustomAuthStateProvider\\{\tiny lê o perfil a partir do JWT}};
+  \node[comp] (c4) at (0,-0.45) {HttpClient \emph{API} +\\AuthTokenHandler\\{\tiny junta o cabeçalho Bearer}};
+  \node[comp, dashed] (c5) at (0,-1.9) {Session storage do navegador\\{\tiny guarda o JWT}};
+
+  % ---------- Servidor ----------
+  \node[titulo] (ts) at (5.4,4.9) {Servidor (ASP.NET Core, .NET 10)};
+  \node[compsis] (s1) at (7.5,3.9)   {Ficheiros estáticos do cliente\\{\tiny\ttfamily index.html, .wasm, .dll}};
+  \node[compsis] (s2) at (7.5,2.45)  {Autenticação JWT + autorização\\{\tiny\ttfamily [Authorize], [Authorize(Roles)]}};
+  \node[compsis] (s3) at (7.5,1.0)   {14 controladores REST\\{\tiny\ttfamily /api/<controlador>/\ldots}};
+  \node[compsis] (s4) at (7.5,-0.45) {Serviços\\{\tiny BadgeService,}\\{\tiny EvaluationPdfGenerator}};
+  \node[compsis] (s5) at (7.5,-1.9)  {AppDbContext (EF Core)\\{\tiny 15 tabelas; migrações no arranque}};
+
+  % ---------- Dados ----------
+  \node[titulo] (td) at (11.75,4.9) {Dados};
+  \node[comp, text width=2.6cm] (d2) at (13.3,1.0) {Pasta \texttt{SecureUploads/}\\{\tiny PDF das componentes}};
+  \node[comp, text width=2.6cm, minimum height=1.3cm, cylinder, shape border rotate=90,
+        aspect=0.18, rounded corners=0pt] (d1) at (13.3,-1.9) {SQL Server\\{\tiny LocalDB em desenvolvimento}};
+
+  % ---------- Biblioteca partilhada ----------
+  \node[comp, text width=9.4cm, fill=gCard] (sh) at (3.75,-3.75)
+      {\textbf{GamP-SCPeriop.Shared}: entidades, DTOs e enumerações usados pelos dois lados};
+
+  % ---------- Ligações ----------
+  \draw[seta, dashed] (s1.west) -- node[nota, above] {1.º carregamento} (c1.east);
+  \draw[seta] (c4.east) -- ++(1.55,0) |- (s2.west);
+  \node[nota, anchor=south] at ($(s2.west)+(-0.9,0)$) {HTTP + JWT};
+  \draw[seta] (s5.east) -- node[nota, above] {SQL} (d1.west);
+  \draw[seta] (s3.east) -- node[nota, above] {ficheiros} (d2.west);
+  \draw[seta] (c1) -- (c2);
+  \draw[seta] (c2) -- (c3);
+  \draw[seta] (c1.west) -- ++(-0.3,0) |- (c4.west);
+  \draw[seta] (c4) -- (c5);
+  \draw[seta] (s2) -- (s3);
+  \draw[seta] (s3) -- (s4);
+  \draw[seta] (s4) -- (s5);
+  \draw[seta, dashed, gInkSoft] (sh.north -| c5.south) -- (c5.south);
+  \draw[seta, dashed, gInkSoft] (sh.north -| s5.south) -- (s5.south);
+
+  % ---------- Fundos ----------
+  \begin{scope}[on background layer]
+    \node[area=gInkSoft, fit=(tc)(c1)(c5), inner sep=6pt] {};
+    \node[area=gBrandDark, fit=(ts)(s1)(s5), inner sep=6pt] {};
+    \node[area=gPorIniciar, fit=(td)(d1)(d2), inner sep=6pt] {};
+  \end{scope}
+\end{tikzpicture}

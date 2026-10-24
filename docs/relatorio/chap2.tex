@@ -1,0 +1,215 @@
+\chapter{Análise do problema}
+\label{cap:analise}
+
+Este capítulo descreve o contexto em que a aplicação é usada, os dois processos de negócio que ela suporta, os perfis de acesso e os requisitos.
+
+\section{Contexto e pressupostos}
+
+A aplicação destina-se a uma instituição de ensino que acompanha estudantes em formação perioperatória. Os pressupostos assumidos no desenho estão na Tabela~\ref{tab:pressupostos}.
+
+\begin{table}[H]
+    \centering
+    \small
+    \begin{tabularx}{\linewidth}{lX}
+        \toprule
+        \textbf{Tema} & \textbf{Pressuposto} \\
+        \midrule
+        Contas & As contas são criadas pelo administrador; não há registo livre de estudantes. \\
+        \midrule
+        Instituição & Uma instalação serve uma instituição; por omissão, a Universidade do Minho. \\
+        \midrule
+        Fases & Cada componente pertence a uma de cinco fases: teórica, observação passiva, observação participada, prática assistida e prática supervisionada. \\
+        \midrule
+        Avaliação & A avaliação é qualitativa, por componente, e só as fases práticas (assistida e supervisionada) contam para o progresso. \\
+        \midrule
+        Planos & Cada estudante tem uma cópia própria do percurso, que pode divergir do percurso do grupo. \\
+        \bottomrule
+    \end{tabularx}
+    \caption{Pressupostos assumidos no desenho.}
+    \label{tab:pressupostos}
+\end{table}
+
+\section{Processos de negócio}
+
+Os processos estão modelados em \gls{bpmn}~\citep{omg-bpmn}. Em cada diagrama, as tarefas a branco são feitas por uma pessoa e as tarefas a azul são feitas automaticamente pelo sistema.
+
+\subsection{Preparar um percurso e inscrever os supervisionados}
+
+Quando um supervisor recebe um novo grupo, cria um percurso a partir de um \gls{molde}. Se não existir um molde adequado, o administrador cria-o primeiro. O sistema copia para o novo percurso os módulos, as componentes e as badges do molde, e o supervisor ajusta o resultado e as datas de cada fase (Figura~\ref{fig:bpmn-percurso}).
+
+\begin{sidewaysfigure}
+    \centering
+    \bpmnfigura{percurso}
+    \caption{Preparar um percurso e inscrever os supervisionados, em BPMN.}
+    \label{fig:bpmn-percurso}
+\end{sidewaysfigure}
+
+Ao inscrever cada supervisionado, o sistema faz uma segunda cópia, desta vez do percurso para a \gls{inscricao}. É esta cópia que o supervisor ajusta quando um estudante precisa de um plano diferente (modo \emph{Individual} do construtor de percursos), sem alterar o percurso do grupo (modo \emph{Geral}) nem o molde.
+
+\subsection{Avaliar um supervisionado e atribuir badges}
+
+Depois de uma sessão prática, o supervisor abre a ficha de avaliação do estudante e classifica as componentes, módulo a módulo e fase a fase. Ao guardar, o sistema recalcula o progresso e verifica se o estudante ganhou alguma \gls{badge} (Figura~\ref{fig:bpmn-avaliacao}).
+
+\begin{sidewaysfigure}
+    \centering
+    \bpmnfigura{avaliacao}
+    \caption{Avaliar um supervisionado e atribuir badges, em BPMN.}
+    \label{fig:bpmn-avaliacao}
+\end{sidewaysfigure}
+
+Cada componente recebe um de seis estados (Tabela~\ref{tab:estados}). O progresso do percurso é a percentagem de componentes avaliáveis em \emph{Acima da média} ou \emph{Consistente}. São avaliáveis as componentes das fases práticas, com peso maior que zero, que não tenham subcomponentes. O mesmo cálculo é feito para cada módulo cuja avaliação mudou.
+
+\begin{table}[H]
+    \centering
+    \small
+    \begin{tabularx}{\linewidth}{llX}
+        \toprule
+        \textbf{Estado} & \textbf{Cor} & \textbf{Conta como concluída} \\
+        \midrule
+        Pendente & Cinzento & Não \\
+        Em progresso & Azul & Não \\
+        Inconsistente & Vermelho & Não \\
+        Abaixo da média & Laranja & Não \\
+        Acima da média & Amarelo & Sim \\
+        Consistente & Verde & Sim \\
+        \bottomrule
+    \end{tabularx}
+    \caption{Estados de avaliação de uma componente.}
+    \label{tab:estados}
+\end{table}
+
+Há duas regras de atribuição de badges em funcionamento: uma badge de módulo quando o módulo atinge 65\%, e uma badge de percurso quando o percurso atinge 100\%. Cada badge é atribuída uma única vez a cada estudante. Em todos os casos, o estudante recebe uma notificação com uma ligação para a página correspondente.
+
+\section{Atores e perfis de acesso}
+
+A aplicação tem três perfis, apresentados na Tabela~\ref{tab:perfis}. Cada utilizador tem um único perfil, e depois de entrar na aplicação é encaminhado para a página inicial desse perfil.
+
+\begin{table}[H]
+    \centering
+    \small
+    \begin{tabularx}{\linewidth}{lX}
+        \toprule
+        \textbf{Perfil} & \textbf{O que pode fazer} \\
+        \midrule
+        Administrador & Gere as contas de supervisores e supervisionados, os moldes de percurso e as badges de cada molde. \\
+        \midrule
+        Supervisor & Cria e ajusta os seus percursos, inscreve supervisionados, ajusta o plano de cada um e avalia as suas componentes. \\
+        \midrule
+        Supervisionado & Consulta os seus percursos, módulos, componentes e documentos, o seu progresso e as suas badges; descarrega o relatório global de avaliação. \\
+        \bottomrule
+    \end{tabularx}
+    \caption{Perfis de acesso.}
+    \label{tab:perfis}
+\end{table}
+
+\section{Requisitos}
+
+Os requisitos estão agrupados por área funcional. Os requisitos não funcionais estão agrupados pelas categorias pedidas: usabilidade, acessibilidade, desempenho, segurança, compatibilidade e adaptação a diferentes dispositivos.
+
+\subsection{Requisitos funcionais}
+
+\begingroup\small
+\begin{longtable}{lp{0.84\linewidth}}
+\toprule
+\textbf{Id} & \textbf{Requisito} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Id} & \textbf{Requisito} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+\bottomrule
+\caption{Requisitos funcionais.}\label{tab:rf}\\
+\endlastfoot
+\multicolumn{2}{l}{\textbf{Autenticação e contas}} \\
+RF01 & Autenticar o utilizador com email e palavra-passe e encaminhá-lo para a página inicial do seu perfil. \\
+RF02 & Permitir a qualquer utilizador alterar a sua palavra-passe. \\
+RF03 & Permitir ao administrador criar contas de supervisores e de supervisionados. \\
+RF04 & Permitir ao administrador repor a palavra-passe de um utilizador. \\
+\midrule
+\multicolumn{2}{l}{\textbf{Moldes}} \\
+RF05 & Gerir moldes de percurso: criar, consultar e apagar. \\
+RF06 & Gerir os módulos de um molde, com peso e ordem. \\
+RF07 & Gerir as componentes de um módulo do molde: título, descrição, fase, peso, ordem, documento \gls{pdf} e subcomponentes. \\
+RF08 & Gerir as badges de um molde: nome, descrição, ícone, cor, nível de raridade e regra de atribuição. \\
+RF09 & Carregar documentos \gls{pdf} e associá-los a componentes. \\
+\midrule
+\multicolumn{2}{l}{\textbf{Percursos e inscrições}} \\
+RF10 & Criar um percurso vazio ou a partir de um molde, copiando os seus módulos, componentes e badges. \\
+RF11 & Editar um percurso: título, datas, módulos, componentes, pesos e ordem. \\
+RF12 & Definir as datas de início e fim de cada fase em cada módulo. \\
+RF13 & Apagar um percurso. \\
+RF14 & Inscrever um supervisionado num percurso, criando uma cópia própria dos módulos; impedir inscrições repetidas. \\
+RF15 & Ajustar o plano de um supervisionado sem alterar o percurso do grupo nem o molde. \\
+RF16 & Marcar inscrições como favoritas e ocultá-las do painel do supervisor. \\
+\midrule
+\multicolumn{2}{l}{\textbf{Avaliação}} \\
+RF17 & Classificar cada componente de um supervisionado com um dos seis estados da Tabela~\ref{tab:estados}. \\
+RF18 & Recalcular o progresso do percurso e de cada módulo afetado sempre que uma avaliação é guardada. \\
+RF19 & Gerar o relatório global de avaliação de um supervisionado em \gls{pdf}. \\
+\midrule
+\multicolumn{2}{l}{\textbf{Gamificação e notificações}} \\
+RF20 & Atribuir uma badge de módulo quando o módulo atinge 65\% de progresso. \\
+RF21 & Atribuir uma badge de percurso quando o percurso atinge 100\% de progresso. \\
+RF22 & Atribuir cada badge uma única vez a cada supervisionado, com a data em que foi obtida. \\
+RF23 & Notificar o supervisionado de cada nova avaliação e de cada nova badge, com uma ligação para a página correspondente. \\
+RF24 & Mostrar o número de notificações por ler e permitir marcá-las como lidas. \\
+\midrule
+\multicolumn{2}{l}{\textbf{Consulta}} \\
+RF25 & Mostrar ao supervisor os seus percursos, o número de supervisionados de cada um e o progresso de cada supervisionado. \\
+RF26 & Mostrar ao supervisionado os seus percursos, módulos, componentes, documentos e progresso. \\
+RF27 & Mostrar ao supervisionado as badges obtidas e as que ainda pode obter. \\
+\end{longtable}
+\endgroup
+
+\subsection{Requisitos não funcionais}
+
+\begingroup\small
+\begin{longtable}{lp{0.84\linewidth}}
+\toprule
+\textbf{Id} & \textbf{Requisito} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Id} & \textbf{Requisito} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+\bottomrule
+\caption{Requisitos não funcionais.}\label{tab:rnf}\\
+\endlastfoot
+\multicolumn{2}{l}{\textbf{Usabilidade}} \\
+RNF01 & \textbf{Avaliação num só ecrã.} O supervisor avalia todas as componentes de um estudante num único ecrã, agrupadas por módulo e por fase. \\
+RNF02 & \textbf{Gravação explícita.} As classificações só são gravadas quando o supervisor confirma; o botão de gravar fica inativo enquanto não houver alterações. \\
+RNF03 & \textbf{Consistência.} Os estados de avaliação usam as mesmas cores e os mesmos nomes em todos os ecrãs. \\
+RNF04 & \textbf{Visibilidade do progresso.} O progresso é mostrado em barra e em percentagem no painel do supervisor e na área do supervisionado. \\
+\midrule
+\multicolumn{2}{l}{\textbf{Acessibilidade}} \\
+RNF05 & \textbf{Contraste.} O texto cumpre o contraste mínimo de 4,5:1 das \gls{wcag} 2.2, nível AA~\citep{w3c-wcag22}, nos temas claro e escuro. \\
+RNF06 & \textbf{Cor não é a única pista.} Cada estado de avaliação é identificado por cor e por texto. \\
+RNF07 & \textbf{Teclado e leitores de ecrã.} Todas as ações podem ser feitas com o teclado, e os botões só com ícone têm um nome acessível. \\
+\midrule
+\multicolumn{2}{l}{\textbf{Desempenho}} \\
+RNF08 & \textbf{Navegação sem recarregar.} Depois do primeiro carregamento, a navegação entre ecrãs não recarrega a página. \\
+RNF09 & \textbf{Um pedido por gravação.} Guardar uma avaliação, recalcular o progresso e atribuir badges é feito num único pedido ao servidor. \\
+\midrule
+\multicolumn{2}{l}{\textbf{Segurança}} \\
+RNF10 & \textbf{Palavras-passe.} As palavras-passe são guardadas apenas como hash BCrypt e nunca são devolvidas pela \gls{api}. \\
+RNF11 & \textbf{Autenticação.} Todos os pedidos à \gls{api}, exceto a autenticação, exigem um \gls{jwt} válido, assinado pelo servidor e com validade limitada. \\
+RNF12 & \textbf{Autorização no servidor.} O servidor verifica o perfil e a posse dos dados em cada pedido: um supervisionado só acede aos seus dados e um supervisor só aos dos seus percursos. \\
+RNF13 & \textbf{Documentos protegidos.} Os documentos carregados só podem ser descarregados por utilizadores autenticados. \\
+RNF14 & \textbf{Dados pessoais.} Só são guardados os dados pessoais necessários (nome, email, instituição), em conformidade com o \gls{rgpd}. \\
+\midrule
+\multicolumn{2}{l}{\textbf{Compatibilidade}} \\
+RNF15 & \textbf{Navegadores.} A aplicação funciona nas versões atuais do Chrome, Edge, Firefox e Safari, que suportam WebAssembly. \\
+RNF16 & \textbf{Interoperabilidade.} A \gls{api} \gls{rest} está descrita em OpenAPI e pode ser explorada em \texttt{/swagger} em desenvolvimento. \\
+\midrule
+\multicolumn{2}{l}{\textbf{Adaptação a diferentes dispositivos}} \\
+RNF17 & \textbf{Layout adaptável.} Os ecrãs adaptam-se a telemóvel (menos de 576~px), tablet e computador (a partir de 1200~px), sem deslocamento horizontal da página. \\
+RNF18 & \textbf{Temas.} A aplicação oferece um tema claro e um tema escuro, escolhidos pelo utilizador. \\
+RNF19 & \textbf{Instalação.} A aplicação pode ser instalada como aplicação web progressiva, com ícone e nome próprios. \\
+\end{longtable}
+\endgroup

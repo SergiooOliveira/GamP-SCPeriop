@@ -1,0 +1,55 @@
+% Estilos TikZ partilhados pelos diagramas do relatório.
+
+\tikzset{
+  % --- BPMN ---
+  bpmn/.style={font=\scriptsize, >={Stealth[length=2mm]}},
+  tarefa/.style={draw=gInk, fill=white, rounded corners=4pt, minimum width=2.3cm,
+    minimum height=1.15cm, text width=2.1cm, align=center, line width=0.6pt},
+  tarefasis/.style={tarefa, fill=gBrand!12},
+  inicio/.style={draw=gInk, fill=white, circle, minimum size=6.5mm, inner sep=0pt, line width=0.6pt},
+  fim/.style={draw=gInk, fill=white, circle, minimum size=6.5mm, inner sep=0pt, line width=2pt},
+  intermedio/.style={draw=gInk, fill=white, circle, minimum size=6.5mm, inner sep=0pt,
+    line width=0.6pt, double, double distance=1pt},
+  gateway/.style={draw=gInk, fill=white, diamond, minimum size=9mm, inner sep=0pt,
+    line width=0.6pt, font=\normalsize},
+  fluxo/.style={->, draw=gInk, line width=0.6pt},
+  rotulo/.style={font=\tiny\itshape, text=gInkSoft, inner sep=1.5pt},
+  evento/.style={font=\tiny, text width=2cm, align=center, text=gInk},
+  pista/.style={draw=gInkSoft, line width=0.5pt},
+  nomepista/.style={font=\scriptsize\bfseries, rotate=90, text=gInk},
+  % --- Site map ---
+  ecra/.style={draw=#1, fill=#1!10, rounded corners=3pt, font=\scriptsize, align=center,
+    minimum height=0.95cm, text width=2.9cm, inner sep=2pt, line width=0.6pt},
+  area/.style={draw=#1, fill=#1!4, rounded corners=6pt, line width=0.6pt, inner sep=8pt},
+  nomearea/.style={font=\scriptsize\bfseries, text=#1, anchor=north west},
+  ligacao/.style={->, >={Stealth[length=1.6mm]}, draw=gInkSoft, line width=0.5pt},
+  atalho/.style={ligacao, dashed},
+  % --- Task model (HTA) ---
+  tarefahta/.style={draw=gInk, fill=gCard, rounded corners=3pt, font=\scriptsize,
+    align=center, text width=2.5cm, minimum height=1cm, inner sep=2pt, line width=0.6pt},
+  tarefaraiz/.style={tarefahta, fill=gBrand!15, draw=gBrandDark, line width=1pt, text width=4.2cm},
+  plano/.style={font=\tiny\itshape, text=gBrandDark, align=left},
+}
+
+% Perfis no site map
+\colorlet{cPublico}{gPorIniciar}
+\colorlet{cAdmin}{gReproved}
+\colorlet{cSupervisor}{gBrandDark}
+\colorlet{cAluno}{gApproved}
+\colorlet{cComum}{gPendente}
+
+% Marcador de gateway exclusivo (X)
+\newcommand{\gwx}{$\times$}
+
+% Diagrama BPMN numa página na horizontal (dentro de sidewaysfigure).
+% Usa a exportação do modelador se existir (bpmn/<nome>.pdf, depois .png);
+% caso contrário, usa o desenho TikZ em figuras/bpmn-<nome>.tex.
+\newcommand{\bpmnfigura}[1]{%
+  \IfFileExists{bpmn/#1.pdf}{%
+    \includegraphics[width=\textheight,height=0.82\textwidth,keepaspectratio]{bpmn/#1.pdf}}{%
+  \IfFileExists{bpmn/#1.png}{%
+    \includegraphics[width=\textheight,height=0.82\textwidth,keepaspectratio]{bpmn/#1.png}}{%
+    \resizebox{\textheight}{!}{\input{figuras/bpmn-#1}}}}}
+
+% Rota de um ecrã, por baixo do nome, no site map
+\newcommand{\rota}[1]{\\[-1pt]{\tiny\ttfamily #1}}

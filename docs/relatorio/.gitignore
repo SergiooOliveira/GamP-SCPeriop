@@ -1,0 +1,20 @@
+# Ficheiros gerados pela compilação LaTeX (latexmk, bibtex, glossaries)
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.toc
+*.lof
+*.lot
+*.acn
+*.acr
+*.alg
+*.glo
+*.gls
+*.glg
+*.glsdefs
+*.ist
+*.synctex.gz

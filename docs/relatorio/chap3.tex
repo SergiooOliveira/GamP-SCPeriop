@@ -1,0 +1,59 @@
+\chapter{Utilizador e task model principal}
+\label{cap:utilizador}
+
+O utilizador principal é o supervisor, porque é ele quem cria os percursos, acompanha os estudantes e alimenta, com as suas avaliações, o progresso e as badges que os estudantes veem. Sem a sua atividade regular, a área do supervisionado fica vazia.
+
+\section{Utilizador principal}
+
+A Tabela~\ref{tab:utilizador} resume o perfil-tipo do supervisor.
+
+\begin{table}[H]
+    \centering
+    \small
+    \begin{tabularx}{\linewidth}{lX}
+        \toprule
+        \textbf{Aspeto} & \textbf{Descrição} \\
+        \midrule
+        Quem é & Enfermeiro ou docente que orienta estudantes em contexto de bloco operatório, normalmente vários em simultâneo e em percursos diferentes. \\
+        \midrule
+        Características & Domina a matéria clínica e os critérios de avaliação; tem competência digital média; tem pouco tempo entre turnos; usa o computador do serviço e, por vezes, um tablet ou telemóvel. \\
+        \midrule
+        Necessidades & Montar planos sem os reescrever de raiz; ver de relance em que ponto está cada estudante; registar avaliações logo após a sessão prática, de forma rápida e sem ambiguidade. \\
+        \midrule
+        Objetivos & Garantir que cada estudante passa por todas as fases de aprendizagem dentro dos prazos; ter um registo das avaliações que possa justificar; manter os estudantes motivados ao longo do percurso. \\
+        \midrule
+        Frustrações atuais & Folhas de cálculo diferentes para cada grupo; progresso calculado à mão; avaliações em papel que se perdem ou ficam por registar. \\
+        \bottomrule
+    \end{tabularx}
+    \caption{Perfil do utilizador principal: o supervisor.}
+    \label{tab:utilizador}
+\end{table}
+
+O supervisionado é um utilizador secundário: consulta o seu plano e o seu progresso, mas não altera dados. O administrador usa a aplicação com pouca frequência, sobretudo no início de cada ano letivo.
+
+\section{Tarefa principal}
+
+A tarefa principal é \textbf{avaliar um supervisionado após uma sessão prática}. É a tarefa mais frequente do supervisor e é ela que faz avançar o progresso do estudante e que desencadeia a atribuição de badges (Figura~\ref{fig:bpmn-avaliacao}).
+
+A Figura~\ref{fig:task-model} decompõe a tarefa numa análise hierárquica de tarefas (\gls{hta})~\citep{annett-hta}. Cada nível divide a tarefa de cima em passos mais concretos, e os planos indicam a ordem em que esses passos são feitos.
+
+\begin{figure}[H]
+    \centering
+    \resizebox{\linewidth}{!}{\input{figuras/task-model}}
+    \caption{Task model da tarefa principal, em HTA.}
+    \label{fig:task-model}
+\end{figure}
+
+A sequência de ações, a partir do ecrã de entrada, é a seguinte:
+
+\begin{enumerate}
+    \item Na página de entrada, o supervisor insere o email e a palavra-passe e carrega em \emph{Login}; a aplicação abre o painel do supervisor (\texttt{/dashboard}).
+    \item No painel, carrega no cartão do percurso; abre-se a gestão do percurso, com a lista de supervisionados inscritos (\texttt{/pathway/\{id\}/students}).
+    \item Na lista, carrega no estudante; abre-se a ficha de avaliação (\texttt{/evaluate/\{id\}}).
+    \item Na ficha, abre um módulo, escolhe a fase prática e, para cada componente, carrega num dos estados: \emph{Inconsistente}, \emph{Abaixo da média}, \emph{Acima da média} ou \emph{Consistente}.
+    \item Repete o passo anterior para cada fase e cada módulo que avaliou na sessão.
+    \item Carrega em \emph{Guardar Avaliações}. O sistema grava as classificações, recalcula o progresso, atribui as badges devidas e notifica o estudante.
+    \item Volta à lista de inscritos e confirma o novo valor de \emph{Progresso no Percurso}.
+\end{enumerate}
+
+Sem contar com a autenticação, a tarefa exige três ecrãs e duas navegações até à ficha de avaliação. O resto do trabalho acontece num único ecrã, como pede o requisito RNF01.

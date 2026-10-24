@@ -1,0 +1,16 @@
+\chapter{Conclusão}
+\label{cap:conclusao}
+
+Este documento modelou os dois processos centrais do GamP-SCPeriop, a preparação de percursos e a avaliação com atribuição de badges, e fixou 27 requisitos funcionais e 19 não funcionais. Identificou o supervisor como utilizador principal, decompôs a sua tarefa principal e organizou os ecrãs num site map com uma área por perfil. Documentou o sistema visual a partir da folha de estilos da aplicação e descreveu a arquitetura: um monólito com um cliente Blazor WebAssembly e uma \gls{api} \gls{rest} de 54 endpoints.
+
+A ideia que organiza a aplicação é a dupla cópia: do molde para o percurso, e do percurso para cada estudante. É ela que permite reutilizar planos e, ao mesmo tempo, adaptar o plano de cada estudante sem afetar os outros.
+
+A comparação com a implementação atual deixa trabalho identificado:
+
+\begin{itemize}
+    \item \textbf{Segurança (RNF10, RNF12, RNF13).} O registo de contas está aberto sem autenticação e aceita o perfil indicado no pedido; a maioria dos endpoints só verifica que o utilizador entrou, e não o seu perfil nem a posse dos dados; a transferência de documentos não exige autenticação.
+    \item \textbf{Arquitetura.} A lógica de cópia e de cálculo do progresso está nos controladores e deve passar para serviços, para poder ser testada isoladamente.
+    \item \textbf{Acessibilidade (RNF05).} As etiquetas de estado e o texto secundário não atingem 4,5:1 de contraste no tema claro.
+    \item \textbf{Avaliação.} Os pesos e as notas mínimas de aprovação são guardados mas ainda não entram no cálculo do progresso, e duas das quatro regras de badges (excelência e rapidez) estão definidas mas não são aplicadas.
+    \item \textbf{Identidade.} Falta um logótipo, e os raios dos cantos devem ser uniformizados.
+\end{itemize}

@@ -1,0 +1,238 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="Defs_Proc_Avaliacao" targetNamespace="http://bpmn.io/schema/bpmn" exporter="GamP-SCPeriop relatorio" exporterVersion="1.0">
+  <bpmn:collaboration id="Collab_Proc_Avaliacao">
+    <bpmn:participant id="Pool_Proc_Avaliacao" name="GamP-SCPeriop" processRef="Proc_Avaliacao" />
+  </bpmn:collaboration>
+  <bpmn:process id="Proc_Avaliacao" isExecutable="false">
+    <bpmn:laneSet id="LaneSet_Proc_Avaliacao">
+      <bpmn:lane id="Lane_Proc_Avaliacao_0" name="Supervisor">
+        <bpmn:flowNodeRef>Inicio_Sessao</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T_AbrirFicha</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T_Classificar</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T_Guardar</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_Proc_Avaliacao_1" name="Sistema">
+        <bpmn:flowNodeRef>S_Registar</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>S_Recalcular</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gw_Modulo65</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>S_BadgeModulo</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gw_Juntar1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gw_Percurso100</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>S_BadgePercurso</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gw_Juntar2</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>S_Notificar</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_Proc_Avaliacao_2" name="Supervisionado">
+        <bpmn:flowNodeRef>T_Consultar</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Fim_Consultado</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="Inicio_Sessao" name="Sessão prática concluída">
+      <bpmn:outgoing>F01</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:userTask id="T_AbrirFicha" name="Abrir a ficha de avaliação do aluno">
+      <bpmn:incoming>F01</bpmn:incoming>
+      <bpmn:outgoing>F02</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="T_Classificar" name="Classificar componentes por módulo e fase">
+      <bpmn:incoming>F02</bpmn:incoming>
+      <bpmn:outgoing>F03</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="T_Guardar" name="Guardar a avaliação">
+      <bpmn:incoming>F03</bpmn:incoming>
+      <bpmn:outgoing>F04</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:serviceTask id="S_Registar" name="Registar as avaliações">
+      <bpmn:incoming>F04</bpmn:incoming>
+      <bpmn:outgoing>F05</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="S_Recalcular" name="Recalcular o progresso do percurso e dos módulos">
+      <bpmn:incoming>F05</bpmn:incoming>
+      <bpmn:outgoing>F06</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:exclusiveGateway id="Gw_Modulo65" name="Módulo a 65% e com badge?">
+      <bpmn:incoming>F06</bpmn:incoming>
+      <bpmn:outgoing>F07</bpmn:outgoing>
+      <bpmn:outgoing>F08</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:serviceTask id="S_BadgeModulo" name="Atribuir badge de módulo e notificar">
+      <bpmn:incoming>F07</bpmn:incoming>
+      <bpmn:outgoing>F09</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:exclusiveGateway id="Gw_Juntar1">
+      <bpmn:incoming>F08</bpmn:incoming>
+      <bpmn:incoming>F09</bpmn:incoming>
+      <bpmn:outgoing>F10</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:exclusiveGateway id="Gw_Percurso100" name="Percurso a 100%?">
+      <bpmn:incoming>F10</bpmn:incoming>
+      <bpmn:outgoing>F11</bpmn:outgoing>
+      <bpmn:outgoing>F12</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:serviceTask id="S_BadgePercurso" name="Atribuir badge de percurso e notificar">
+      <bpmn:incoming>F11</bpmn:incoming>
+      <bpmn:outgoing>F13</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:exclusiveGateway id="Gw_Juntar2">
+      <bpmn:incoming>F12</bpmn:incoming>
+      <bpmn:incoming>F13</bpmn:incoming>
+      <bpmn:outgoing>F14</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:serviceTask id="S_Notificar" name="Notificar a atualização da avaliação">
+      <bpmn:incoming>F14</bpmn:incoming>
+      <bpmn:outgoing>F15</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:userTask id="T_Consultar" name="Consultar progresso e conquistas">
+      <bpmn:incoming>F15</bpmn:incoming>
+      <bpmn:outgoing>F16</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:endEvent id="Fim_Consultado" name="Progresso consultado">
+      <bpmn:incoming>F16</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="F01" sourceRef="Inicio_Sessao" targetRef="T_AbrirFicha" />
+    <bpmn:sequenceFlow id="F02" sourceRef="T_AbrirFicha" targetRef="T_Classificar" />
+    <bpmn:sequenceFlow id="F03" sourceRef="T_Classificar" targetRef="T_Guardar" />
+    <bpmn:sequenceFlow id="F04" sourceRef="T_Guardar" targetRef="S_Registar" />
+    <bpmn:sequenceFlow id="F05" sourceRef="S_Registar" targetRef="S_Recalcular" />
+    <bpmn:sequenceFlow id="F06" sourceRef="S_Recalcular" targetRef="Gw_Modulo65" />
+    <bpmn:sequenceFlow id="F07" name="sim" sourceRef="Gw_Modulo65" targetRef="S_BadgeModulo" />
+    <bpmn:sequenceFlow id="F08" name="não" sourceRef="Gw_Modulo65" targetRef="Gw_Juntar1" />
+    <bpmn:sequenceFlow id="F09" sourceRef="S_BadgeModulo" targetRef="Gw_Juntar1" />
+    <bpmn:sequenceFlow id="F10" sourceRef="Gw_Juntar1" targetRef="Gw_Percurso100" />
+    <bpmn:sequenceFlow id="F11" name="sim" sourceRef="Gw_Percurso100" targetRef="S_BadgePercurso" />
+    <bpmn:sequenceFlow id="F12" name="não" sourceRef="Gw_Percurso100" targetRef="Gw_Juntar2" />
+    <bpmn:sequenceFlow id="F13" sourceRef="S_BadgePercurso" targetRef="Gw_Juntar2" />
+    <bpmn:sequenceFlow id="F14" sourceRef="Gw_Juntar2" targetRef="S_Notificar" />
+    <bpmn:sequenceFlow id="F15" sourceRef="S_Notificar" targetRef="T_Consultar" />
+    <bpmn:sequenceFlow id="F16" sourceRef="T_Consultar" targetRef="Fim_Consultado" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="Diagram_Proc_Avaliacao">
+    <bpmndi:BPMNPlane id="Plane_Proc_Avaliacao" bpmnElement="Collab_Proc_Avaliacao">
+      <bpmndi:BPMNShape id="Pool_Proc_Avaliacao_di" bpmnElement="Pool_Proc_Avaliacao" isHorizontal="true">
+        <dc:Bounds x="0" y="0" width="2060" height="450" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_Proc_Avaliacao_0_di" bpmnElement="Lane_Proc_Avaliacao_0" isHorizontal="true">
+        <dc:Bounds x="30" y="0" width="2030" height="150" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_Proc_Avaliacao_1_di" bpmnElement="Lane_Proc_Avaliacao_1" isHorizontal="true">
+        <dc:Bounds x="30" y="150" width="2030" height="150" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_Proc_Avaliacao_2_di" bpmnElement="Lane_Proc_Avaliacao_2" isHorizontal="true">
+        <dc:Bounds x="30" y="300" width="2030" height="150" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Inicio_Sessao_di" bpmnElement="Inicio_Sessao">
+        <dc:Bounds x="114" y="57" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="T_AbrirFicha_di" bpmnElement="T_AbrirFicha">
+        <dc:Bounds x="242" y="35" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="T_Classificar_di" bpmnElement="T_Classificar">
+        <dc:Bounds x="442" y="35" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="T_Guardar_di" bpmnElement="T_Guardar">
+        <dc:Bounds x="642" y="35" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Registar_di" bpmnElement="S_Registar">
+        <dc:Bounds x="642" y="185" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Recalcular_di" bpmnElement="S_Recalcular">
+        <dc:Bounds x="842" y="185" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gw_Modulo65_di" bpmnElement="Gw_Modulo65" isMarkerVisible="true">
+        <dc:Bounds x="1027" y="200" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_BadgeModulo_di" bpmnElement="S_BadgeModulo">
+        <dc:Bounds x="1194" y="185" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gw_Juntar1_di" bpmnElement="Gw_Juntar1" isMarkerVisible="true">
+        <dc:Bounds x="1363" y="200" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gw_Percurso100_di" bpmnElement="Gw_Percurso100" isMarkerVisible="true">
+        <dc:Bounds x="1475" y="200" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_BadgePercurso_di" bpmnElement="S_BadgePercurso">
+        <dc:Bounds x="1642" y="185" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gw_Juntar2_di" bpmnElement="Gw_Juntar2" isMarkerVisible="true">
+        <dc:Bounds x="1811" y="200" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Notificar_di" bpmnElement="S_Notificar">
+        <dc:Bounds x="1930" y="185" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="T_Consultar_di" bpmnElement="T_Consultar">
+        <dc:Bounds x="1930" y="335" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Fim_Consultado_di" bpmnElement="Fim_Consultado">
+        <dc:Bounds x="1794" y="357" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="F01_di" bpmnElement="F01">
+        <di:waypoint x="150" y="75" />
+        <di:waypoint x="242" y="75" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F02_di" bpmnElement="F02">
+        <di:waypoint x="342" y="75" />
+        <di:waypoint x="442" y="75" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F03_di" bpmnElement="F03">
+        <di:waypoint x="542" y="75" />
+        <di:waypoint x="642" y="75" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F04_di" bpmnElement="F04">
+        <di:waypoint x="692" y="115" />
+        <di:waypoint x="692" y="185" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F05_di" bpmnElement="F05">
+        <di:waypoint x="742" y="225" />
+        <di:waypoint x="842" y="225" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F06_di" bpmnElement="F06">
+        <di:waypoint x="942" y="225" />
+        <di:waypoint x="1027" y="225" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F07_di" bpmnElement="F07">
+        <di:waypoint x="1077" y="225" />
+        <di:waypoint x="1194" y="225" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F08_di" bpmnElement="F08">
+        <di:waypoint x="1052" y="200" />
+        <di:waypoint x="1052" y="165" />
+        <di:waypoint x="1388" y="165" />
+        <di:waypoint x="1388" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F09_di" bpmnElement="F09">
+        <di:waypoint x="1294" y="225" />
+        <di:waypoint x="1363" y="225" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F10_di" bpmnElement="F10">
+        <di:waypoint x="1413" y="225" />
+        <di:waypoint x="1475" y="225" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F11_di" bpmnElement="F11">
+        <di:waypoint x="1525" y="225" />
+        <di:waypoint x="1642" y="225" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F12_di" bpmnElement="F12">
+        <di:waypoint x="1500" y="200" />
+        <di:waypoint x="1500" y="165" />
+        <di:waypoint x="1836" y="165" />
+        <di:waypoint x="1836" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F13_di" bpmnElement="F13">
+        <di:waypoint x="1742" y="225" />
+        <di:waypoint x="1811" y="225" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F14_di" bpmnElement="F14">
+        <di:waypoint x="1861" y="225" />
+        <di:waypoint x="1930" y="225" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F15_di" bpmnElement="F15">
+        <di:waypoint x="1980" y="265" />
+        <di:waypoint x="1980" y="335" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F16_di" bpmnElement="F16">
+        <di:waypoint x="1930" y="375" />
+        <di:waypoint x="1830" y="375" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

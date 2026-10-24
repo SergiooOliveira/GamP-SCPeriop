@@ -1,0 +1,282 @@
+\chapter{Arquitetura}
+\label{cap:arquitetura}
+
+O GamP-SCPeriop é um monólito: um único programa ASP.NET Core serve a aplicação cliente e a \gls{api}, e guarda tudo numa única base de dados. Este capítulo justifica essa escolha, descreve os componentes, explica como são resolvidas as rotas do cliente e da \gls{api}, e apresenta o catálogo completo de endpoints.
+
+\section{Estilo arquitetural}
+\label{sec:estilo}
+
+Escolheu-se um monólito com três projetos, em vez de serviços independentes, pelas seguintes razões:
+
+\begin{itemize}
+    \item \textbf{Escala.} A aplicação serve uma instituição, com dezenas de supervisores e algumas centenas de estudantes. Não há partes do sistema com cargas tão diferentes que justifiquem escalá-las em separado.
+    \item \textbf{Consistência.} As operações principais tocam muitas tabelas de uma só vez: criar um percurso a partir de um molde copia módulos, componentes e badges, e guardar uma avaliação atualiza o progresso e atribui badges. Numa única base de dados, estas operações são transações simples.
+    \item \textbf{Equipa e operação.} Um único programa, desenvolvido por uma equipa pequena, é mais simples de testar, de pôr em produção e de manter.
+    \item \textbf{Código partilhado.} Cliente e servidor usam as mesmas classes de entidades e de DTOs, definidas uma única vez na biblioteca partilhada.
+\end{itemize}
+
+O custo desta escolha é que todas as partes são publicadas em conjunto e que uma falha no servidor afeta toda a aplicação. Para o contexto em causa, esse custo é aceitável.
+
+\section{Componentes}
+
+A solução tem três projetos (Tabela~\ref{tab:projetos}). O servidor aloja o cliente: no primeiro acesso, o navegador descarrega a aplicação Blazor WebAssembly como ficheiros estáticos; a partir daí, a aplicação corre no navegador e só comunica com o servidor através da \gls{api} \gls{rest} (Figura~\ref{fig:arquitetura}).
+
+\begin{table}[H]
+    \centering
+    \small
+    \begin{tabularx}{\linewidth}{lX}
+        \toprule
+        \textbf{Projeto} & \textbf{Responsabilidade} \\
+        \midrule
+        \texttt{GamP-SCPeriop} & Cliente Blazor WebAssembly: páginas, layouts, componentes reutilizáveis, estado de autenticação e chamadas à \gls{api}. \\
+        \midrule
+        \texttt{GamP-SCPeriop.Server} & Servidor ASP.NET Core: aloja o cliente, expõe a \gls{api} \gls{rest}, valida os \gls{jwt}, acede à base de dados com Entity Framework Core e gera os relatórios \gls{pdf} com QuestPDF. \\
+        \midrule
+        \texttt{GamP-SCPeriop.Shared} & Biblioteca partilhada: entidades, DTOs e enumerações usados pelos dois lados. \\
+        \bottomrule
+    \end{tabularx}
+    \caption{Projetos da solução.}
+    \label{tab:projetos}
+\end{table}
+
+\begin{figure}[H]
+    \centering
+    \resizebox{\linewidth}{!}{\input{figuras/arquitetura}}
+    \caption{Arquitetura do GamP-SCPeriop. A azul, os componentes do servidor; a seta tracejada é o descarregamento inicial da aplicação.}
+    \label{fig:arquitetura}
+\end{figure}
+
+\subsection{Pipeline do servidor}
+
+Cada pedido atravessa, por esta ordem, os componentes configurados em \texttt{Program.cs}:
+
+\begin{enumerate}
+    \item \textbf{CORS}, que aceita pedidos de qualquer origem;
+    \item \textbf{Redireção para HTTPS};
+    \item \textbf{Ficheiros estáticos}, incluindo os ficheiros da aplicação Blazor (\texttt{UseBlazor\-Framework\-Files} e \texttt{Use\-Static\-Files});
+    \item \textbf{Encaminhamento}, que escolhe o controlador e a ação;
+    \item \textbf{Autenticação e autorização}, que validam o \gls{jwt} e os atributos \texttt{[Authorize]};
+    \item \textbf{Controladores}, e por fim o \textbf{fallback}, que devolve \texttt{index.html} a qualquer pedido que não corresponda a um ficheiro nem a um controlador.
+\end{enumerate}
+
+No arranque, o servidor aplica as migrações pendentes à base de dados (32 até à data) e, se não existir nenhum utilizador, cria a conta de administrador inicial. Em desenvolvimento, publica também a documentação OpenAPI em \texttt{/swagger}.
+
+\subsection{Serviços e lógica de negócio}
+
+A lógica de negócio está repartida entre os controladores e dois serviços:
+
+\begin{itemize}
+    \item \texttt{BadgeService}: verifica e atribui as badges de módulo e de percurso, e cria as notificações correspondentes;
+    \item \texttt{EvaluationPdfGenerator}: gera o relatório global de avaliação de um estudante.
+\end{itemize}
+
+As cópias de moldes e de percursos e o cálculo do progresso estão escritos diretamente nos controladores (\texttt{PathwayController}, \texttt{EnrollmentController} e \texttt{EvaluationController}). Mover esta lógica para serviços próprios tornaria o código mais fácil de testar, e é a primeira melhoria proposta para a arquitetura.
+
+\section{Rotas}
+\label{sec:rotas}
+
+A aplicação tem dois conjuntos de rotas, resolvidos em lugares diferentes:
+
+\begin{itemize}
+    \item \textbf{Rotas do cliente}, como \texttt{/dashboard} ou \texttt{/pathway/7}. São declaradas em cada página com a diretiva \texttt{@page} e resolvidas no navegador pelo \emph{Router} do Blazor. O Capítulo~\ref{cap:sitemap} lista-as todas.
+    \item \textbf{Rotas da \gls{api}}, todas começadas por \texttt{/api/}. São declaradas com atributos nos controladores e resolvidas no servidor.
+\end{itemize}
+
+A Figura~\ref{fig:rotas} mostra o percurso de um pedido. O servidor tenta, por ordem, servir um ficheiro estático e encontrar um controlador; se nenhum corresponder, devolve \texttt{index.html}, e a aplicação Blazor, já no navegador, escolhe a página.
+
+\begin{figure}[H]
+    \centering
+    \resizebox{0.82\linewidth}{!}{\input{figuras/rotas}}
+    \caption{Resolução de um URL: primeiro no servidor, depois no navegador.}
+    \label{fig:rotas}
+\end{figure}
+
+\subsection{Rotas do cliente}
+
+Cada página declara a sua rota no topo do ficheiro com a diretiva \texttt{@page}, por exemplo \verb|@page "/pathway/{Id:int}"|. As restrições de tipo (\texttt{:int}) fazem com que \texttt{/pathway/abc} não corresponda à página. Uma página pode declarar várias rotas: o construtor de percursos responde a três, uma por modo.
+
+O \emph{Router} está envolvido num \texttt{AuthorizeRouteView}. Se a página tiver um atributo \texttt{[Authorize(Roles = \ldots)]} e o utilizador não tiver esse perfil, a aplicação redireciona-o para a página de entrada. O perfil é lido do \gls{jwt} guardado no navegador, pelo \texttt{CustomAuthStateProvider}.
+
+Como o servidor devolve \texttt{index.html} a qualquer rota desconhecida, é possível abrir diretamente uma rota do cliente, por exemplo a partir de uma notificação ou de um marcador.
+
+\subsection{Rotas da API}
+
+Todos os controladores usam o mesmo modelo de rota,
+
+\begin{center}
+\verb|[Route("api/[controller]")]|,
+\end{center}
+
+\noindent em que \texttt{[controller]} é substituído pelo nome da classe sem o sufixo \texttt{Controller}. Cada ação acrescenta o seu segmento com o atributo do método HTTP. Por exemplo:
+
+\begin{lstlisting}[language={[Sharp]C}, basicstyle=\footnotesize\ttfamily, caption={Rota de uma ação em \texttt{PathwayController}.}, label={lst:rota}]
+[Route("api/[controller]")]        // -> api/pathway
+public class PathwayController : ControllerBase
+{
+    [HttpGet("supervisor/{supervisorId}")]
+    // GET api/pathway/supervisor/5
+    public async Task<...> GetSupervisorPathways(int supervisorId)
+}
+\end{lstlisting}
+
+As regras que se aplicam a toda a \gls{api} são:
+
+\begin{itemize}
+    \item As rotas não distinguem maiúsculas de minúsculas: \texttt{/api/Pathway} e \texttt{/api/pathway} são a mesma.
+    \item Os segmentos entre chavetas (\texttt{\{id\}}) passam para o parâmetro com o mesmo nome; os corpos dos pedidos chegam em JSON (\texttt{[FromBody]} ou DTO).
+    \item As respostas usam os códigos habituais: 200 com JSON, 204 sem conteúdo, 400 para pedidos inválidos, 401 sem \gls{jwt} válido e 404 quando o recurso não existe.
+    \item A serialização ignora referências circulares (\texttt{ReferenceHandler.IgnoreCycles}), porque as entidades se referem umas às outras.
+\end{itemize}
+
+\section{Autenticação e autorização}
+
+A autenticação usa \gls{jwt} assinados pelo próprio servidor:
+
+\begin{enumerate}
+    \item \texttt{POST /api/auth/login} verifica o email e o hash BCrypt da palavra-passe e devolve um token com o identificador, o nome, o email e o perfil do utilizador, válido durante 7 dias.
+    \item O cliente guarda o token na \emph{session storage} do navegador. Por isso, a sessão termina quando o separador é fechado.
+    \item O \texttt{AuthTokenHandler} junta o cabeçalho \texttt{Authorization: Bearer} a todos os pedidos feitos pelo \texttt{HttpClient} da aplicação.
+    \item O servidor valida a assinatura, o emissor, o destinatário e a validade de cada token.
+\end{enumerate}
+
+A Figura~\ref{fig:sequencia} mostra este mecanismo num pedido real: gravar uma avaliação.
+
+\begin{figure}[H]
+    \centering
+    \resizebox{\linewidth}{!}{\input{figuras/sequencia-avaliacao}}
+    \caption{Sequência de pedidos ao gravar uma avaliação.}
+    \label{fig:sequencia}
+\end{figure}
+
+Todos os controladores exigem um utilizador autenticado (\texttt{[Authorize]}), com três exceções: o registo, o login e a transferência de ficheiros. A verificação do perfil, porém, só existe em dois endpoints. Nos restantes, a separação entre perfis é feita apenas pelas páginas do cliente, e os identificadores de utilizador chegam no URL em vez de serem lidos do token. Cumprir o requisito RNF12 exige verificar o perfil e a posse dos dados no servidor, em cada pedido.
+
+\section{Catálogo de endpoints}
+\label{sec:endpoints}
+
+A \gls{api} tem 54 endpoints, distribuídos por 14 controladores (Tabela~\ref{tab:controladores}). A Tabela~\ref{tab:endpoints} lista-os todos. Na coluna \emph{Acesso}, \emph{Autenticado} significa qualquer utilizador com um \gls{jwt} válido.
+
+\begin{table}[H]
+    \centering
+    \small
+    \begin{tabularx}{\linewidth}{lrX}
+        \toprule
+        \textbf{Controlador} & \textbf{Endpoints} & \textbf{Responsabilidade} \\
+        \midrule
+        \texttt{Auth} & 4 & Registo, login e palavras-passe. \\
+        \texttt{User} & 2 & Listagem de utilizadores. \\
+        \texttt{PathwayTemplate} & 4 & Moldes de percurso. \\
+        \texttt{ModuleTemplate} & 4 & Módulos dos moldes. \\
+        \texttt{ComponentTemplate} & 4 & Componentes dos moldes. \\
+        \texttt{BadgeTemplate} & 4 & Badges dos moldes. \\
+        \texttt{Pathway} & 7 & Percursos e cópia a partir de moldes. \\
+        \texttt{Module} & 6 & Módulos e datas das fases. \\
+        \texttt{ModuleComponent} & 4 & Componentes dos módulos. \\
+        \texttt{Enrollment} & 7 & Inscrições e cópia do percurso por aluno. \\
+        \texttt{Evaluation} & 3 & Avaliações, progresso e relatório \gls{pdf}. \\
+        \texttt{Badges} & 1 & Badges obtidas por um supervisionado. \\
+        \texttt{Notification} & 2 & Notificações. \\
+        \texttt{Files} & 2 & Carregamento e transferência de documentos. \\
+        \midrule
+        \textbf{Total} & \textbf{54} & \\
+        \bottomrule
+    \end{tabularx}
+    \caption{Controladores da API.}
+    \label{tab:controladores}
+\end{table}
+
+\newcommand{\ep}[4]{\texttt{#1} & \texttt{#2} & #3 & #4 \\}
+\newcommand{\grupo}[1]{\midrule\multicolumn{4}{l}{\textbf{#1}} \\*}
+
+\begingroup\footnotesize
+\begin{longtable}{l >{\raggedright\arraybackslash}p{0.40\linewidth} >{\raggedright\arraybackslash}p{0.27\linewidth} >{\raggedright\arraybackslash}p{0.12\linewidth}}
+\toprule
+\textbf{Método} & \textbf{Rota} & \textbf{Descrição} & \textbf{Acesso} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Método} & \textbf{Rota} & \textbf{Descrição} & \textbf{Acesso} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+\bottomrule
+\caption{Catálogo de endpoints da API.}\label{tab:endpoints}\\
+\endlastfoot
+\multicolumn{4}{l}{\textbf{AuthController} --- \texttt{/api/auth}} \\*
+\ep{POST}{/\allowbreak{}api/\allowbreak{}auth/\allowbreak{}register}{Criar utilizador}{Público}
+\ep{POST}{/\allowbreak{}api/\allowbreak{}auth/\allowbreak{}login}{Autenticar e obter o \gls{jwt}}{Público}
+\ep{POST}{/\allowbreak{}api/\allowbreak{}auth/\allowbreak{}change-password}{Alterar a própria palavra-passe}{Autenticado}
+\ep{POST}{/\allowbreak{}api/\allowbreak{}auth/\allowbreak{}reset-password}{Repor a palavra-passe de um utilizador}{Admin}
+\grupo{UserController --- \texttt{/api/user}}
+\ep{GET}{/\allowbreak{}api/\allowbreak{}user}{Utilizadores que não são administradores}{Autenticado}
+\ep{GET}{/\allowbreak{}api/\allowbreak{}user/\allowbreak{}students}{Supervisionados}{Autenticado}
+\grupo{PathwayTemplateController --- \texttt{/api/pathwaytemplate}}
+\ep{GET}{/\allowbreak{}api/\allowbreak{}pathwaytemplate}{Listar moldes}{Autenticado}
+\ep{GET}{/\allowbreak{}api/\allowbreak{}pathwaytemplate/\allowbreak{}\{id\}}{Obter um molde}{Autenticado}
+\ep{POST}{/\allowbreak{}api/\allowbreak{}pathwaytemplate}{Criar molde}{Autenticado}
+\ep{DELETE}{/\allowbreak{}api/\allowbreak{}pathwaytemplate/\allowbreak{}\{id\}}{Apagar molde}{Autenticado}
+\grupo{ModuleTemplateController --- \texttt{/api/moduletemplate}}
+\ep{GET}{/\allowbreak{}api/\allowbreak{}moduletemplate/\allowbreak{}\{id\}}{Obter módulo do molde}{Autenticado}
+\ep{POST}{/\allowbreak{}api/\allowbreak{}moduletemplate}{Criar módulo do molde}{Autenticado}
+\ep{PUT}{/\allowbreak{}api/\allowbreak{}moduletemplate/\allowbreak{}\{id\}}{Atualizar módulo do molde}{Autenticado}
+\ep{DELETE}{/\allowbreak{}api/\allowbreak{}moduletemplate/\allowbreak{}\{id\}}{Apagar módulo do molde}{Autenticado}
+\grupo{ComponentTemplateController --- \texttt{/api/componenttemplate}}
+\ep{GET}{/\allowbreak{}api/\allowbreak{}componenttemplate/\allowbreak{}\{id\}}{Obter componente do molde}{Autenticado}
+\ep{POST}{/\allowbreak{}api/\allowbreak{}componenttemplate}{Criar componente do molde}{Autenticado}
+\ep{PUT}{/\allowbreak{}api/\allowbreak{}componenttemplate/\allowbreak{}\{id\}}{Atualizar componente do molde}{Autenticado}
+\ep{DELETE}{/\allowbreak{}api/\allowbreak{}componenttemplate/\allowbreak{}\{id\}}{Apagar componente do molde}{Autenticado}
+\grupo{BadgeTemplateController --- \texttt{/api/badgetemplate}}
+\ep{GET}{/\allowbreak{}api/\allowbreak{}badgetemplate/\allowbreak{}pathway/\allowbreak{}\{pathwayTemplateId\}}{Badges de um molde}{Autenticado}
+\ep{POST}{/\allowbreak{}api/\allowbreak{}badgetemplate}{Criar badge do molde}{Autenticado}
+\ep{PUT}{/\allowbreak{}api/\allowbreak{}badgetemplate/\allowbreak{}\{id\}}{Atualizar badge do molde}{Autenticado}
+\ep{DELETE}{/\allowbreak{}api/\allowbreak{}badgetemplate/\allowbreak{}\{id\}}{Apagar badge do molde}{Autenticado}
+\grupo{PathwayController --- \texttt{/api/pathway}}
+\ep{POST}{/\allowbreak{}api/\allowbreak{}pathway}{Criar percurso (copia o molde, se indicado)}{Autenticado}
+\ep{GET}{/\allowbreak{}api/\allowbreak{}pathway/\allowbreak{}\{id\}}{Obter percurso}{Autenticado}
+\ep{GET}{/\allowbreak{}api/\allowbreak{}pathway/\allowbreak{}supervisor/\allowbreak{}\{supervisorId\}}{Percursos de um supervisor}{Autenticado}
+\ep{GET}{/\allowbreak{}api/\allowbreak{}pathway/\allowbreak{}\{pathwayId\}/enrollments}{Inscrições de um percurso}{Autenticado}
+\ep{GET}{/\allowbreak{}api/\allowbreak{}pathway/\allowbreak{}builder/\allowbreak{}\{id\}}{Cópia de um aluno, para o construtor}{Autenticado}
+\ep{PUT}{/\allowbreak{}api/\allowbreak{}pathway/\allowbreak{}\{id\}/title}{Mudar o título}{Autenticado}
+\ep{DELETE}{/\allowbreak{}api/\allowbreak{}pathway/\allowbreak{}\{id\}}{Apagar percurso}{Autenticado}
+\grupo{ModuleController --- \texttt{/api/module}}
+\ep{POST}{/\allowbreak{}api/\allowbreak{}module}{Criar módulo}{Autenticado}
+\ep{GET}{/\allowbreak{}api/\allowbreak{}module/\allowbreak{}\{id\}}{Obter módulo}{Autenticado}
+\ep{GET}{/\allowbreak{}api/\allowbreak{}module/\allowbreak{}\{moduleId\}/student/\{studentId\}}{Módulo com as avaliações de um aluno}{Autenticado}
+\ep{PUT}{/\allowbreak{}api/\allowbreak{}module/\allowbreak{}\{id\}}{Atualizar módulo}{Autenticado}
+\ep{PUT}{/\allowbreak{}api/\allowbreak{}module/\allowbreak{}\{id\}/timeline}{Atualizar as datas das fases de um aluno}{Autenticado}
+\ep{DELETE}{/\allowbreak{}api/\allowbreak{}module/\allowbreak{}\{id\}}{Apagar módulo}{Autenticado}
+\grupo{ModuleComponentController --- \texttt{/api/modulecomponent}}
+\ep{POST}{/\allowbreak{}api/\allowbreak{}modulecomponent}{Criar componente}{Autenticado}
+\ep{GET}{/\allowbreak{}api/\allowbreak{}modulecomponent/\allowbreak{}\{id\}}{Obter componente}{Autenticado}
+\ep{PUT}{/\allowbreak{}api/\allowbreak{}modulecomponent/\allowbreak{}\{id\}}{Atualizar componente}{Autenticado}
+\ep{DELETE}{/\allowbreak{}api/\allowbreak{}modulecomponent/\allowbreak{}\{id\}}{Apagar componente}{Autenticado}
+\grupo{EnrollmentController --- \texttt{/api/enrollment}}
+\ep{POST}{/\allowbreak{}api/\allowbreak{}enrollment}{Inscrever aluno (copia o percurso)}{Autenticado}
+\ep{GET}{/\allowbreak{}api/\allowbreak{}enrollment/\allowbreak{}supervisor/\allowbreak{}\{supervisorId\}}{Inscrições dos percursos de um supervisor}{Autenticado}
+\ep{GET}{/\allowbreak{}api/\allowbreak{}enrollment/\allowbreak{}student/\allowbreak{}\{studentId\}}{Inscrições de um aluno}{Autenticado}
+\ep{GET}{/\allowbreak{}api/\allowbreak{}enrollment/\allowbreak{}student/\allowbreak{}\{studentId\}/pathway/\{pathwayId\}}{Detalhe de uma inscrição}{Autenticado}
+\ep{GET}{/\allowbreak{}api/\allowbreak{}enrollment/\allowbreak{}management}{Alunos, para a gestão de utilizadores}{Supervisor, Admin}
+\ep{PUT}{/\allowbreak{}api/\allowbreak{}enrollment/\allowbreak{}\{id\}/star}{Marcar ou desmarcar como favorita}{Autenticado}
+\ep{PUT}{/\allowbreak{}api/\allowbreak{}enrollment/\allowbreak{}\{id\}/hidden}{Ocultar ou mostrar no painel}{Autenticado}
+\grupo{EvaluationController --- \texttt{/api/evaluation}}
+\ep{GET}{/\allowbreak{}api/\allowbreak{}evaluation/\allowbreak{}enrollment/\allowbreak{}\{id\}}{Inscrição com as avaliações}{Autenticado}
+\ep{POST}{/\allowbreak{}api/\allowbreak{}evaluation}{Gravar avaliações; recalcular progresso e badges}{Autenticado}
+\ep{GET}{/\allowbreak{}api/\allowbreak{}evaluation/\allowbreak{}student/\allowbreak{}\{studentId\}/pdf}{Relatório global em \gls{pdf}}{Autenticado}
+\grupo{BadgesController --- \texttt{/api/badges}}
+\ep{GET}{/\allowbreak{}api/\allowbreak{}badges/\allowbreak{}student/\allowbreak{}\{studentId\}}{Badges de um aluno}{Autenticado}
+\grupo{NotificationController --- \texttt{/api/notification}}
+\ep{GET}{/\allowbreak{}api/\allowbreak{}notification/\allowbreak{}user/\allowbreak{}\{userId\}}{Notificações de um utilizador}{Autenticado}
+\ep{PUT}{/\allowbreak{}api/\allowbreak{}notification/\allowbreak{}\{id\}/read}{Marcar como lida}{Autenticado}
+\grupo{FilesController --- \texttt{/api/files}}
+\ep{POST}{/\allowbreak{}api/\allowbreak{}files/\allowbreak{}upload}{Carregar um documento}{Autenticado}
+\ep{GET}{/\allowbreak{}api/\allowbreak{}files/\allowbreak{}download/\allowbreak{}\{fileName\}}{Transferir um documento}{Público}
+\end{longtable}
+\endgroup
+
+\section{Dados}
+
+A base de dados é gerida com Entity Framework Core em modo \emph{code-first}: as tabelas são geradas a partir das classes da biblioteca partilhada e evoluem através de migrações. São 15 tabelas, organizadas em três camadas que correspondem às duas cópias descritas na Secção~\ref{sec:estilo}: moldes, percursos partilhados e cópias por aluno. As chaves estrangeiras entre inscrições, avaliações e utilizadores usam \texttt{Restrict}, para que apagar um utilizador ou um módulo não apague em cascata o histórico de avaliações.
+
+Os documentos \gls{pdf} carregados são guardados fora da pasta pública do servidor, em \texttt{SecureUploads/}, com um nome aleatório (GUID), e só são acessíveis através do endpoint de transferência.
+
+\porcompletar{diagrama entidade-relação das 15 tabelas, se o orientador o pedir.}

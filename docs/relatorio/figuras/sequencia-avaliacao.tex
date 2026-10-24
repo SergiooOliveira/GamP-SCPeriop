@@ -1,0 +1,43 @@
+% Diagrama de sequência: o supervisor grava uma avaliação.
+\begin{tikzpicture}[
+    ator/.style={draw=gInk, fill=gCard, rounded corners=3pt, font=\scriptsize\bfseries, align=center,
+      text width=2.5cm, minimum height=0.9cm, inner sep=2pt, line width=0.6pt},
+    vida/.style={draw=gInkSoft, dashed, line width=0.5pt},
+    msg/.style={->, >={Stealth[length=1.8mm]}, draw=gInk, line width=0.6pt},
+    ret/.style={->, >={Stealth[length=1.8mm, open]}, draw=gInkSoft, dashed, line width=0.5pt},
+    txt/.style={font=\tiny, text=gInk, fill=white, inner sep=1pt, align=center},
+    ativ/.style={draw=gInk, fill=gBrand!20, line width=0.5pt},
+  ]
+  % Participantes (x)
+  \def\xA{0}\def\xB{2.8}\def\xC{5.6}\def\xD{8.4}\def\xE{11.2}\def\xF{14.0}
+  \node[ator] (A) at (\xA,0.5) {Ficha de avaliação\\{\tiny\mdseries (Blazor)}};
+  \node[ator] (B) at (\xB,0.5) {AuthToken\-Handler};
+  \node[ator] (C) at (\xC,0.5) {Pipeline ASP.NET\\{\tiny\mdseries (JWT)}};
+  \node[ator] (D) at (\xD,0.5) {Evaluation\-Controller};
+  \node[ator] (E) at (\xE,0.5) {BadgeService};
+  \node[ator] (F) at (\xF,0.5) {AppDbContext\\{\tiny\mdseries (SQL Server)}};
+  \foreach \x in {\xA,\xB,\xC,\xD,\xE,\xF} \draw[vida] (\x,-0.1) -- (\x,-10.4);
+
+  % Barras de ativação
+  \fill[ativ] (\xD-0.08,-2.4) rectangle (\xD+0.08,-9.6);
+  \draw[ativ] (\xD-0.08,-2.4) rectangle (\xD+0.08,-9.6);
+  \fill[ativ] (\xE-0.08,-6.1) rectangle (\xE+0.08,-8.1);
+  \draw[ativ] (\xE-0.08,-6.1) rectangle (\xE+0.08,-8.1);
+
+  % Mensagens
+  \draw[msg] (\xA,-1.0) -- node[txt, above=1pt] {POST /api/evaluation\\{[}lista de classificações{]}} (\xB,-1.0);
+  \draw[msg] (\xB,-1.7) -- node[txt, above=1pt] {+ Authorization:\\Bearer \textless JWT\textgreater} (\xC,-1.7);
+  \draw[msg] (\xC,-2.4) -- node[txt, above=1pt] {token válido:\\SaveEvaluations()} (\xD,-2.4);
+  \draw[msg] (\xD,-3.2) -- node[txt, above=1pt, pos=0.75] {inserir ou atualizar ComponentEvaluations} (\xF,-3.2);
+  \draw[msg] (\xD,-4.0) -- node[txt, above=1pt, pos=0.75] {ler módulos e componentes da inscrição} (\xF,-4.0);
+  \draw[ret] (\xF,-4.5) -- (\xD,-4.5);
+  % Auto-mensagem: calcular progresso
+  \draw[msg] (\xD+0.08,-4.85) -- ++(0.7,0) -- ++(0,-0.4) -- (\xD+0.08,-5.25);
+  \node[txt, anchor=west, text width=3.2cm, align=left] at (\xD+0.9,-5.05) {calcular o progresso do percurso e dos módulos};
+  \draw[msg] (\xD,-6.1) -- node[txt, above=1pt] {EvaluateModuleBadgeAsync\\(por módulo alterado)} (\xE,-6.1);
+  \draw[msg] (\xE,-6.8) -- node[txt, above=1pt] {UserBadge + Notification\\(se 65\% e ainda não tem)} (\xF,-6.8);
+  \draw[msg] (\xD,-7.5) -- node[txt, above=1pt] {EvaluatePathwayBadgeAsync} (\xE,-7.5);
+  \draw[ret] (\xE,-8.1) -- (\xD,-8.1);
+  \draw[msg] (\xD,-8.8) -- node[txt, above=1pt] {Notification «Atualização de Avaliação»; SaveChanges} (\xF,-8.8);
+  \draw[ret] (\xD,-9.6) -- node[txt, above=1pt] {200 OK} (\xA,-9.6);
+\end{tikzpicture}

@@ -1,0 +1,73 @@
+% Site map: uma coluna por área de acesso; cada nó é um ecrã, com a rota por baixo.
+% Linha cheia = navegação hierárquica; tracejado = atalho entre ecrãs.
+\begin{tikzpicture}[ecra/.append style={text width=2.9cm}]
+  % ---------- Área pública ----------
+  \node[nomearea=cPublico, anchor=west] (lp) at (-1.55,0.95) {Área pública};
+  \node[ecra=cPublico] (p1) at (0,0)    {Entrada e login\rota{/ \ \ /signin}};
+  \node[ecra=cPublico] (p2) at (0,-1.5) {Página não encontrada\rota{/not-found}};
+
+  % ---------- Administrador ----------
+  \node[nomearea=cAdmin, anchor=west] (la) at (2.35,0.95) {Administrador};
+  \node[ecra=cAdmin] (a1) at (3.9,0)    {Painel de administração\rota{/admin/dashboard}};
+  \node[ecra=cAdmin] (a2) at (3.9,-1.5) {Gestão de utilizadores\rota{/admin/users}};
+  \node[ecra=cAdmin] (a3) at (3.9,-3.0) {Moldes de percurso\rota{/templates}};
+  \node[ecra=cAdmin] (a4) at (3.9,-4.5) {Construtor, modo Molde\rota{(dentro de /templates)}};
+
+  % ---------- Supervisor ----------
+  \node[nomearea=cSupervisor, anchor=west] (ls) at (6.25,0.95) {Supervisor};
+  \node[ecra=cSupervisor] (s1) at (7.8,0)    {Painel do supervisor\rota{/dashboard}};
+  \node[ecra=cSupervisor] (s2) at (7.8,-1.5) {Gestão do percurso e inscritos\rota{/pathway/\{id\}/students}};
+  \node[ecra=cSupervisor] (s3) at (7.8,-3.0) {Ficha de avaliação\rota{/evaluate/\{id\}}};
+  \node[ecra=cSupervisor] (s4) at (7.8,-4.5) {Construtor, modos Geral e Individual\rota{/supervisor/}\rota{pathway-builder/\ldots{}}};
+  \node[ecra=cSupervisor] (s5) at (7.8,-6.0) {Moldes de percurso\rota{/templates}};
+
+  % ---------- Supervisionado ----------
+  \node[nomearea=cAluno, anchor=west] (lu) at (10.15,0.95) {Supervisionado};
+  \node[ecra=cAluno] (u1) at (11.7,0)    {Os meus percursos\rota{/my-profile}};
+  \node[ecra=cAluno] (u2) at (11.7,-1.5) {Detalhe do percurso\rota{/pathway/\{id\}}};
+  \node[ecra=cAluno] (u3) at (11.7,-3.0) {Detalhe do módulo e documentos\rota{/module/\{id\}}};
+  \node[ecra=cAluno] (u4) at (11.7,-4.5) {Conquistas\rota{/badges}};
+  \node[ecra=cAluno, dashed] (u5) at (11.7,-6.0) {Relatório de avaliação (PDF)\rota{/api/evaluation/\ldots{}/pdf}};
+
+  % ---------- Comum aos perfis autenticados ----------
+  \node[nomearea=cComum, anchor=west] (lc) at (2.35,-7.45) {Comum aos três perfis (cabeçalho)};
+  \node[ecra=cComum] (c1) at (3.9,-8.3)  {Notificações\rota{painel no cabeçalho}};
+  \node[ecra=cComum] (c2) at (7.8,-8.3)  {Definições\rota{/settings}};
+  \node[ecra=cComum] (c3) at (11.7,-8.3) {Alternar tema e terminar sessão};
+
+  % ---------- Ligações ----------
+  % Login: encaminha para a página inicial de cada perfil
+  \draw[ligacao] ($(p1.north)+(0.9,0)$) -- (0.9,2.1) -| ($(a1.north)+(1.0,0)$);
+  \draw[ligacao] (0.9,2.1) -| ($(s1.north)+(1.0,0)$);
+  \draw[ligacao] (0.9,2.1) -| ($(u1.north)+(1.0,0)$);
+  \node[rotulo, anchor=south west] at (1.0,2.1) {após login, conforme o perfil};
+
+  % Administrador
+  \draw[ligacao] (a1.west) -- ++(-0.25,0) |- (a2.west);
+  \draw[ligacao] (a1.west) -- ++(-0.25,0) |- (a3.west);
+  \draw[ligacao] (a3) -- (a4);
+
+  % Supervisor
+  \draw[ligacao] (s1.west) -- ++(-0.25,0) |- (s2.west);
+  \draw[ligacao] (s1.west) -- ++(-0.25,0) |- (s4.west);
+  \draw[ligacao] (s1.west) -- ++(-0.25,0) |- (s5.west);
+  \draw[ligacao] (s2) -- (s3);
+  \draw[atalho] (s2.east) -- ++(0.22,0) |- (s4.east);
+
+  % Supervisionado
+  \draw[ligacao] (u1) -- (u2);
+  \draw[ligacao] (u2) -- (u3);
+  \draw[ligacao] (u1.west) -- ++(-0.25,0) |- (u4.west);
+  \draw[ligacao] (u1.west) -- ++(-0.25,0) |- (u5.west);
+
+  % ---------- Áreas (fundo) ----------
+  \begin{scope}[on background layer]
+    \node[area=gInkSoft, dashed, fill=none, fit=(la)(lu)(a1)(u5)(c1)(c3), inner sep=14pt] (aut) {};
+    \node[rotulo, font=\scriptsize\bfseries, anchor=north east] at (aut.south east) {Área autenticada};
+    \node[area=cPublico, fit=(lp)(p1)(p2)] {};
+    \node[area=cAdmin, fit=(la)(a1)(a4)] {};
+    \node[area=cSupervisor, fit=(ls)(s1)(s5)] {};
+    \node[area=cAluno, fit=(lu)(u1)(u5)] {};
+    \node[area=cComum, fit=(lc)(c1)(c3)] {};
+  \end{scope}
+\end{tikzpicture}
