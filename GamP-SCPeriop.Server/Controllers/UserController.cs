@@ -4,6 +4,7 @@ using GamP_SCPeriop.Server.Data;
 using GamP_SCPeriop.Shared.Data;
 using GamP_SCPeriop.Shared.Enum;
 using Microsoft.AspNetCore.Authorization;
+using GamP_SCPeriop.Server.Services;
 
 namespace GamP_SCPeriop.Server.Controllers
 {
@@ -20,16 +21,22 @@ namespace GamP_SCPeriop.Server.Controllers
         }
 
         [HttpGet("students")]
+        [Authorize(Roles = Roles.Staff)]
         public async Task<ActionResult<List<User>>> GetStudents()
         {
+            // Used to pick students to enrol: only what's needed to identify them
             var students = await _context.Users
+                .AsNoTracking()
                 .Where(u => u.Role == UserRole.Supervisionado)
+                .OrderBy(u => u.FullName)
+                .Select(u => new User { Id = u.Id, FullName = u.FullName, Email = u.Email, Role = u.Role, University = u.University })
                 .ToListAsync();
 
             return Ok(students);
         }
 
         [HttpGet]
+        [Authorize(Roles = Roles.Admin)]
         public async Task<ActionResult<List<User>>> GetAllUsers()
         {
             var users = await _context.Users

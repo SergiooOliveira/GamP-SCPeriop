@@ -1,4 +1,5 @@
 ﻿using GamP_SCPeriop.Server.Data;
+using GamP_SCPeriop.Server.Services;
 using GamP_SCPeriop.Shared.Data.Template;
 using GamP_SCPeriop.Shared.Entity.Model;
 using Microsoft.AspNetCore.Authorization;
@@ -9,7 +10,7 @@ namespace GamP_SCPeriop.Server.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize]
+    [Authorize(Roles = Roles.Admin)]
     public class BadgeTemplateController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -71,39 +72,25 @@ namespace GamP_SCPeriop.Server.Controllers
             existingBadge.TriggerValue = badgeDto.TriggerValue;
             existingBadge.Tier = badgeDto.Tier;
 
-            try
-            {
-                await _context.SaveChangesAsync();
-                return Ok(existingBadge);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"Erro interno ao atualizar a badge: {ex.Message}");
-            }
+            // Unexpected database errors go to the global error handler (logged, generic message to the browser)
+            await _context.SaveChangesAsync();
+            return Ok(existingBadge);
         }
 
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteBadgeTemplate(int id)
         {
-            try
+            var badge = await _context.BadgeTemplates.FindAsync(id);
+
+            if (badge == null)
             {
-                var badge = await _context.BadgeTemplates.FindAsync(id);
-
-                if (badge == null)
-                {
-                    return NotFound("Badge não encontrada.");
-                }
-
-                _context.BadgeTemplates.Remove(badge);
-                await _context.SaveChangesAsync();
-
-                return Ok(); // ou NoContent()
+                return NotFound("Badge não encontrada.");
             }
-            catch (Exception ex)
-            {
-                // Se houver problemas (ex: chaves forasteiras, constrangimentos da DB)
-                return StatusCode(500, $"Erro interno ao apagar a badge: {ex.Message}");
-            }
+
+            _context.BadgeTemplates.Remove(badge);
+            await _context.SaveChangesAsync();
+
+            return Ok(); // ou NoContent()
         }
     }
 }

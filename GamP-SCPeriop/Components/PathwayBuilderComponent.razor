@@ -2,6 +2,7 @@
 @using GamP_SCPeriop.Shared.Data.Template
 @using GamP_SCPeriop.Shared.Entity.Model
 @using GamP_SCPeriop.Shared.Enum
+@using GamP_SCPeriop.Shared.Helpers
 @inject HttpClient Http
 
 <div class="mt-4 card shadow-sm p-4 border-0" style="border-radius: 15px;">
@@ -98,7 +99,7 @@
                                 <div class="list-group list-group-flush">
                                     @foreach (var stageInfo in stagesToRender)
                                     {
-                                        var count = mod.Components?.Count(c => c.Stage == stageInfo.Stage) ?? 0;
+                                        var count = mod.Components?.Count(c => c.Stage == stageInfo.Stage && c.ParentComponentId == null) ?? 0; // main parameters only (sub-parameters belong to them)
 
                                         <div class="list-group-item d-flex flex-column border-0 border-bottom p-0 bg-light">
                                             <div class="d-flex justify-content-between align-items-center px-4 py-3">
@@ -139,7 +140,7 @@
 
                                                     @if (count > 0)
                                                     {
-                                                        <span class="badge bg-success bg-opacity-10 text-success rounded-pill px-3 py-1 border border-success border-opacity-25 flex-shrink-0">@count itens</span>
+                                                        <span class="badge bg-success bg-opacity-10 text-success rounded-pill px-3 py-1 border border-success border-opacity-25 flex-shrink-0">@count @(count == 1 ? "item" : "itens")</span>
                                                     }
                                                     else
                                                     {
@@ -528,9 +529,9 @@
 
                                             @if (!string.IsNullOrWhiteSpace(comp.PdfFilePath))
                                             {
-                                                <a href="@comp.PdfFilePath" target="_blank" class="btn btn-sm btn-outline-danger mt-1">
+                                                <DocumentLink Link="@comp.PdfFilePath" CssClass="btn btn-sm btn-outline-danger mt-1">
                                                     <i class="bi bi-file-pdf me-1"></i> Ver Ficheiro
-                                                </a>
+                                                </DocumentLink>
                                             }
                                         </div>
                                     }
@@ -1117,6 +1118,11 @@
                 var secureUrl = await response.Content.ReadAsStringAsync();
                 componentToEdit.PdfFilePath = secureUrl.Trim('"');
             }
+            else if (response.StatusCode == System.Net.HttpStatusCode.BadRequest)
+            {
+                // e.g. wrong file type or too big: show the server's explanation
+                validationError = (await response.Content.ReadAsStringAsync()).Trim('"');
+            }
             else
             {
                 validationError = "Erro ao enviar ficheiro para o servidor.";
@@ -1197,6 +1203,11 @@
     private async Task SaveComponent()
     {
         if (activeModalModule == null || !activeModalStage.HasValue) return;
+        if (!DocumentLinks.IsAllowed(componentToEdit.PdfFilePath))
+        {
+            validationError = "O documento tem de ser um ficheiro carregado ou uma ligação que comece por http:// ou https://.";
+            return;
+        }
         isSavingModal = true;
         componentToEdit.Stage = activeModalStage.Value.Stage;
         await OnSaveTheoreticalEvent.InvokeAsync((activeModalModule.Id, componentToEdit));

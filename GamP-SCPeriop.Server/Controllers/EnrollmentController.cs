@@ -1,4 +1,5 @@
 ﻿using GamP_SCPeriop.Server.Data;
+using GamP_SCPeriop.Server.Services;
 using GamP_SCPeriop.Shared.Data;
 using GamP_SCPeriop.Shared.Entity.Model;
 using GamP_SCPeriop.Shared.Enum;
@@ -14,16 +15,23 @@ namespace GamP_SCPeriop.Server.Controllers
     public class EnrollmentController : ControllerBase
     {
         private readonly AppDbContext _context;
+        private readonly AccessService _access;
+        private readonly PathwayService _pathways;
 
-        public EnrollmentController(AppDbContext context)
+        public EnrollmentController(AppDbContext context, AccessService access, PathwayService pathways)
         {
             _context = context;
+            _access = access;
+            _pathways = pathways;
         }
 
         #region HttpGet
         [HttpGet("supervisor/{supervisorId}")]
+        [Authorize(Roles = Roles.Staff)]
         public async Task<ActionResult<List<Enrollment>>> GetSupervisorEnrollments(int supervisorId)
         {
+            if (!User.IsAdmin() && supervisorId != User.GetUserId()) return Forbid();
+
             var enrollments = await _context.Enrollments
                 .Include(e => e.Student)
                 .Include(e => e.Pathway)
@@ -36,34 +44,43 @@ namespace GamP_SCPeriop.Server.Controllers
         [HttpGet("student/{studentId}")]
         public async Task<ActionResult<List<StudentDashboardCardDto>>> GetStudentEnrollments(int studentId)
         {
-            var enrollmentsModules = await _context.EnrollmentModules
-                .Include(en => en.Enrollment)
-                    .ThenInclude(e => e.Pathway)
-                        .ThenInclude(p => p.Professor)
-                .Include(en => en.Module)
-                    .ThenInclude(m => m.StageTimelines)
-                .Where(en => en.Enrollment != null && en.Enrollment.StudentId == studentId)
+            // O painel do aluno: só o próprio (ou um admin)
+            if (!User.IsAdmin() && studentId != User.GetUserId()) return Forbid();
+
+            // Start from the enrollments themselves, so a pathway with no modules yet still shows on the dashboard
+            var enrollments = await _context.Enrollments
+                .AsNoTracking()
+                .Include(e => e.Pathway)
+                    .ThenInclude(p => p!.Professor)
+                .Where(e => e.StudentId == studentId)
                 .ToListAsync();
 
-            if (!enrollmentsModules.Any()) return Ok(new List<StudentDashboardCardDto>());
+            if (!enrollments.Any()) return Ok(new List<StudentDashboardCardDto>());
 
-            var dashboardCards = enrollmentsModules
-                .GroupBy(em => em.EnrollmentId)
-                .Select(group =>
+            var enrollmentIds = enrollments.Select(e => e.Id).ToList();
+            var modulesByEnrollment = (await _context.EnrollmentModules
+                    .AsNoTracking()
+                    .Include(em => em.Module)
+                        .ThenInclude(m => m!.StageTimelines)
+                    .Where(em => enrollmentIds.Contains(em.EnrollmentId))
+                    .ToListAsync())
+                .ToLookup(em => em.EnrollmentId);
+
+            var dashboardCards = enrollments.Select(enrollment =>
                 {
-                    var line = group.First();
+                    var group = modulesByEnrollment[enrollment.Id].ToList();
 
                     // Extrai as datas tanto do EnrollmentModule como das StageTimelines associadas
                     var datasInicio = group.Where(em => em.StartDate.HasValue).Select(em => em.StartDate!.Value)
                         .Concat(group.Where(em => em.Module?.StageTimelines != null)
-                                     .SelectMany(em => em.Module!.StageTimelines)
+                                     .SelectMany(em => em.Module!.StageTimelines!)
                                      .Where(t => t.StartDate.HasValue)
                                      .Select(t => t.StartDate!.Value))
                         .ToList();
 
                     var datasFim = group.Where(em => em.EndDate.HasValue).Select(em => em.EndDate!.Value)
                         .Concat(group.Where(em => em.Module?.StageTimelines != null)
-                                     .SelectMany(em => em.Module!.StageTimelines)
+                                     .SelectMany(em => em.Module!.StageTimelines!)
                                      .Where(t => t.EndDate.HasValue)
                                      .Select(t => t.EndDate!.Value))
                         .ToList();
@@ -76,19 +93,19 @@ namespace GamP_SCPeriop.Server.Controllers
 
                     return new StudentDashboardCardDto
                     {
-                        EnrollmentId = line.EnrollmentId,
-                        PathwayId = line.Enrollment?.PathwayId ?? 0,
-                        PathwayTitle = line.Enrollment?.Pathway?.Title ?? "Sem título",
-                        ProfessorName = line.Enrollment?.Pathway?.Professor?.DisplayShortName ?? "Sem supervisor",
+                        EnrollmentId = enrollment.Id,
+                        PathwayId = enrollment.PathwayId,
+                        PathwayTitle = enrollment.Pathway?.Title ?? "Sem título",
+                        ProfessorName = enrollment.Pathway?.Professor?.DisplayShortName ?? "Sem supervisor",
                         StartDate = datasInicio.Any() ? datasInicio.Min() : (DateTime?)null,
                         LimitDate = datasFim.Any() ? datasFim.Max() : (DateTime?)null,
                         AllModulesScheduled = allModulesScheduled,
-                        ProgressPercentage = line.Enrollment?.ProgressPercentage ?? 0,
-                        MinimumApprovalScore = line.Enrollment?.Pathway?.MinimumApprovalScore ?? 65,
-                        IsStarred = line.Enrollment?.IsStarred ?? false,
-                        IsHidden = line.Enrollment?.IsHidden ?? false,
-                        IsArchived = line.Enrollment?.Pathway?.IsArchived ?? false,
-                        IsFullyEvaluated = (line.Enrollment?.ProgressPercentage ?? 0) == 100
+                        ProgressPercentage = enrollment.ProgressPercentage,
+                        MinimumApprovalScore = enrollment.Pathway?.MinimumApprovalScore ?? 65,
+                        IsStarred = enrollment.IsStarred,
+                        IsHidden = enrollment.IsHidden,
+                        IsArchived = enrollment.Pathway?.IsArchived ?? false,
+                        IsFullyEvaluated = enrollment.ProgressPercentage == 100
                     };
                 }).ToList();
 
@@ -114,6 +131,7 @@ namespace GamP_SCPeriop.Server.Controllers
             if (!enrollmentDetails.Any()) return NotFound();
 
             var enrollmentId = enrollmentDetails.First().EnrollmentId;
+            if (!await _access.CanViewEnrollmentAsync(User, enrollmentId)) return Forbid();
 
             var evaluations = await _context.ComponentEvaluations
                 .Where(ce => ce.EnrollmentId == enrollmentId)
@@ -143,19 +161,27 @@ namespace GamP_SCPeriop.Server.Controllers
             return Ok(enrollmentDetails);
         }
 
-        [Authorize(Roles = "Supervisor,Admin")]
+        [Authorize(Roles = Roles.Staff)]
         [HttpGet("management")]
         public async Task<ActionResult<List<StudentManagementDto>>> GetAllStudentsForManagement()
         {
+            // Supervisors only see the students they have enrolled in their pathways, and only that progress.
+            // (To add new students, the pathway page lists every student through api/User/students.)
+            var isAdmin = User.IsAdmin();
+            var supervisorId = User.GetUserId();
+
             // 1. Extração SQL: Inclui sub-consultas para as datas e para as avaliações reais
             var rawData = await _context.Users
                 .Where(u => u.Role == UserRole.Supervisionado)
+                .Where(u => isAdmin || u.Enrollments.Any(e => e.Pathway!.ProfessorId == supervisorId))
                 .Select(student => new
                 {
                     student.Id,
                     student.FullName,
                     student.Email,
-                    Enrollments = student.Enrollments.Select(e => new
+                    Enrollments = student.Enrollments
+                        .Where(e => isAdmin || e.Pathway.ProfessorId == supervisorId)
+                        .Select(e => new
                     {
                         EnrollmentId = e.Id,
                         PathwayId = e.Pathway.Id,
@@ -174,11 +200,11 @@ namespace GamP_SCPeriop.Server.Controllers
                         MinStartDate = _context.EnrollmentModules.Where(em => em.EnrollmentId == e.Id).Min(em => em.StartDate),
                         MaxEndDate = _context.EnrollmentModules.Where(em => em.EnrollmentId == e.Id).Max(em => em.EndDate),
 
-                        // FIX 2: total = every component that belongs to this enrollment's actual modules, not just the ones with a row already
+                        // Total = the items that can actually be graded (no theory, no weightless items, no group headers)
                         TotalEvaluations = _context.EnrollmentModules
                             .Where(em => em.EnrollmentId == e.Id)
                             .SelectMany(em => em.Module.Components)
-                            .Count(),
+                            .Count(c => c.Stage != ModuleStage.Teorica && c.Weight > 0 && !c.SubComponents.Any()),
                         CompletedEvaluations = _context.ComponentEvaluations
                             .Count(ce => ce.EnrollmentId == e.Id && ce.Status != ComponentStatus.Pending)
                     }).ToList()
@@ -199,58 +225,18 @@ namespace GamP_SCPeriop.Server.Controllers
                     ? (int)student.Enrollments.Average(e => e.ProgressPercentage)
                     : 0,
 
-                ActivePathways = student.Enrollments.Select(e =>
+                ActivePathways = student.Enrollments.Select(e => new PathwayTagDto
                 {
-                    string status;
-                    bool hasModules = e.TotalModules > 0;
-                    bool isFullyScheduled = hasModules && e.TotalModules == e.ScheduledModules;
-
-                    bool hasStartedEvaluations = e.CompletedEvaluations > 0;
-                    bool isFullyEvaluated = (e.TotalEvaluations > 0 && e.CompletedEvaluations == e.TotalEvaluations) || e.ProgressPercentage >= 100;
-
-                    // REGRA 1 — dates are authoritative, but only once every module is actually scheduled
-                    if (isFullyEvaluated
-                        || e.IsArchived
-                        || (isFullyScheduled && e.MaxEndDate.HasValue && e.MaxEndDate < now))
-                    {
-                        var minScore = e.MinimumApprovalScore > 0 ? e.MinimumApprovalScore : 65;
-                        status = e.ProgressPercentage >= minScore ? "Concluído (Aprovado)" : "Concluído (Reprovado)";
-                    }
-                    // REGRA 2 — not fully scheduled, but work has started
-                    else if (hasStartedEvaluations)
-                    {
-                        status = "Em curso";
-                    }
-                    // REGRA 3 — not fully scheduled, nothing started
-                    else if (!hasModules || !isFullyScheduled)
-                    {
-                        status = "Pendente";
-                    }
-                    else if (e.MinStartDate.HasValue && e.MinStartDate > now)
-                    {
-                        status = "Por iniciar";
-                    }
-                    else
-                    {
-                        status = "Em curso";
-                    }
-
-                    return new PathwayTagDto
-                    {
-                        PathwayId = e.PathwayId,
-                        Title = e.PathwayTitle,
-                        EnrollmentId = e.EnrollmentId,
-                        Status = status
-                    };
+                    PathwayId = e.PathwayId,
+                    Title = e.PathwayTitle,
+                    EnrollmentId = e.EnrollmentId,
+                    Status = EnrollmentStatusHelper.GetStatus(
+                        e.ProgressPercentage, e.IsArchived, e.MinimumApprovalScore,
+                        e.TotalModules, e.ScheduledModules,
+                        e.TotalEvaluations, e.CompletedEvaluations,
+                        e.MinStartDate, e.MaxEndDate, now)
                 })
-                .OrderBy(p => p.Status switch
-                {
-                    "Em curso" => 1,
-                    "Por iniciar" => 2,
-                    "Pendente" => 3,
-                    "Concluído (Aprovado)" => 4,
-                    _ => 5 // Concluído (Reprovado) ou outros
-                })
+                .OrderBy(p => EnrollmentStatusHelper.GetSortOrder(p.Status))
                 .ThenBy(p => p.Title)
                 .ToList()
             }).ToList();
@@ -262,8 +248,14 @@ namespace GamP_SCPeriop.Server.Controllers
 
         #region HttpPost
         [HttpPost]
+        [Authorize(Roles = Roles.Staff)]
         public async Task<ActionResult<Enrollment>> CreateEnrollment(EnrollmentDto dto)
         {
+            if (!await _access.CanManagePathwayAsync(User, dto.PathwayId)) return Forbid();
+
+            if (!await _context.Users.AnyAsync(u => u.Id == dto.StudentId && u.Role == UserRole.Supervisionado))
+                return BadRequest("Só é possível inscrever alunos.");
+
             var pathway = await _context.Pathways.FindAsync(dto.PathwayId);
 
             if (pathway == null)
@@ -275,122 +267,8 @@ namespace GamP_SCPeriop.Server.Controllers
             if (alreadyEnrolled)
                 return BadRequest("O aluno já se encontra inscrito neste percurso."); // 400 Bad Request
 
-            // Map the DTO to your real Entity
-            var enrollment = new Enrollment
-            {
-                StudentId = dto.StudentId,
-                PathwayId = dto.PathwayId,
-                ProgressPercentage = 0,
-            };
-
-            _context.Enrollments.Add(enrollment);
-            await _context.SaveChangesAsync();
-
-            var pathwayModules = await _context.Modules
-                .Include(m => m.StageTimelines)
-                .Include(m => m.Components)
-                .Where(m => m.PathwayId == dto.PathwayId)
-                .ToListAsync();
-
-            foreach (var baseModule in pathwayModules)
-            {
-                var clonedModule = new Module
-                {
-                    Title = baseModule.Title,
-                    Weight = baseModule.Weight,
-                    PathwayId = null,
-                    IsFromTemplate = true,
-                    OriginalModuleId = baseModule.Id
-                };
-
-                _context.Modules.Add(clonedModule);
-                await _context.SaveChangesAsync();
-
-                var clonedTimelines = new List<ModuleStageTimelineDto>();
-
-                if (baseModule.StageTimelines != null)
-                {
-                    foreach (var timeline in baseModule.StageTimelines)
-                    {
-                        var newTimeline = new ModuleStageTimelineDto
-                        {
-                            ModuleId = clonedModule.Id,
-                            Stage = timeline.Stage,
-                            StartDate = timeline.StartDate,
-                            EndDate = timeline.EndDate
-                        };
-
-                        _context.ModuleStageTimelines.Add(newTimeline);
-                        clonedTimelines.Add(newTimeline);
-                    }
-                }
-
-                // 5. CLONAR COMPONENTES (Com respeito pela Hierarquia Pai -> Filho)
-                if (baseModule.Components != null)
-                {
-                    // Dicionário para guardar a correspondência entre o ID Antigo do Pai e o ID Novo do Clone
-                    var parentIdMap = new Dictionary<int, int>();
-
-                    // 5.1. Clonar apenas as tarefas Principais (Pais)
-                    var parents = baseModule.Components.Where(c => c.ParentComponentId == null).ToList();
-                    foreach (var parent in parents)
-                    {
-                        var clonedParent = new ModuleComponent
-                        {
-                            ModuleId = clonedModule.Id,
-                            Stage = parent.Stage,
-                            Title = parent.Title,
-                            Description = parent.Description,
-                            Weight = parent.Weight,
-                            PdfFilePath = parent.PdfFilePath,
-                            ParentComponentId = null,
-                            IsFromTemplate = true
-                        };
-
-                        _context.ModuleComponents.Add(clonedParent);
-                        await _context.SaveChangesAsync(); // Gerar o novo ID deste Pai
-                        parentIdMap[parent.Id] = clonedParent.Id; // Guardar no mapa para os filhos saberem a quem pertencer
-                    }
-
-                    // 5.2. Clonar as Sub-tarefas (Filhos)
-                    var children = baseModule.Components.Where(c => c.ParentComponentId != null).ToList();
-                    foreach (var child in children)
-                    {
-                        // Verifica quem era o pai antigo e vai buscar o ID do pai clonado
-                        if (child.ParentComponentId.HasValue && parentIdMap.TryGetValue(child.ParentComponentId.Value, out int newParentId))
-                        {
-                            var clonedChild = new ModuleComponent
-                            {
-                                ModuleId = clonedModule.Id,
-                                Stage = child.Stage,
-                                Title = child.Title,
-                                Description = child.Description,
-                                Weight = child.Weight,
-                                PdfFilePath = child.PdfFilePath,
-                                ParentComponentId = newParentId,
-                                IsFromTemplate = true
-                            };
-                            _context.ModuleComponents.Add(clonedChild);
-                        }
-                    }
-                }
-
-                // 6. LIGAR O NOVO CLONE À INSCRIÇÃO
-                var inheritedStart = clonedTimelines.Where(t => t.StartDate.HasValue).Select(t => t.StartDate).Min();
-                var inheritedEnd = clonedTimelines.Where(t => t.EndDate.HasValue).Select(t => t.EndDate).Max();
-
-                var enrollmentModule = new EnrollmentModule
-                {
-                    EnrollmentId = enrollment.Id,
-                    ModuleId = clonedModule.Id, // Agora sim, atrelamos o clone independente!
-                    StartDate = inheritedStart,
-                    EndDate = inheritedEnd,
-                };
-                _context.EnrollmentModules.Add(enrollmentModule);
-            }
-
-            await _context.SaveChangesAsync();
-
+            // Copies the pathway's modules for this student (shared with the test data seeder)
+            var enrollment = await _pathways.EnrollStudentAsync(dto.StudentId, dto.PathwayId);
             return Ok(enrollment);
         }
         #endregion
@@ -399,7 +277,9 @@ namespace GamP_SCPeriop.Server.Controllers
         [HttpPut("{id}/star")]
         public async Task<IActionResult> ToggleStar(int id, [FromBody] bool isStarred)
         {
-            var enrollment = await _context.Enrollments.FindAsync(id);
+            // Preferências do painel: só o próprio aluno
+            var studentId = User.GetUserId();
+            var enrollment = await _context.Enrollments.FirstOrDefaultAsync(e => e.Id == id && e.StudentId == studentId);
             if (enrollment == null)
             {
                 return NotFound("Inscrição não encontrada.");
@@ -414,7 +294,8 @@ namespace GamP_SCPeriop.Server.Controllers
         [HttpPut("{id}/hidden")]
         public async Task<IActionResult> ToggleHidden(int id, [FromBody] bool isHidden)
         {
-            var enrollment = await _context.Enrollments.FindAsync(id);
+            var studentId = User.GetUserId();
+            var enrollment = await _context.Enrollments.FirstOrDefaultAsync(e => e.Id == id && e.StudentId == studentId);
             if (enrollment == null)
             {
                 return NotFound("Inscrição não encontrada.");

@@ -1,0 +1,70 @@
+@page "/dev/entrar/{UserId:int}"
+@attribute [AllowAnonymous]
+@layout EmptyLayout
+
+@using Blazored.SessionStorage
+@using GamP_SCPeriop.Client.Auth
+@using GamP_SCPeriop.Shared.Entity.Model
+@using GamP_SCPeriop.Shared.Enum
+@using Microsoft.AspNetCore.Components.WebAssembly.Hosting
+
+@inject IWebAssemblyHostEnvironment HostEnvironment
+@inject AuthenticationStateProvider AuthStateProvider
+@inject ISessionStorageService SessionStorage
+@inject HttpClient Http
+@inject NavigationManager Nav
+
+@* Opened by the test dashboard's "Entrar" buttons: logs this tab in as the chosen user *@
+
+<PageTitle>A entrar...</PageTitle>
+
+<div class="d-flex flex-column align-items-center justify-content-center vh-100 gap-3 text-center">
+    @if (error == null)
+    {
+        <div class="spinner-border" style="color: var(--brand);" role="status"></div>
+        <p class="text-muted mb-0">A entrar como utilizador de teste...</p>
+    }
+    else
+    {
+        <i class="bi bi-exclamation-circle fs-1" style="color: var(--reproved);"></i>
+        <p class="mb-0">@error</p>
+    }
+</div>
+
+@code {
+    [Parameter] public int UserId { get; set; }
+
+    private string? error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!HostEnvironment.IsDevelopment())
+        {
+            error = "Disponível apenas em desenvolvimento.";
+            return;
+        }
+
+        var response = await Http.PostAsync($"api/dev/impersonate/{UserId}", null);
+        var login = response.IsSuccessStatusCode ? await response.Content.ReadFromJsonAsync<LoginResponseDto>() : null;
+        if (login?.User == null)
+        {
+            error = $"Não foi possível entrar com o utilizador {UserId} ({(int)response.StatusCode}).";
+            return;
+        }
+
+        // Same steps as the login page
+        await SessionStorage.SetItemAsync("authToken", login.Token);
+        ((CustomAuthStateProvider)AuthStateProvider).MarkUserAsAuthenticated(login.Token);
+
+        var home = login.User.Role switch
+        {
+            UserRole.Supervisor => "/dashboard",
+            UserRole.Supervisionado => "/my-profile",
+            UserRole.Admin => "/admin/dashboard",
+            _ => "/"
+        };
+
+        // Full reload so the layout starts fresh with the new user; replace keeps this page out of history
+        Nav.NavigateTo(home, forceLoad: true, replace: true);
+    }
+}

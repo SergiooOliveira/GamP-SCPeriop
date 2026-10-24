@@ -7,21 +7,48 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using QuestPDF.Infrastructure;
 using System.Text;
+using System.Threading.RateLimiting;
 
 // Configurar a licença gratuita do QuestPDF
 QuestPDF.Settings.License = LicenseType.Community;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddCors(options =>
+// Secrets never live in the repo: on the server they come from appsettings.Production.json or environment variables.
+// Fail at startup with a clear message instead of running with a missing or weak key.
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+if (string.IsNullOrWhiteSpace(connectionString))
+    throw new InvalidOperationException(
+        "ConnectionStrings:DefaultConnection is not set. On the server, add it to appsettings.Production.json (next to the app) " +
+        "or set the ConnectionStrings__DefaultConnection environment variable.");
+
+var jwtKey = builder.Configuration["Jwt:Key"];
+if (string.IsNullOrWhiteSpace(jwtKey) || Encoding.UTF8.GetByteCount(jwtKey) < 32)
+    throw new InvalidOperationException(
+        "Jwt:Key is missing or shorter than 32 bytes. On the server, add it to appsettings.Production.json " +
+        "or set the Jwt__Key environment variable (generate one with: openssl rand -base64 48).");
+
+// No CORS policy: the Blazor client is served by this same server (same origin), so no other site may call the API.
+
+// Login attempts: at most 20 per minute from one IP address (per-account lockout is in LoginAttemptTracker)
+builder.Services.AddRateLimiter(options =>
 {
-    options.AddPolicy("AllowBlazorClient", policy =>
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy("login", context => RateLimitPartition.GetFixedWindowLimiter(
+        context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 20, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
+    options.OnRejected = async (context, token) =>
     {
-        policy.AllowAnyOrigin()
-              .AllowAnyMethod()
-              .AllowAnyHeader();
-    });
+        context.HttpContext.Response.ContentType = "text/plain; charset=utf-8";
+        await context.HttpContext.Response.WriteAsync("Demasiadas tentativas. Aguarde um minuto e tente novamente.", token);
+    };
 });
+
+builder.Services.AddMemoryCache();
+builder.Services.AddSingleton<LoginAttemptTracker>();
+
+// Errors in Production return a generic message (details only go to the server log)
+builder.Services.AddProblemDetails();
 
 // Add services to the container.
 
@@ -38,10 +65,14 @@ builder.Services.AddSwaggerGen();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 builder.Services.AddScoped<BadgeService>();
+builder.Services.AddScoped<TokenService>();
+builder.Services.AddScoped<AccessService>();
+builder.Services.AddScoped<PathwayService>();
+builder.Services.AddScoped<DbSeeder>();
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(
-        builder.Configuration.GetConnectionString("DefaultConnection"),
+        connectionString,
         sqlOptions => sqlOptions.EnableRetryOnFailure(
             maxRetryCount: 5,                           // Try 5 times
             maxRetryDelay: TimeSpan.FromSeconds(10),    // Wait up to 10s between tries
@@ -59,7 +90,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateIssuerSigningKey = true,
             ValidIssuer = builder.Configuration["Jwt:Issuer"],
             ValidAudience = builder.Configuration["Jwt:Audience"],
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]))
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
         };
     });
 
@@ -67,12 +98,22 @@ builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
-app.UseCors("AllowBlazorClient");
-
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     db.Database.Migrate();
+
+    // Test data: dotnet run --project GamP-SCPeriop.Server -- --seed (wipes the database first)
+    // Add --seed-only to stop after seeding instead of starting the site (used by scripts/seed.ps1 and scripts/seed.sh)
+    var seedOnly = args.Contains("--seed-only");
+    if (args.Contains("--seed") || seedOnly)
+    {
+        if (!app.Environment.IsDevelopment())
+            throw new InvalidOperationException("Seeding wipes the database and only runs in the Development environment.");
+
+        await scope.ServiceProvider.GetRequiredService<DbSeeder>().ResetAndSeedAsync();
+        if (seedOnly) return;
+    }
 }
 
 // Configure the HTTP request pipeline.
@@ -82,19 +123,30 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+else
+{
+    // Unhandled errors: generic 500 response, no stack traces or messages sent to the browser
+    app.UseExceptionHandler();
+}
 
 app.UseHttpsRedirection();
 
+// index.html must always be re-checked: a stale copy after a deploy would load old HTML with new app code.
+// (The app's other files are fingerprinted/versioned by Blazor, so they can stay cached.)
+var htmlNoCache = new StaticFileOptions
+{
+    OnPrepareResponse = context =>
+    {
+        if (context.File.Name.EndsWith(".html", StringComparison.OrdinalIgnoreCase))
+            context.Context.Response.Headers.CacheControl = "no-cache";
+    }
+};
+
 app.UseBlazorFrameworkFiles();
-app.UseStaticFiles();
+app.UseStaticFiles(htmlNoCache);
 app.UseRouting();
 
-app.UseCors("AllowBlazorClient");
-
-//app.UseCors(policy =>
-//    policy.AllowAnyOrigin()
-//          .AllowAnyMethod()
-//          .AllowAnyHeader());
+app.UseRateLimiter();
 
 app.UseAuthentication();
 app.UseAuthorization();
@@ -102,25 +154,35 @@ app.UseAuthorization();
 app.MapRazorPages();
 app.MapControllers();
 
-app.MapFallbackToFile("index.html");
+app.MapFallbackToFile("index.html", htmlNoCache);
 
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-    // Verifica se já existe algum utilizador na base de dados
+    // Empty database: create the first admin from configuration (no default password baked into the code).
+    // Set BootstrapAdmin:Email and BootstrapAdmin:Password (e.g. as environment variables BootstrapAdmin__Email / BootstrapAdmin__Password).
     if (!db.Users.Any())
     {
-        var adminUser = new User
-        {
-            Email = "admin@gamp.com",
-            FullName = "Administrador",
-            Password = BCrypt.Net.BCrypt.HashPassword("123"), // Ou o método de hash que já uses no projeto
-            Role = UserRole.Admin // Ajusta conforme o teu enum de roles
-        };
+        var adminEmail = builder.Configuration["BootstrapAdmin:Email"];
+        var adminPassword = builder.Configuration["BootstrapAdmin:Password"];
 
-        db.Users.Add(adminUser);
-        db.SaveChanges();
+        if (string.IsNullOrWhiteSpace(adminEmail) || string.IsNullOrWhiteSpace(adminPassword) || adminPassword.Length < 8)
+        {
+            app.Logger.LogWarning("The database has no users. Set BootstrapAdmin:Email and BootstrapAdmin:Password (8+ characters) to create the first admin.");
+        }
+        else
+        {
+            db.Users.Add(new User
+            {
+                Email = adminEmail,
+                FullName = builder.Configuration["BootstrapAdmin:FullName"] ?? "Administrador",
+                Password = BCrypt.Net.BCrypt.HashPassword(adminPassword),
+                Role = UserRole.Admin
+            });
+            db.SaveChanges();
+            app.Logger.LogInformation("Created the first admin account {Email}.", adminEmail);
+        }
     }
 }
 

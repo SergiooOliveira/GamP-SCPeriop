@@ -1,4 +1,6 @@
 ﻿using GamP_SCPeriop.Server.Data;
+using GamP_SCPeriop.Server.Services;
+using GamP_SCPeriop.Shared.Helpers;
 using GamP_SCPeriop.Shared.Data.Template;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -8,9 +10,11 @@ namespace GamP_SCPeriop.Server.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize]
+    [Authorize(Roles = Roles.Admin)]
     public class ComponentTemplateController : ControllerBase
     {
+        private const string InvalidLinkMessage = "O documento tem de ser um ficheiro carregado ou uma ligação http(s).";
+
         private readonly AppDbContext _context;
 
         public ComponentTemplateController(AppDbContext context)
@@ -21,6 +25,13 @@ namespace GamP_SCPeriop.Server.Controllers
         [HttpPost]
         public async Task<ActionResult<ComponentTemplate>> CreateComponent([FromBody] ComponentTemplate dto)
         {
+            if (!DocumentLinks.IsAllowed(dto.PdfFilePath)) return BadRequest(InvalidLinkMessage);
+
+            // Only this component is created: ignore any id or nested children sent by the client
+            dto.Id = 0;
+            dto.SubComponents = new();
+            dto.Weight = (float)Math.Round(dto.Weight, 2);
+
             _context.ComponentTemplates.Add(dto);
             await _context.SaveChangesAsync();
 
@@ -31,6 +42,7 @@ namespace GamP_SCPeriop.Server.Controllers
         public async Task<IActionResult> UpdateComponent(int id, [FromBody] ComponentTemplate updatedComponent)
         {
             if (id != updatedComponent.Id) return BadRequest("ID mismatch.");
+            if (!DocumentLinks.IsAllowed(updatedComponent.PdfFilePath)) return BadRequest(InvalidLinkMessage);
 
             var existingComponent = await _context.ComponentTemplates.FindAsync(id);
             if (existingComponent == null) return NotFound();
@@ -38,7 +50,7 @@ namespace GamP_SCPeriop.Server.Controllers
             // Num molde, só nos interessa atualizar os textos
             existingComponent.Title = updatedComponent.Title;
             existingComponent.Description = updatedComponent.Description;
-            existingComponent.Weight = updatedComponent.Weight;
+            existingComponent.Weight = (float)Math.Round(updatedComponent.Weight, 2);
             existingComponent.PdfFilePath = updatedComponent.PdfFilePath ?? string.Empty;
             existingComponent.OrderIndex = updatedComponent.OrderIndex;
 

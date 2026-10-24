@@ -104,7 +104,8 @@
         else
         {
             var rawText = await response.Content.ReadAsStringAsync();
-            error = $"Login Failed ({response.StatusCode}): {rawText}";
+            // The API explains the problem in Portuguese (wrong credentials, too many attempts...)
+            error = string.IsNullOrWhiteSpace(rawText) ? $"Não foi possível entrar ({(int)response.StatusCode})." : rawText.Trim('"');
         }
     }
 }

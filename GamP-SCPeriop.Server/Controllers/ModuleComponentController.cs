@@ -1,4 +1,6 @@
 ﻿using GamP_SCPeriop.Server.Data;
+using GamP_SCPeriop.Server.Services;
+using GamP_SCPeriop.Shared.Helpers;
 using GamP_SCPeriop.Shared.Data;
 using GamP_SCPeriop.Shared.Entity.Model;
 using GamP_SCPeriop.Shared.Enum;
@@ -10,28 +12,42 @@ namespace GamP_SCPeriop.Server.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize]
+    [Authorize(Roles = Roles.Staff)]
     public class ModuleComponentController : ControllerBase
     {
-        private readonly AppDbContext _context;
+        private const string InvalidLinkMessage = "O documento tem de ser um ficheiro carregado ou uma ligação http(s).";
 
-        public ModuleComponentController(AppDbContext context)
+        private readonly AppDbContext _context;
+        private readonly AccessService _access;
+
+        public ModuleComponentController(AppDbContext context, AccessService access)
         {
             _context = context;
+            _access = access;
         }
 
         // --- 1. CREATE (POST) ---
         [HttpPost]
         public async Task<ActionResult<ModuleComponent>> CreateModuleComponent(ModuleComponentCreateDto dto)
         {
+            if (!DocumentLinks.IsAllowed(dto.PdfFilePath)) return BadRequest(InvalidLinkMessage);
+
+            if (!await _access.CanManageModuleAsync(User, dto.ModuleId)) return Forbid();
+
+            // A sub-task must hang from a component of the same module
+            if (dto.ParentComponentId.HasValue &&
+                !await _context.ModuleComponents.AnyAsync(c => c.Id == dto.ParentComponentId.Value && c.ModuleId == dto.ModuleId))
+                return BadRequest("O componente pai não pertence a este módulo.");
+
             var component = new ModuleComponent
             {
                 ModuleId = dto.ModuleId,
                 Title = dto.Title,
                 Description = dto.Description,
+                PdfFilePath = string.IsNullOrWhiteSpace(dto.PdfFilePath) ? null : dto.PdfFilePath.Trim(),
                 Stage = dto.Stage,
                 ParentComponentId = dto.ParentComponentId,
-                Weight = dto.Weight,
+                Weight = (float)Math.Round(dto.Weight, 2), // weights have at most 2 decimals
                 OrderIndex = dto.OrderIndex,
                 IsFromTemplate = false
             };
@@ -46,7 +62,10 @@ namespace GamP_SCPeriop.Server.Controllers
         [HttpPut("{id}")]      
         public async Task<IActionResult> UpdateComponent(int id, [FromBody] ModuleComponent updatedComponent)
         {
+            if (!await _access.CanManageComponentAsync(User, id)) return Forbid();
+
             if (id != updatedComponent.Id) return BadRequest("ID mismatch.");
+            if (!DocumentLinks.IsAllowed(updatedComponent.PdfFilePath)) return BadRequest(InvalidLinkMessage);
 
             var existingComponent = await _context.ModuleComponents.FindAsync(id);
             if (existingComponent == null) return NotFound();
@@ -55,7 +74,7 @@ namespace GamP_SCPeriop.Server.Controllers
             existingComponent.Title = updatedComponent.Title;
             existingComponent.Description = updatedComponent.Description;
             existingComponent.PdfFilePath = updatedComponent.PdfFilePath ?? string.Empty;
-            existingComponent.Weight = updatedComponent.Weight;
+            existingComponent.Weight = (float)Math.Round(updatedComponent.Weight, 2);
             existingComponent.OrderIndex = updatedComponent.OrderIndex;
 
             await _context.SaveChangesAsync();
@@ -66,11 +85,20 @@ namespace GamP_SCPeriop.Server.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteComponent(int id)
         {
+            if (!await _access.CanManageComponentAsync(User, id)) return Forbid();
+
             var component = await _context.ModuleComponents.FindAsync(id);
             if (component == null) return NotFound();
 
             // Procurar e apagar todos os filhos primeiro (Cascata manual)
             var children = await _context.ModuleComponents.Where(c => c.ParentComponentId == id).ToListAsync();
+
+            // Grades given to this item or its sub-items (they used to block the delete with a database error)
+            var deletedIds = children.Select(c => c.Id).Append(id).ToList();
+            var evaluations = await _context.ComponentEvaluations.Where(ce => deletedIds.Contains(ce.ModuleComponentId)).ToListAsync();
+            var gradedEnrollmentIds = evaluations.Select(ce => ce.EnrollmentId).Distinct().ToList();
+            if (evaluations.Any()) _context.ComponentEvaluations.RemoveRange(evaluations);
+
             if (children.Any())
             {
                 _context.ModuleComponents.RemoveRange(children);
@@ -80,6 +108,11 @@ namespace GamP_SCPeriop.Server.Controllers
             _context.ModuleComponents.Remove(component);
             await _context.SaveChangesAsync();
 
+            // The deleted grades no longer count towards those students' progress
+            foreach (var enrollmentId in gradedEnrollmentIds)
+                await EvaluationRules.RecalculateEnrollmentProgressAsync(_context, enrollmentId);
+            if (gradedEnrollmentIds.Any()) await _context.SaveChangesAsync();
+
             return Ok();
         }
 
@@ -87,6 +120,8 @@ namespace GamP_SCPeriop.Server.Controllers
         [HttpGet("{id}")]
         public async Task<ActionResult<ModuleComponent>> GetComponent(int id)
         {
+            if (!await _access.CanManageComponentAsync(User, id)) return Forbid();
+
             var component = await _context.ModuleComponents.FindAsync(id);
             if (component == null) return NotFound();
             return component;

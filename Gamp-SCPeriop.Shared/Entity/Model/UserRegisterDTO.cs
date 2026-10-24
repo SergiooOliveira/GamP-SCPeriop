@@ -10,7 +10,7 @@ namespace GamP_SCPeriop.Shared.Entity.Model
         [Required, EmailAddress]
         public string Email { get; set; } = string.Empty;
 
-        [Required]
+        [Required, MinLength(8, ErrorMessage = "A password deve ter pelo menos 8 caracteres.")]
         public string Password { get; set; } = string.Empty;
 
         [Required]
