@@ -167,6 +167,29 @@ namespace GamP_SCPeriop.Tests
             Assert.False(await access.CanManageEnrollmentAsync(As(A), eA.Id));
         }
 
+        // Student A is in P1 (T1, supervised by V1) and P2 (T2, supervised by V2): each sees only their own enrollment
+        [Fact]
+        public async Task Visible_enrollments_of_a_student_are_only_the_users_own()
+        {
+            Assert.Equal(new[] { eA.Id }, await access.VisibleEnrollmentIdsAsync(As(T1), A.Id));
+            Assert.Equal(new[] { eA2.Id }, await access.VisibleEnrollmentIdsAsync(As(T2), A.Id));
+            Assert.Equal(new[] { eA.Id }, await access.VisibleEnrollmentIdsAsync(As(V1), A.Id));
+            Assert.Equal(new[] { eA2.Id }, await access.VisibleEnrollmentIdsAsync(As(V2), A.Id));
+            Assert.Equal(new[] { eA.Id, eA2.Id }, (await access.VisibleEnrollmentIdsAsync(As(A), A.Id)).OrderBy(id => id));
+            Assert.Equal(new[] { eA.Id, eA2.Id }, (await access.VisibleEnrollmentIdsAsync(As(S), A.Id)).OrderBy(id => id));
+            Assert.Empty(await access.VisibleEnrollmentIdsAsync(As(T2), B.Id));
+            Assert.Empty(await access.VisibleEnrollmentIdsAsync(As(B), A.Id));
+        }
+
+        [Fact]
+        public async Task Teacher_cannot_view_module_copy_of_own_student_in_other_pathway()
+        {
+            // T2 can see student A (A is in P2), but A's module copy in P1 belongs to T1
+            Assert.True(await access.CanViewStudentAsync(As(T2), A.Id));
+            Assert.False(await access.CanViewModuleAsync(As(T2), copyA.Id));
+            Assert.False(await access.CanViewModuleAsync(As(V2), copyA.Id));
+        }
+
         [Fact]
         public async Task Missing_items_return_false()
         {

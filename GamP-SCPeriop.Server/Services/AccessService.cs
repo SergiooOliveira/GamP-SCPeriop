@@ -129,6 +129,26 @@ namespace GamP_SCPeriop.Server.Services
         }
 
         /// <summary>
+        /// The enrollments of one student that this user may see: all for the student and Support,
+        /// only those in their own pathways for a Teacher, only the assigned ones for a Supervisor
+        /// </summary>
+        public async Task<List<int>> VisibleEnrollmentIdsAsync(ClaimsPrincipal user, int studentId)
+        {
+            var userId = user.GetUserId();
+            var all = user.IsSupport() || userId == studentId;
+            var isTeacher = user.IsInRole(Roles.Teacher);
+            var isSupervisor = user.IsInRole(Roles.Supervisor);
+
+            return await _context.Enrollments
+                .Where(e => e.StudentId == studentId)
+                .Where(e => all
+                    || (isTeacher && e.Pathway!.ProfessorId == userId)
+                    || (isSupervisor && e.SupervisorId == userId))
+                .Select(e => e.Id)
+                .ToListAsync();
+        }
+
+        /// <summary>
         /// Base modules belong to a pathway; student copies belong to an enrollment. Either way the owner manages it.
         /// </summary>
         public async Task<bool> CanManageModuleAsync(ClaimsPrincipal user, int moduleId)

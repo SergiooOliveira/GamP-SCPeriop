@@ -222,13 +222,16 @@ namespace GamP_SCPeriop.Server.Controllers
         {
             if (!await _access.CanViewStudentAsync(User, studentId)) return Forbid();
 
+            // Only the enrollments this user may see (a Teacher or Supervisor never gets other pathways' grades)
+            var visibleEnrollmentIds = await _access.VisibleEnrollmentIdsAsync(User, studentId);
+
             // 1. Vai buscar a estrutura base (Grelha Limpa) e as Inscrições
             var enrollments = await _context.Enrollments
                 .Include(e => e.Student)
                 .Include(e => e.Pathway)
                     .ThenInclude(p => p.Modules)
                         .ThenInclude(m => m.Components)
-                .Where(e => e.StudentId == studentId)
+                .Where(e => e.StudentId == studentId && visibleEnrollmentIds.Contains(e.Id))
                 .ToListAsync();
 
             if (enrollments == null || !enrollments.Any())
@@ -237,7 +240,7 @@ namespace GamP_SCPeriop.Server.Controllers
             // 2. Vai buscar TODAS as avaliações reais deste aluno
             // NOTA: Se a tua tabela se chamar algo diferente no AppDbContext (ex: StudentEvaluations), altera aqui
             var studentEvaluations = await _context.ComponentEvaluations
-                .Where(ev => ev.Enrollment != null && ev.Enrollment.StudentId == studentId)
+                .Where(ev => ev.Enrollment != null && ev.Enrollment.StudentId == studentId && visibleEnrollmentIds.Contains(ev.EnrollmentId))
                 .ToListAsync();
 
             // 3. MAGIA: Cruzar a Grelha Limpa com as notas do aluno

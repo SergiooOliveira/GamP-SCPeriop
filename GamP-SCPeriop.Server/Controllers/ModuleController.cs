@@ -82,6 +82,8 @@ namespace GamP_SCPeriop.Server.Controllers
         public async Task<ActionResult<Module>> GetModuleForStudent(int moduleId, int studentId)
         {
             if (!await _access.CanViewStudentAsync(User, studentId)) return Forbid();
+            // ...and this module copy must be in one of that student's enrollments the user can see
+            if (!await _access.CanViewModuleAsync(User, moduleId)) return Forbid();
 
             // 1. Procurar na tabela ponte (EnrollmentModule) para encontrar o clone exato e a inscrição
             var enrollmentModule = await _context.EnrollmentModules
