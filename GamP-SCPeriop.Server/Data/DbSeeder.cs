@@ -11,12 +11,14 @@ using System.Text;
 namespace GamP_SCPeriop.Server.Data
 {
     /// <summary>
-    /// Development-only test data. Wipes users, templates, pathways, enrollments, evaluations, badges and
-    /// notifications, then recreates a realistic data set the same way the app does it:
-    ///   1. the admins' Pathway Templates ("Moldes"), with their modules, parameters and badge templates;
-    ///   2. each supervisor's pathway created FROM a template (same code as the "create pathway" button);
-    ///   3. the supervisor setting the stage dates, then enrolling students (same code as "Adicionar Aluno");
-    ///   4. grades, badges and notifications according to how far each stage is.
+    /// Development-only test data. Wipes users, templates, pathways, enrollments, evaluations, badges,
+    /// extension requests and notifications, then recreates a realistic data set the same way the app does it:
+    ///   1. the Pathway Templates ("Moldes"), with their modules, parameters and badge templates;
+    ///   2. each Teacher's pathway created FROM a template (same code as the "create pathway" button);
+    ///   3. the Teacher setting the stage dates, enrolling students and choosing each one's supervisor
+    ///      (two students are left without one, so their pathway cannot start);
+    ///   4. grades by the supervisors, badges and notifications according to how far each stage is;
+    ///   5. extension requests (pending, approved with another date, rejected) and missing-supervisor warnings.
     /// Run it with: dotnet run --project GamP-SCPeriop.Server -- --seed
     /// </summary>
     public class DbSeeder
@@ -71,6 +73,7 @@ namespace GamP_SCPeriop.Server.Data
         {
             // Order matters: children before parents (several relations are DeleteBehavior.Restrict)
             await _context.UserBadges.ExecuteDeleteAsync();
+            await _context.DeadlineExtensionRequests.ExecuteDeleteAsync();
             await _context.Notifications.ExecuteDeleteAsync();
             await _context.ComponentEvaluations.ExecuteDeleteAsync();
             await _context.EnrollmentModules.ExecuteDeleteAsync();
@@ -101,33 +104,37 @@ namespace GamP_SCPeriop.Server.Data
             // BCrypt is slow on purpose, so every test account shares one hash
             var passwordHash = BCrypt.Net.BCrypt.HashPassword(TestPassword);
 
-            var admins = AdminNames.Select(n => NewUser(n, UserRole.Teacher, passwordHash)).ToList();
+            var support = SupportNames.Select(n => NewUser(n, UserRole.Support, passwordHash)).ToList();
+            var teachers = TeacherNames.Select(n => NewUser(n, UserRole.Teacher, passwordHash)).ToList();
             var supervisors = SupervisorNames.Select(n => NewUser(n, UserRole.Supervisor, passwordHash)).ToList();
             var students = StudentNames.Select(n => NewUser(n, UserRole.Student, passwordHash)).ToList();
 
-            _context.Users.AddRange(admins);
+            _context.Users.AddRange(support);
+            _context.Users.AddRange(teachers);
             _context.Users.AddRange(supervisors);
             _context.Users.AddRange(students);
             await _context.SaveChangesAsync();
 
-            // 1. The admins' templates
+            // 1. The templates
             var templateIds = new List<int>();
             foreach (var templatePlan in TemplatePlans)
                 templateIds.Add(await CreateTemplateAsync(templatePlan));
 
             int enrollmentCount = 0, evaluationCount = 0, badgeCount = 0, userBadgeCount = 0;
+            int unassignedCount = 0;
+            var extensionCandidates = new List<ExtensionCandidate>();
 
             foreach (var plan in PathwayPlans)
             {
-                var supervisor = supervisors[plan.SupervisorIndex];
+                var teacher = teachers[plan.TeacherIndex];
                 var templatePlan = TemplatePlans[plan.TemplateIndex];
                 var pathwayStart = _today.AddDays(plan.StartOffsetDays);
 
-                // 2. The supervisor creates the pathway from a template (modules, parameters and badges are copied)
+                // 2. The Teacher creates the pathway from a template (modules, parameters and badges are copied)
                 var pathway = await _pathways.CreatePathwayAsync(new PathwayCreateDto
                 {
                     Title = plan.Title,
-                    ProfessorId = supervisor.Id,
+                    ProfessorId = teacher.Id,
                     TemplateId = templateIds[plan.TemplateIndex],
                     MinimumPassScore = 50,
                     MinimumApprovalScore = 80,
@@ -156,13 +163,30 @@ namespace GamP_SCPeriop.Server.Data
                 var pathwayBadge = badges.FirstOrDefault(b => b.TriggerType == BadgeTriggerType.PathwayMilestone);
 
                 // 4. Students enrolled (each gets independent copies of the modules)
-                foreach (var studentIndex in plan.StudentIndexes)
+                for (int position = 0; position < plan.StudentIndexes.Length; position++)
                 {
+                    var studentIndex = plan.StudentIndexes[position];
                     var student = students[studentIndex];
+                    // Supervisors are per student: in each pathway they alternate between two supervisors
+                    User? supervisor = plan.UnassignedStudentIndexes.Contains(studentIndex)
+                        ? null
+                        : supervisors[(plan.SupervisorIndex + position % 2) % supervisors.Count];
                     var skill = SkillProfiles[studentIndex % SkillProfiles.Length];
 
                     var enrollment = await _pathways.EnrollStudentAsync(student.Id, pathway.Id);
                     enrollmentCount++;
+                    if (supervisor != null)
+                    {
+                        enrollment.SupervisorId = supervisor.Id;
+                        _context.Notifications.Add(NewNotification(supervisor, teacher, pathwayStart.AddDays(-7),
+                            "Novo estudante atribuído",
+                            $"{student.FullName} no percurso \"{pathway.Title}\" foi-lhe atribuído para avaliação.",
+                            $"/evaluate/{enrollment.Id}"));
+                    }
+                    else
+                    {
+                        unassignedCount++;
+                    }
 
                     var clones = await _context.Modules
                         .Include(m => m.Components)
@@ -172,7 +196,7 @@ namespace GamP_SCPeriop.Server.Data
 
                     // 5. Evaluations, depending on how far along each stage is
                     var evaluations = new List<ComponentEvaluation>();
-                    foreach (var clone in clones)
+                    foreach (var clone in clones.Where(_ => supervisor != null))
                     {
                         foreach (var component in clone.Components.Where(c => EvaluationRules.IsGradable(c, clone.Components)))
                         {
@@ -181,6 +205,13 @@ namespace GamP_SCPeriop.Server.Data
                         }
                     }
                     _context.ComponentEvaluations.AddRange(evaluations);
+                    if (supervisor != null && !plan.IsArchived)
+                    {
+                        extensionCandidates.AddRange(clones
+                            .SelectMany(c => c.StageTimelines!.Select(t => new { Clone = c, Timeline = t }))
+                            .Where(x => x.Timeline.StartDate <= _today && x.Timeline.EndDate >= _today.AddDays(-2))
+                            .Select(x => new ExtensionCandidate(enrollment.Id, x.Clone.Id, x.Timeline.Stage, supervisor.Id, teacher.Id)));
+                    }
                     evaluationCount += evaluations.Count;
 
                     enrollment.ProgressPercentage = EvaluationRules.CalculateProgress(clones.SelectMany(c => c.Components).ToList(), evaluations);
@@ -209,7 +240,7 @@ namespace GamP_SCPeriop.Server.Data
                     foreach (var (badge, at) in earned)
                     {
                         _context.UserBadges.Add(new UserBadge { UserId = student.Id, BadgeId = badge.Id, EarnedAt = at });
-                        _context.Notifications.Add(NewNotification(student, supervisor, at,
+                        _context.Notifications.Add(NewNotification(student, supervisor ?? teacher, at,
                             "Nova Conquista! 🏆",
                             $"Desbloqueaste a badge '{badge.Name}'!",
                             "/badges"));
@@ -218,9 +249,9 @@ namespace GamP_SCPeriop.Server.Data
 
                     if (evaluations.Any())
                     {
-                        _context.Notifications.Add(NewNotification(student, supervisor, evaluations.Max(e => e.EvaluatedAt),
+                        _context.Notifications.Add(NewNotification(student, supervisor!, evaluations.Max(e => e.EvaluatedAt),
                             "Atualização de Avaliação 📊",
-                            $"O professor atualizou as tuas avaliações no percurso '{pathway.Title}'.",
+                            $"O supervisor atualizou as tuas avaliações no percurso '{pathway.Title}'.",
                             $"/pathway/{pathway.Id}"));
                     }
 
@@ -228,14 +259,23 @@ namespace GamP_SCPeriop.Server.Data
                 }
             }
 
+            // 7. Extension requests, through the same service as the app: one pending, one approved with another date, one rejected
+            var extensionCount = await SeedExtensionRequestsAsync(extensionCandidates);
+
+            // 8. Warnings to the Teachers about students without a supervisor (same job the server runs daily)
+            await SupervisorReminderJob.RunAsync(_context, _today);
+
             return new SeedSummary
             {
-                Admins = admins.Count,
+                Support = support.Count,
+                Teachers = teachers.Count,
                 Supervisors = supervisors.Count,
                 Students = students.Count,
                 Templates = TemplatePlans.Length,
                 Pathways = PathwayPlans.Length,
                 Enrollments = enrollmentCount,
+                WithoutSupervisor = unassignedCount,
+                ExtensionRequests = extensionCount,
                 Evaluations = evaluationCount,
                 Badges = badgeCount,
                 BadgesEarned = userBadgeCount,
@@ -452,9 +492,50 @@ namespace GamP_SCPeriop.Server.Data
 
         #endregion
 
+        /// <summary>
+        /// Three requests on different enrollments: one pending, one approved with a shorter date than asked, one rejected
+        /// </summary>
+        private async Task<int> SeedExtensionRequestsAsync(List<ExtensionCandidate> candidates)
+        {
+            var service = new ExtensionRequestService(_context);
+            var picked = candidates.GroupBy(c => c.EnrollmentId).Select(g => g.First()).Take(3).ToList();
+            var reasons = new[] { "O estudante esteve dois turnos de baixa.", "Faltaram cirurgias programadas nesta semana.", "Pedido do serviço por falta de casos." };
+
+            for (int i = 0; i < picked.Count; i++)
+            {
+                var c = picked[i];
+                var end = await _context.ModuleStageTimelines
+                    .Where(t => t.ModuleId == c.ModuleId && t.Stage == c.Stage)
+                    .Select(t => t.EndDate!.Value)
+                    .SingleAsync();
+
+                var (request, _) = await service.CreateAsync(new ExtensionRequestCreateDto
+                {
+                    EnrollmentId = c.EnrollmentId,
+                    ModuleId = c.ModuleId,
+                    Stage = c.Stage,
+                    RequestedEndDate = end.AddDays(6),
+                    Reason = reasons[i]
+                }, c.SupervisorId);
+                if (request == null) continue;
+
+                if (i == 1)
+                    await service.DecideAsync(request.Id, new ExtensionDecisionDto { Approve = true, EndDate = end.AddDays(3) }, c.TeacherId);
+                else if (i == 2)
+                    await service.DecideAsync(request.Id, new ExtensionDecisionDto { Approve = false, Note = "O estágio termina nessa semana." }, c.TeacherId);
+            }
+
+            return picked.Count;
+        }
+
         #region Test data
 
-        private static readonly string[] AdminNames =
+        private static readonly string[] SupportNames =
+        {
+            "Suporte Técnico"
+        };
+
+        private static readonly string[] TeacherNames =
         {
             "Ana Margarida Ferreira",
             "João Pedro Carvalho"
@@ -491,17 +572,19 @@ namespace GamP_SCPeriop.Server.Data
         };
 
         /// <summary>
-        /// Supervisors' pathways, each created from a template. Start offsets are relative to today,
-        /// so the data always has past, current and future pathways.
+        /// Teachers' pathways, each created from a template. Start offsets are relative to today,
+        /// so the data always has past, current and future pathways. SupervisorIndex is the first of the two
+        /// supervisors who share the pathway's students; UnassignedStudentIndexes are left without a supervisor.
         /// </summary>
         private static readonly PathwayPlan[] PathwayPlans =
         {
-            new("Estágio em Bloco Operatório — Hospital de Braga", 0, 0, -45, false, new[] { 0, 1, 2, 3 }),
-            new("Estágio em Anestesiologia — ULS Santo António", 1, 1, -25, false, new[] { 4, 5, 6, 7 }),
-            new("Estágio em Cirurgia Geral — ULS São João", 2, 2, -70, false, new[] { 8, 9, 10, 11 }),
-            new("Estágio em Recobro (UCPA) — Hospital de Guimarães", 3, 3, 10, false, new[] { 12, 13, 14, 15 }),
-            new("Estágio em Ortopedia — ULS Alto Minho", 4, 4, -50, false, new[] { 16, 17, 18, 19 }),
-            new("Estágio em Bloco Operatório — 2.º Semestre 2025/26", 0, 0, -200, true, new[] { 0, 4, 8, 12, 16 })
+            new("Estágio em Bloco Operatório — Hospital de Braga", 0, 0, 0, -45, false, new[] { 0, 1, 2, 3 }, new[] { 3 }),
+            new("Estágio em Anestesiologia — ULS Santo António", 1, 1, 1, -25, false, new[] { 4, 5, 6, 7 }, Array.Empty<int>()),
+            new("Estágio em Cirurgia Geral — ULS São João", 0, 2, 2, -70, false, new[] { 8, 9, 10, 11 }, Array.Empty<int>()),
+            new("Estágio em Recobro (UCPA) — Hospital de Guimarães", 1, 3, 3, 10, false, new[] { 12, 13, 14, 15 }, Array.Empty<int>()),
+            new("Estágio em Ortopedia — ULS Alto Minho", 0, 4, 4, -50, false, new[] { 16, 17, 18, 19 }, Array.Empty<int>()),
+            new("Estágio em Ortopedia — Turno de Inverno", 1, 4, 4, 5, false, new[] { 1, 19 }, new[] { 19 }),
+            new("Estágio em Bloco Operatório — 2.º Semestre 2025/26", 0, 0, 0, -200, true, new[] { 0, 4, 8, 12, 16 }, Array.Empty<int>())
         };
 
         /// <summary>
@@ -596,7 +679,10 @@ namespace GamP_SCPeriop.Server.Data
 
         private record TemplatePlan(string Title, string Description, int[] ModuleIndexes);
 
-        private record PathwayPlan(string Title, int SupervisorIndex, int TemplateIndex, int StartOffsetDays, bool IsArchived, int[] StudentIndexes);
+        private record PathwayPlan(string Title, int TeacherIndex, int SupervisorIndex, int TemplateIndex, int StartOffsetDays,
+            bool IsArchived, int[] StudentIndexes, int[] UnassignedStudentIndexes);
+
+        private record ExtensionCandidate(int EnrollmentId, int ModuleId, ModuleStage Stage, int SupervisorId, int TeacherId);
 
         private record ModuleBlueprint(string Title, string BadgeName, string BadgeIcon, BadgeTier BadgeTier, TheoryBlueprint[] Theory, ParameterBlueprint[] Parameters);
 
@@ -621,19 +707,23 @@ namespace GamP_SCPeriop.Server.Data
 
     public class SeedSummary
     {
-        public int Admins { get; set; }
+        public int Support { get; set; }
+        public int Teachers { get; set; }
         public int Supervisors { get; set; }
         public int Students { get; set; }
         public int Templates { get; set; }
         public int Pathways { get; set; }
         public int Enrollments { get; set; }
+        public int WithoutSupervisor { get; set; }
+        public int ExtensionRequests { get; set; }
         public int Evaluations { get; set; }
         public int Badges { get; set; }
         public int BadgesEarned { get; set; }
         public string Password { get; set; } = string.Empty;
 
         public override string ToString() =>
-            $"{Admins} admins, {Supervisors} supervisors, {Students} students, {Templates} templates, {Pathways} pathways, " +
-            $"{Enrollments} enrollments, {Evaluations} evaluations, {BadgesEarned}/{Badges} badges earned";
+            $"{Support} support, {Teachers} teachers, {Supervisors} supervisors, {Students} students, {Templates} templates, {Pathways} pathways, " +
+            $"{Enrollments} enrollments ({WithoutSupervisor} without supervisor), {Evaluations} evaluations, " +
+            $"{ExtensionRequests} extension requests, {BadgesEarned}/{Badges} badges earned";
     }
 }

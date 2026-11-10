@@ -69,7 +69,7 @@
                     <div>
                         <div class="dd-kpi-value">@overview.Users.Count</div>
                         <div class="dd-kpi-label">Utilizadores</div>
-                        <div class="dd-kpi-hint">@Teachers.Count() professores · @Supervisors.Count() supervisores · @Students.Count() alunos</div>
+                        <div class="dd-kpi-hint">@Teachers.Count() professores · @Supervisors.Count() supervisores · @Students.Count() estudantes</div>
                     </div>
                 </div>
                 <div class="dd-kpi">
@@ -295,10 +295,10 @@
 
     private static readonly (UserRole Role, string Label, string Icon)[] Tabs =
     {
-        (UserRole.Student, "Alunos", "bi-mortarboard"),
-        (UserRole.Supervisor, "Supervisores", "bi-person-badge"),
+        (UserRole.Support, "Suporte", "bi-tools"),
         (UserRole.Teacher, "Professores", "bi-building"),
-        (UserRole.Support, "Suporte", "bi-tools")
+        (UserRole.Supervisor, "Supervisores", "bi-person-badge"),
+        (UserRole.Student, "Estudantes", "bi-mortarboard")
     };
 
     private DevOverviewDto? overview;

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Wipes the database and fills it with test data (2 admins, 5 supervisors, 20 students, templates, pathways, evaluations, badges).
+# Wipes the database and fills it with test data (1 support, 2 teachers, 5 supervisors, 20 students, templates, pathways, evaluations, extension requests, badges).
 # Runs the server once in Development with --seed-only: applies migrations, seeds, and exits (the site is not started).
 # Test accounts: first.last@gamp.test, password = DbSeeder.TestPassword (GamP-SCPeriop.Server/Data/DbSeeder.cs)
 #
