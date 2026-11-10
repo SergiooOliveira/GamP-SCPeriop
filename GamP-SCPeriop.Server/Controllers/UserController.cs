@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using GamP_SCPeriop.Server.Data;
 using GamP_SCPeriop.Shared.Data;
+using GamP_SCPeriop.Shared.Entity.Model;
 using GamP_SCPeriop.Shared.Enum;
 using Microsoft.AspNetCore.Authorization;
 using GamP_SCPeriop.Server.Services;
@@ -21,7 +22,7 @@ namespace GamP_SCPeriop.Server.Controllers
         }
 
         [HttpGet("students")]
-        [Authorize(Roles = Roles.Staff)]
+        [Authorize(Roles = Roles.TeacherOrSupport)]
         public async Task<ActionResult<List<User>>> GetStudents()
         {
             // Used to pick students to enrol: only what's needed to identify them
@@ -33,6 +34,40 @@ namespace GamP_SCPeriop.Server.Controllers
                 .ToListAsync();
 
             return Ok(students);
+        }
+
+        /// <summary>
+        /// Used by Teachers to choose who grades each student
+        /// </summary>
+        [HttpGet("supervisors")]
+        [Authorize(Roles = Roles.TeacherOrSupport)]
+        public async Task<ActionResult<List<SupervisorOptionDto>>> GetSupervisors()
+        {
+            var supervisors = await _context.Users
+                .AsNoTracking()
+                .Where(u => u.Role == UserRole.Supervisor)
+                .OrderBy(u => u.FullName)
+                .Select(u => new SupervisorOptionDto { Id = u.Id, FullName = u.FullName, Email = u.Email })
+                .ToListAsync();
+
+            return Ok(supervisors);
+        }
+
+        /// <summary>
+        /// Used by Support to choose a pathway's Teacher
+        /// </summary>
+        [HttpGet("teachers")]
+        [Authorize(Roles = Roles.Support)]
+        public async Task<ActionResult<List<SupervisorOptionDto>>> GetTeachers()
+        {
+            var teachers = await _context.Users
+                .AsNoTracking()
+                .Where(u => u.Role == UserRole.Teacher)
+                .OrderBy(u => u.FullName)
+                .Select(u => new SupervisorOptionDto { Id = u.Id, FullName = u.FullName, Email = u.Email })
+                .ToListAsync();
+
+            return Ok(teachers);
         }
 
         [HttpGet]

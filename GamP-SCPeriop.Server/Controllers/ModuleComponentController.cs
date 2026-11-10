@@ -12,7 +12,7 @@ namespace GamP_SCPeriop.Server.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize(Roles = Roles.Staff)]
+    [Authorize(Roles = Roles.TeacherOrSupport)]
     public class ModuleComponentController : ControllerBase
     {
         private const string InvalidLinkMessage = "O documento tem de ser um ficheiro carregado ou uma ligação http(s).";

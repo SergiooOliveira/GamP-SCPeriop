@@ -24,7 +24,7 @@ namespace GamP_SCPeriop.Server.Controllers
         }
 
         [HttpPost]
-        [Authorize(Roles = Roles.Staff)]
+        [Authorize(Roles = Roles.TeacherOrSupport)]
         public async Task<ActionResult<Module>> CreateModule(ModuleCreateDto dto)
         {
             // Um módulo pertence ao plano de um aluno (EnrollmentId) ou ao percurso geral (PathwayId)
@@ -119,7 +119,7 @@ namespace GamP_SCPeriop.Server.Controllers
         }
 
         [HttpPut("{id}")]
-        [Authorize(Roles = Roles.Staff)]
+        [Authorize(Roles = Roles.TeacherOrSupport)]
         public async Task<IActionResult> UpdateModule(int id, Module updatedModule)
         {
             if (!await _access.CanManageModuleAsync(User, id)) return Forbid();
@@ -191,7 +191,7 @@ namespace GamP_SCPeriop.Server.Controllers
         }
 
         [HttpPut("{id}/timeline")]
-        [Authorize(Roles = Roles.Staff)]
+        [Authorize(Roles = Roles.TeacherOrSupport)]
         public async Task<IActionResult> UpdateStudentTimeline(int id, [FromBody] Module updatedModule)
         {
             if (!await _access.CanManageModuleAsync(User, id)) return Forbid();
@@ -247,7 +247,7 @@ namespace GamP_SCPeriop.Server.Controllers
         }
 
         [HttpDelete("{id}")]
-        [Authorize(Roles = Roles.Staff)]
+        [Authorize(Roles = Roles.TeacherOrSupport)]
         public async Task<IActionResult> DeleteModule(int id)
         {
             if (!await _access.CanManageModuleAsync(User, id)) return Forbid();

@@ -29,10 +29,13 @@ namespace GamP_SCPeriop.Server.Controllers
         #region Subject Management
 
         [HttpPost]
+        [Authorize(Roles = Roles.TeacherOrSupport)]
         public async Task<ActionResult<Pathway>> CreatePathway(PathwayCreateDto dto)
         {
-            // Supervisors always own the pathways they create; only admins may create one for someone else
+            // Teachers always own the pathways they create; Support creates one for a chosen Teacher
             if (!User.IsSupport()) dto.ProfessorId = User.GetUserId();
+            else if (!await IsTeacherAsync(dto.ProfessorId))
+                return BadRequest("Escolha o professor responsável pelo percurso.");
 
             // Criação (e cópia do molde, se escolhido) partilhada com o gerador de dados de teste
             var pathway = await _pathways.CreatePathwayAsync(dto);
@@ -41,10 +44,13 @@ namespace GamP_SCPeriop.Server.Controllers
 
         #endregion
 
+        /// <summary>
+        /// Teachers/Support who manage it, or a Supervisor with a student in it (read-only for them)
+        /// </summary>
         [HttpGet("{id}")]
         public async Task<ActionResult<Pathway>> GetPathway(int id)
         {
-            if (!await _access.CanManagePathwayAsync(User, id)) return Forbid();
+            if (!await _access.CanViewPathwayAsync(User, id)) return Forbid();
 
             var pathway = await _context.Pathways
                 .Include(p => p.Modules)
@@ -58,13 +64,18 @@ namespace GamP_SCPeriop.Server.Controllers
             return Ok(pathway);
         }
 
-        [HttpGet("supervisor/{supervisorId}")]
-        public async Task<ActionResult<List<PathwayTagDto>>> GetSupervisorPathways(int supervisorId)
+        /// <summary>
+        /// Active pathways the user owns (Teacher), or every active pathway (Support)
+        /// </summary>
+        [HttpGet("owned")]
+        [Authorize(Roles = Roles.TeacherOrSupport)]
+        public async Task<ActionResult<List<PathwayTagDto>>> GetOwnedPathways()
         {
-            if (!User.IsSupport() && supervisorId != User.GetUserId()) return Forbid();
+            var userId = User.GetUserId();
+            var isSupport = User.IsSupport();
 
             var pathways = await _context.Pathways
-                .Where(p => p.ProfessorId == supervisorId && !p.IsArchived)
+                .Where(p => (isSupport || p.ProfessorId == userId) && !p.IsArchived)
                 .Select(p => new PathwayTagDto
                 {
                     PathwayId = p.Id,
@@ -72,28 +83,31 @@ namespace GamP_SCPeriop.Server.Controllers
                 })
                 .ToListAsync();
 
-            if (!pathways.Any()) return Ok(new List<PathwayTagDto>());
-
             return Ok(pathways);
         }
 
         [HttpGet("{pathwayId}/enrollments")]
+        [Authorize(Roles = Roles.TeacherOrSupport)]
         public async Task<ActionResult<List<Enrollment>>> GetPathwayEnrollments(int pathwayId)
         {
             if (!await _access.CanManagePathwayAsync(User, pathwayId)) return Forbid();
 
             var enrollments = await _context.Enrollments
                 .Include(e => e.Student)
+                .Include(e => e.Supervisor)
                 .Where(e => e.PathwayId == pathwayId)
                 .ToListAsync();
 
             return Ok(enrollments);
         }
 
+        /// <summary>
+        /// One student's copy of the pathway: editable by its Teacher, read-only for its Supervisor
+        /// </summary>
         [HttpGet("builder/{id}")]
         public async Task<ActionResult<IEnumerable<EnrollmentModule>>> GetStudentPathwayBuilder(int id)
         {
-            if (!await _access.CanManageEnrollmentAsync(User, id)) return Forbid();
+            if (!await _access.CanViewEnrollmentAsync(User, id)) return Forbid();
 
             var studentModules = await _context.EnrollmentModules
                 .Include(em => em.Enrollment)
@@ -116,6 +130,7 @@ namespace GamP_SCPeriop.Server.Controllers
         }
 
         [HttpDelete("{id}")]
+        [Authorize(Roles = Roles.TeacherOrSupport)]
         public async Task<IActionResult> DeletePathway(int id)
         {
             if (!await _access.CanManagePathwayAsync(User, id)) return Forbid();
@@ -123,7 +138,7 @@ namespace GamP_SCPeriop.Server.Controllers
             var pathway = await _context.Pathways.FindAsync(id);
             if (pathway == null) return NotFound();
 
-            // Em vez de apagar, arquivamos! 
+            // Em vez de apagar, arquivamos!
             // Assim o aluno continua com os dados intactos, mas podes filtrar isto nas listas do professor.
             pathway.IsArchived = true;
 
@@ -132,6 +147,7 @@ namespace GamP_SCPeriop.Server.Controllers
         }
 
         [HttpPut("{id}/title")]
+        [Authorize(Roles = Roles.TeacherOrSupport)]
         public async Task<IActionResult> UpdatePathwayTitle(int id, [FromBody] string newTitle)
         {
             if (!await _access.CanManagePathwayAsync(User, id)) return Forbid();
@@ -146,5 +162,24 @@ namespace GamP_SCPeriop.Server.Controllers
 
             return Ok();
         }
+
+        /// <summary>
+        /// Support only: hand a pathway to another Teacher (e.g. pathways that a supervisor created before the Teacher role existed)
+        /// </summary>
+        [HttpPut("{id}/teacher")]
+        [Authorize(Roles = Roles.Support)]
+        public async Task<IActionResult> ChangePathwayTeacher(int id, [FromBody] int teacherId)
+        {
+            var pathway = await _context.Pathways.FindAsync(id);
+            if (pathway == null) return NotFound();
+            if (!await IsTeacherAsync(teacherId)) return BadRequest("O utilizador escolhido não é um professor.");
+
+            pathway.ProfessorId = teacherId;
+            await _context.SaveChangesAsync();
+            return Ok();
+        }
+
+        private Task<bool> IsTeacherAsync(int userId) =>
+            _context.Users.AnyAsync(u => u.Id == userId && u.Role == UserRole.Teacher);
     }
 }

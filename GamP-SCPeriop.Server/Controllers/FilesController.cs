@@ -30,7 +30,7 @@ namespace GamP_SCPeriop.Server.Controllers
 
         // 1. UPLOAD: only staff, only PDF/Word, max 10 MB
         [HttpPost("upload")]
-        [Authorize(Roles = Roles.Staff)]
+        [Authorize(Roles = Roles.TeacherOrSupport)]
         [RequestSizeLimit(DocumentLinks.MaxUploadBytes + 1024 * 1024)] // + room for the multipart envelope
         public async Task<IActionResult> UploadFile(IFormFile file)
         {

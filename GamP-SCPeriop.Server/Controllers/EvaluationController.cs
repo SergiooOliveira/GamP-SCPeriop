@@ -30,7 +30,7 @@ namespace GamP_SCPeriop.Server.Controllers
         [Authorize(Roles = Roles.Staff)]
         public async Task<ActionResult<List<EnrollmentModule>>> GetEnrollmentForEvaluation(int id)
         {
-            if (!await _access.CanManageEnrollmentAsync(User, id)) return Forbid();
+            if (!await _access.CanViewEnrollmentAsync(User, id)) return Forbid();
 
             // Vai buscar TODOS os módulos clonados que pertencem a esta inscrição
             var enrollmentModules = await _context.EnrollmentModules
@@ -82,9 +82,13 @@ namespace GamP_SCPeriop.Server.Controllers
 
             int enrollmentId = requests.First().EnrollmentId;
 
-            // Só o supervisor do percurso (ou um admin) avalia, e só componentes desta inscrição
+            // Só o supervisor atribuído a este aluno (ou o suporte) avalia, e só componentes desta inscrição
             if (requests.Any(r => r.EnrollmentId != enrollmentId)) return BadRequest("Todas as avaliações têm de ser da mesma inscrição.");
-            if (!await _access.CanManageEnrollmentAsync(User, enrollmentId)) return Forbid();
+            if (!User.IsSupport() && !User.IsInRole(Roles.Supervisor)) return Forbid(); // teachers only read grades
+            if (!await _access.CanViewEnrollmentAsync(User, enrollmentId)) return Forbid();
+            if (!await _context.Enrollments.AnyAsync(e => e.Id == enrollmentId && e.SupervisorId != null))
+                return BadRequest("Esta inscrição ainda não tem supervisor atribuído: não é possível avaliar.");
+            if (!await _access.CanGradeEnrollmentAsync(User, enrollmentId)) return Forbid();
 
             var componentIds = requests.Select(r => r.ModuleComponentId).Distinct().ToList();
             var components = await _context.EnrollmentModules
@@ -199,9 +203,9 @@ namespace GamP_SCPeriop.Server.Controllers
                 _context.Notifications.Add(new Notification
                 {
                     ReceiverId = enrollment.StudentId,
-                    SenderId = enrollment.Pathway.ProfessorId,
+                    SenderId = User.GetUserId(),
                     Title = "Atualização de Avaliação 📊",
-                    Message = $"O professor atualizou as tuas avaliações no percurso '{enrollment.Pathway.Title}'.",
+                    Message = $"O supervisor atualizou as tuas avaliações no percurso '{enrollment.Pathway.Title}'.",
                     TargetUrl = $"/pathway/{enrollment.PathwayId}",
                     CreatedAt = DateTime.UtcNow, // every other date is stored in UTC
                     IsRead = false

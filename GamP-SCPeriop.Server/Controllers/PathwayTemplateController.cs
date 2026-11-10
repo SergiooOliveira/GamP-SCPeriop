@@ -9,7 +9,7 @@ namespace GamP_SCPeriop.Server.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize(Roles = Roles.Staff)]
+    [Authorize(Roles = Roles.TeacherOrSupport)]
     public class PathwayTemplateController : ControllerBase
     {
         private readonly AppDbContext _context;

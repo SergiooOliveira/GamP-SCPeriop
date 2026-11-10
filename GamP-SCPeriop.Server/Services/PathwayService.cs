@@ -217,5 +217,43 @@ namespace GamP_SCPeriop.Server.Services
             await _context.SaveChangesAsync();
             return enrollment;
         }
+
+        /// <summary>
+        /// Sets (or clears, with null) the supervisor who grades this student. A new supervisor is notified,
+        /// and the missing-supervisor warnings start over in case the supervisor is removed again later.
+        /// </summary>
+        /// <returns>An error message for the user, or null when it worked</returns>
+        public async Task<string?> AssignSupervisorAsync(int enrollmentId, int? supervisorId, int changedById)
+        {
+            var enrollment = await _context.Enrollments
+                .Include(e => e.Student)
+                .Include(e => e.Pathway)
+                .FirstOrDefaultAsync(e => e.Id == enrollmentId);
+            if (enrollment == null) return "Inscrição não encontrada.";
+
+            if (supervisorId.HasValue && !await _context.Users.AnyAsync(u => u.Id == supervisorId && u.Role == UserRole.Supervisor))
+                return "O utilizador escolhido não é um supervisor.";
+
+            if (enrollment.SupervisorId == supervisorId) return null;
+
+            enrollment.SupervisorId = supervisorId;
+            enrollment.MissingSupervisorWarningLevel = 0;
+
+            if (supervisorId.HasValue)
+            {
+                _context.Notifications.Add(new Notification
+                {
+                    ReceiverId = supervisorId.Value,
+                    SenderId = changedById,
+                    Title = "Novo estudante atribuído",
+                    Message = $"{enrollment.Student?.FullName} no percurso \"{enrollment.Pathway?.Title}\" foi-lhe atribuído para avaliação.",
+                    TargetUrl = $"/evaluate/{enrollment.Id}",
+                    CreatedAt = DateTime.UtcNow
+                });
+            }
+
+            await _context.SaveChangesAsync();
+            return null;
+        }
     }
 }

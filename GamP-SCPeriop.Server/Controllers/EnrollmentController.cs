@@ -6,6 +6,7 @@ using GamP_SCPeriop.Shared.Enum;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Linq.Expressions;
 
 namespace GamP_SCPeriop.Server.Controllers
 {
@@ -26,19 +27,48 @@ namespace GamP_SCPeriop.Server.Controllers
         }
 
         #region HttpGet
-        [HttpGet("supervisor/{supervisorId}")]
-        [Authorize(Roles = Roles.Staff)]
-        public async Task<ActionResult<List<Enrollment>>> GetSupervisorEnrollments(int supervisorId)
+        /// <summary>
+        /// Enrollments in the Teacher's own pathways (Support: all)
+        /// </summary>
+        [HttpGet("owned")]
+        [Authorize(Roles = Roles.TeacherOrSupport)]
+        public async Task<ActionResult<List<Enrollment>>> GetOwnedEnrollments()
         {
-            if (!User.IsSupport() && supervisorId != User.GetUserId()) return Forbid();
+            var userId = User.GetUserId();
+            var isSupport = User.IsSupport();
 
             var enrollments = await _context.Enrollments
                 .Include(e => e.Student)
                 .Include(e => e.Pathway)
-                .Where(e => e.Pathway.ProfessorId == supervisorId)
+                .Include(e => e.Supervisor)
+                .Where(e => isSupport || e.Pathway!.ProfessorId == userId)
                 .ToListAsync();
 
             return Ok(enrollments);
+        }
+
+        /// <summary>
+        /// What the logged-in user may do on this enrollment (screens use it to show or hide controls)
+        /// </summary>
+        [HttpGet("{id}/access")]
+        public async Task<ActionResult<EnrollmentAccessDto>> GetAccess(int id)
+        {
+            if (!await _access.CanViewEnrollmentAsync(User, id)) return Forbid();
+
+            var supervisor = await _context.Enrollments
+                .Where(e => e.Id == id)
+                .Select(e => e.Supervisor == null ? null : e.Supervisor.FullName)
+                .FirstOrDefaultAsync();
+            var canGrade = await _access.CanGradeEnrollmentAsync(User, id);
+
+            return Ok(new EnrollmentAccessDto
+            {
+                CanEdit = await _access.CanManageEnrollmentAsync(User, id),
+                CanGrade = canGrade,
+                CanRequestExtension = canGrade,
+                HasSupervisor = supervisor != null,
+                SupervisorName = supervisor
+            });
         }
 
         [HttpGet("student/{studentId}")]
@@ -161,50 +191,72 @@ namespace GamP_SCPeriop.Server.Controllers
             return Ok(enrollmentDetails);
         }
 
-        [Authorize(Roles = Roles.Staff)]
+        /// <summary>
+        /// Students list for Teachers (students in their own pathways, and only those enrollments) and Support (everyone)
+        /// </summary>
+        [Authorize(Roles = Roles.TeacherOrSupport)]
         [HttpGet("management")]
         public async Task<ActionResult<List<StudentManagementDto>>> GetAllStudentsForManagement()
         {
-            // Supervisors only see the students they have enrolled in their pathways, and only that progress.
-            // (To add new students, the pathway page lists every student through api/User/students.)
-            var isSupport = User.IsSupport();
-            var supervisorId = User.GetUserId();
+            // To add new students, the pathway page lists every student through api/User/students
+            var userId = User.GetUserId();
+            Expression<Func<Enrollment, bool>> visible = User.IsSupport()
+                ? e => true
+                : e => e.Pathway!.ProfessorId == userId;
 
+            return Ok(await BuildStudentListAsync(visible));
+        }
+
+        /// <summary>
+        /// The Supervisor's students: only the enrollments assigned to them
+        /// </summary>
+        [Authorize(Roles = Roles.Supervisor)]
+        [HttpGet("assigned")]
+        public async Task<ActionResult<List<StudentManagementDto>>> GetAssignedStudents()
+        {
+            var userId = User.GetUserId();
+            return Ok(await BuildStudentListAsync(e => e.SupervisorId == userId));
+        }
+
+        private async Task<List<StudentManagementDto>> BuildStudentListAsync(Expression<Func<Enrollment, bool>> visible)
+        {
             // 1. Extração SQL: Inclui sub-consultas para as datas e para as avaliações reais
             var rawData = await _context.Users
                 .Where(u => u.Role == UserRole.Student)
-                .Where(u => isSupport || u.Enrollments.Any(e => e.Pathway!.ProfessorId == supervisorId))
+                .Where(u => u.Enrollments.AsQueryable().Any(visible))
                 .Select(student => new
                 {
                     student.Id,
                     student.FullName,
                     student.Email,
                     Enrollments = student.Enrollments
-                        .Where(e => isSupport || e.Pathway.ProfessorId == supervisorId)
+                        .AsQueryable()
+                        .Where(visible)
                         .Select(e => new
                     {
                         EnrollmentId = e.Id,
-                        PathwayId = e.Pathway.Id,
+                        PathwayId = e.Pathway!.Id,
                         PathwayTitle = e.Pathway.Title,
                         e.ProgressPercentage,
                         e.Pathway.IsArchived,
                         e.Pathway.MinimumApprovalScore,
-                        HasSupervisor = e.SupervisorId != null,
+                        e.SupervisorId,
+                        SupervisorName = e.Supervisor == null ? null : e.Supervisor.FullName,
 
                         // FIX 1: count from this enrollment's actual modules, not the live template
                         TotalModules = _context.EnrollmentModules.Count(em => em.EnrollmentId == e.Id),
                         ScheduledModules = _context.EnrollmentModules.Count(em =>
                             em.EnrollmentId == e.Id &&
                             em.StartDate != null && em.EndDate != null &&
-                            em.Module.StageTimelines.Any() &&
-                            em.Module.StageTimelines.All(t => t.StartDate != null && t.EndDate != null)),
+                            em.Module!.StageTimelines!.Any() &&
+                            em.Module.StageTimelines!.All(t => t.StartDate != null && t.EndDate != null)),
                         MinStartDate = _context.EnrollmentModules.Where(em => em.EnrollmentId == e.Id).Min(em => em.StartDate),
                         MaxEndDate = _context.EnrollmentModules.Where(em => em.EnrollmentId == e.Id).Max(em => em.EndDate),
 
                         // Total = the items that can actually be graded (no theory, no weightless items, no group headers)
                         TotalEvaluations = _context.EnrollmentModules
                             .Where(em => em.EnrollmentId == e.Id)
-                            .SelectMany(em => em.Module.Components)
+                            .SelectMany(em => em.Module!.Components)
                             .Count(c => c.Stage != ModuleStage.Teorica && c.Weight > 0 && !c.SubComponents.Any()),
                         CompletedEvaluations = _context.ComponentEvaluations
                             .Count(ce => ce.EnrollmentId == e.Id && ce.Status != ComponentStatus.Pending)
@@ -215,7 +267,7 @@ namespace GamP_SCPeriop.Server.Controllers
             var now = DateTime.UtcNow;
 
             // 2. Processamento em Memória: Árvore de Decisão rigorosa com prioridades
-            var studentsResult = rawData.Select(student => new StudentManagementDto
+            return rawData.Select(student => new StudentManagementDto
             {
                 StudentId = student.Id,
                 FullName = student.FullName,
@@ -231,31 +283,34 @@ namespace GamP_SCPeriop.Server.Controllers
                     PathwayId = e.PathwayId,
                     Title = e.PathwayTitle,
                     EnrollmentId = e.EnrollmentId,
+                    SupervisorId = e.SupervisorId,
+                    SupervisorName = e.SupervisorName,
                     Status = EnrollmentStatusHelper.GetStatus(
                         e.ProgressPercentage, e.IsArchived, e.MinimumApprovalScore,
                         e.TotalModules, e.ScheduledModules,
                         e.TotalEvaluations, e.CompletedEvaluations,
-                        e.MinStartDate, e.MaxEndDate, e.HasSupervisor, now)
+                        e.MinStartDate, e.MaxEndDate, e.SupervisorId != null, now)
                 })
                 .OrderBy(p => EnrollmentStatusHelper.GetSortOrder(p.Status))
                 .ThenBy(p => p.Title)
                 .ToList()
             }).ToList();
-
-            return Ok(studentsResult);
         }
 
         #endregion
 
         #region HttpPost
         [HttpPost]
-        [Authorize(Roles = Roles.Staff)]
+        [Authorize(Roles = Roles.TeacherOrSupport)]
         public async Task<ActionResult<Enrollment>> CreateEnrollment(EnrollmentDto dto)
         {
             if (!await _access.CanManagePathwayAsync(User, dto.PathwayId)) return Forbid();
 
             if (!await _context.Users.AnyAsync(u => u.Id == dto.StudentId && u.Role == UserRole.Student))
                 return BadRequest("Só é possível inscrever alunos.");
+
+            if (dto.SupervisorId.HasValue && !await _context.Users.AnyAsync(u => u.Id == dto.SupervisorId && u.Role == UserRole.Supervisor))
+                return BadRequest("O utilizador escolhido não é um supervisor.");
 
             var pathway = await _context.Pathways.FindAsync(dto.PathwayId);
 
@@ -270,11 +325,31 @@ namespace GamP_SCPeriop.Server.Controllers
 
             // Copies the pathway's modules for this student (shared with the test data seeder)
             var enrollment = await _pathways.EnrollStudentAsync(dto.StudentId, dto.PathwayId);
+
+            if (dto.SupervisorId.HasValue)
+            {
+                var error = await _pathways.AssignSupervisorAsync(enrollment.Id, dto.SupervisorId, User.GetUserId());
+                if (error != null) return BadRequest(error);
+            }
+
             return Ok(enrollment);
         }
         #endregion
 
         #region HttpPut
+        /// <summary>
+        /// Teacher (or Support) chooses who grades this student; null removes the supervisor
+        /// </summary>
+        [HttpPut("{id}/supervisor")]
+        [Authorize(Roles = Roles.TeacherOrSupport)]
+        public async Task<IActionResult> SetSupervisor(int id, [FromBody] int? supervisorId)
+        {
+            if (!await _access.CanManageEnrollmentAsync(User, id)) return Forbid();
+
+            var error = await _pathways.AssignSupervisorAsync(id, supervisorId, User.GetUserId());
+            return error == null ? NoContent() : BadRequest(error);
+        }
+
         [HttpPut("{id}/star")]
         public async Task<IActionResult> ToggleStar(int id, [FromBody] bool isStarred)
         {
