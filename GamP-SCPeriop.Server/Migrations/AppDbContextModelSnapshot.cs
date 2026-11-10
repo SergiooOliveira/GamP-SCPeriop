@@ -91,6 +91,66 @@ namespace GamP_SCPeriop.Server.Migrations
                     b.ToTable("ComponentEvaluations");
                 });
 
+            modelBuilder.Entity("GamP_SCPeriop.Shared.Data.DeadlineExtensionRequest", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("CurrentEndDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DecidedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("DecidedById")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("DecidedEndDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DecisionNote")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("EnrollmentId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ModuleId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("RequestedById")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("RequestedEndDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Stage")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DecidedById");
+
+                    b.HasIndex("RequestedById");
+
+                    b.HasIndex("EnrollmentId", "ModuleId", "Stage", "Status");
+
+                    b.ToTable("DeadlineExtensionRequests");
+                });
+
             modelBuilder.Entity("GamP_SCPeriop.Shared.Data.Enrollment", b =>
                 {
                     b.Property<int>("Id")
@@ -105,6 +165,9 @@ namespace GamP_SCPeriop.Server.Migrations
                     b.Property<bool>("IsStarred")
                         .HasColumnType("bit");
 
+                    b.Property<int>("MissingSupervisorWarningLevel")
+                        .HasColumnType("int");
+
                     b.Property<int>("PathwayId")
                         .HasColumnType("int");
 
@@ -114,11 +177,16 @@ namespace GamP_SCPeriop.Server.Migrations
                     b.Property<int>("StudentId")
                         .HasColumnType("int");
 
+                    b.Property<int?>("SupervisorId")
+                        .HasColumnType("int");
+
                     b.HasKey("Id");
 
                     b.HasIndex("PathwayId");
 
                     b.HasIndex("StudentId");
+
+                    b.HasIndex("SupervisorId");
 
                     b.ToTable("Enrollments");
                 });
@@ -760,6 +828,28 @@ namespace GamP_SCPeriop.Server.Migrations
                     b.Navigation("ModuleComponent");
                 });
 
+            modelBuilder.Entity("GamP_SCPeriop.Shared.Data.DeadlineExtensionRequest", b =>
+                {
+                    b.HasOne("GamP_SCPeriop.Shared.Data.User", null)
+                        .WithMany()
+                        .HasForeignKey("DecidedById")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("GamP_SCPeriop.Shared.Data.Enrollment", "Enrollment")
+                        .WithMany()
+                        .HasForeignKey("EnrollmentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("GamP_SCPeriop.Shared.Data.User", null)
+                        .WithMany()
+                        .HasForeignKey("RequestedById")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Enrollment");
+                });
+
             modelBuilder.Entity("GamP_SCPeriop.Shared.Data.Enrollment", b =>
                 {
                     b.HasOne("GamP_SCPeriop.Shared.Data.Pathway", "Pathway")
@@ -774,9 +864,16 @@ namespace GamP_SCPeriop.Server.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("GamP_SCPeriop.Shared.Data.User", "Supervisor")
+                        .WithMany()
+                        .HasForeignKey("SupervisorId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.Navigation("Pathway");
 
                     b.Navigation("Student");
+
+                    b.Navigation("Supervisor");
                 });
 
             modelBuilder.Entity("GamP_SCPeriop.Shared.Data.EnrollmentModule", b =>

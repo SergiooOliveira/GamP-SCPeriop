@@ -40,6 +40,7 @@ namespace GamP_SCPeriop.Server.Data
         public DbSet<ModuleComponent> ModuleComponents { get; set; }
         public DbSet<EnrollmentModule> EnrollmentModules { get; set; }
         public DbSet<Notification> Notifications { get; set; }
+        public DbSet<DeadlineExtensionRequest> DeadlineExtensionRequests { get; set; }
         public DbSet<ComponentEvaluation> ComponentEvaluations { get; set; }
         public DbSet<ModuleStageTimelineDto> ModuleStageTimelines { get; set; }
         public DbSet<Badge> Badges { get; set; }
@@ -66,6 +67,26 @@ namespace GamP_SCPeriop.Server.Data
                 .WithMany(u => u.Enrollments)
                 .HasForeignKey(e => e.StudentId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<Enrollment>()
+                .HasOne(e => e.Supervisor)
+                .WithMany()
+                .HasForeignKey(e => e.SupervisorId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<DeadlineExtensionRequest>(entity =>
+            {
+                entity.HasOne(r => r.Enrollment).WithMany()
+                    .HasForeignKey(r => r.EnrollmentId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne<User>().WithMany()
+                    .HasForeignKey(r => r.RequestedById)
+                    .OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne<User>().WithMany()
+                    .HasForeignKey(r => r.DecidedById)
+                    .OnDelete(DeleteBehavior.Restrict);
+                entity.HasIndex(r => new { r.EnrollmentId, r.ModuleId, r.Stage, r.Status });
+            });
 
             modelBuilder.Entity<Notification>()
                 .HasOne<User>().WithMany()
