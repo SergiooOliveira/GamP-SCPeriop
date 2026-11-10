@@ -69,7 +69,7 @@
                     <div>
                         <div class="dd-kpi-value">@overview.Users.Count</div>
                         <div class="dd-kpi-label">Utilizadores</div>
-                        <div class="dd-kpi-hint">@Admins.Count() admin · @Supervisors.Count() supervisores · @Students.Count() alunos</div>
+                        <div class="dd-kpi-hint">@Teachers.Count() professores · @Supervisors.Count() supervisores · @Students.Count() alunos</div>
                     </div>
                 </div>
                 <div class="dd-kpi">
@@ -138,7 +138,7 @@
                 </div>
             </section>
 
-            @if (activeTab == UserRole.Supervisionado && statusFilter != null)
+            @if (activeTab == UserRole.Student && statusFilter != null)
             {
                 <div class="dd-filter-note">
                     A mostrar alunos com inscrições <strong>@statusFilter</strong>
@@ -161,7 +161,7 @@
                             </a>
                         </header>
 
-                        @if (user.Role == UserRole.Supervisionado)
+                        @if (user.Role == UserRole.Student)
                         {
                             <div class="dd-chips">
                                 <span class="dd-chip"><i class="bi bi-award-fill tone-star-text"></i>@Plural(user.BadgesEarned, "badge", "badges")</span>
@@ -295,13 +295,14 @@
 
     private static readonly (UserRole Role, string Label, string Icon)[] Tabs =
     {
-        (UserRole.Supervisionado, "Alunos", "bi-mortarboard"),
+        (UserRole.Student, "Alunos", "bi-mortarboard"),
         (UserRole.Supervisor, "Supervisores", "bi-person-badge"),
-        (UserRole.Admin, "Administradores", "bi-building")
+        (UserRole.Teacher, "Professores", "bi-building"),
+        (UserRole.Support, "Suporte", "bi-tools")
     };
 
     private DevOverviewDto? overview;
-    private UserRole activeTab = UserRole.Supervisionado;
+    private UserRole activeTab = UserRole.Student;
     private string search = string.Empty;
     private string? statusFilter;
     private string appUrl = "/";
@@ -315,9 +316,9 @@
     private CancellationTokenSource? toastTimer;
     private IJSObjectReference? jsModule;
 
-    private IEnumerable<DevUserDto> Admins => overview?.Users.Where(u => u.Role == UserRole.Admin) ?? Enumerable.Empty<DevUserDto>();
+    private IEnumerable<DevUserDto> Teachers => overview?.Users.Where(u => u.Role == UserRole.Teacher) ?? Enumerable.Empty<DevUserDto>();
     private IEnumerable<DevUserDto> Supervisors => overview?.Users.Where(u => u.Role == UserRole.Supervisor) ?? Enumerable.Empty<DevUserDto>();
-    private IEnumerable<DevUserDto> Students => overview?.Users.Where(u => u.Role == UserRole.Supervisionado) ?? Enumerable.Empty<DevUserDto>();
+    private IEnumerable<DevUserDto> Students => overview?.Users.Where(u => u.Role == UserRole.Student) ?? Enumerable.Empty<DevUserDto>();
     private IEnumerable<DevEnrollmentDto> AllEnrollments => Students.SelectMany(s => s.Enrollments);
 
     private int ApprovalRate
@@ -332,7 +333,7 @@
     private IEnumerable<DevUserDto> VisibleUsers => (overview?.Users ?? new())
         .Where(u => u.Role == activeTab)
         .Where(MatchesSearch)
-        .Where(u => activeTab != UserRole.Supervisionado || statusFilter == null || u.Enrollments.Any(e => e.Status == statusFilter));
+        .Where(u => activeTab != UserRole.Student || statusFilter == null || u.Enrollments.Any(e => e.Status == statusFilter));
 
     protected override async Task OnInitializedAsync()
     {
@@ -404,7 +405,7 @@
     private void ToggleStatus(string status)
     {
         statusFilter = statusFilter == status ? null : status;
-        activeTab = UserRole.Supervisionado;
+        activeTab = UserRole.Student;
     }
 
     private void ShowToast(string text, bool error, bool autoHide = true)

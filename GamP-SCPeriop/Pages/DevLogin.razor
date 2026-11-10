@@ -56,13 +56,7 @@
         await SessionStorage.SetItemAsync("authToken", login.Token);
         ((CustomAuthStateProvider)AuthStateProvider).MarkUserAsAuthenticated(login.Token);
 
-        var home = login.User.Role switch
-        {
-            UserRole.Supervisor => "/dashboard",
-            UserRole.Supervisionado => "/my-profile",
-            UserRole.Admin => "/admin/dashboard",
-            _ => "/"
-        };
+        var home = GamP_SCPeriop.Helpers.RoleHome.For(login.User.Role);
 
         // Full reload so the layout starts fresh with the new user; replace keeps this page out of history
         Nav.NavigateTo(home, forceLoad: true, replace: true);

@@ -25,7 +25,7 @@ namespace GamP_SCPeriop.Server.Services
                 new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
                 new Claim(ClaimTypes.Name, user.FullName),
                 new Claim(ClaimTypes.Email, user.Email),
-                new Claim(ClaimTypes.Role, user.Role.ToString()) // Admin, Supervisor or Supervisionado
+                new Claim(ClaimTypes.Role, user.Role.ToString()) // Support, Teacher, Supervisor or Student
             };
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]!));

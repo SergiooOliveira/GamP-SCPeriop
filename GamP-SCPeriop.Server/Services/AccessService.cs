@@ -10,10 +10,12 @@ namespace GamP_SCPeriop.Server.Services
     /// </summary>
     public static class Roles
     {
-        public const string Admin = nameof(UserRole.Admin);
+        public const string Support = nameof(UserRole.Support);
+        public const string Teacher = nameof(UserRole.Teacher);
         public const string Supervisor = nameof(UserRole.Supervisor);
-        public const string Student = nameof(UserRole.Supervisionado);
-        public const string Staff = Admin + "," + Supervisor;
+        public const string Student = nameof(UserRole.Student);
+        public const string TeacherOrSupport = Support + "," + Teacher;
+        public const string Staff = Support + "," + Teacher + "," + Supervisor;
     }
 
     public static class ClaimsPrincipalExtensions
@@ -21,7 +23,7 @@ namespace GamP_SCPeriop.Server.Services
         public static int GetUserId(this ClaimsPrincipal user) =>
             int.TryParse(user.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : 0;
 
-        public static bool IsAdmin(this ClaimsPrincipal user) => user.IsInRole(Roles.Admin);
+        public static bool IsSupport(this ClaimsPrincipal user) => user.IsInRole(Roles.Support);
     }
 
     /// <summary>
@@ -43,7 +45,7 @@ namespace GamP_SCPeriop.Server.Services
         /// </summary>
         public async Task<bool> CanViewStudentAsync(ClaimsPrincipal user, int studentId)
         {
-            if (user.IsAdmin() || user.GetUserId() == studentId) return true;
+            if (user.IsSupport() || user.GetUserId() == studentId) return true;
             if (!user.IsInRole(Roles.Supervisor)) return false;
 
             var supervisorId = user.GetUserId();
@@ -52,7 +54,7 @@ namespace GamP_SCPeriop.Server.Services
 
         public async Task<bool> CanManagePathwayAsync(ClaimsPrincipal user, int pathwayId)
         {
-            if (user.IsAdmin()) return await _context.Pathways.AnyAsync(p => p.Id == pathwayId);
+            if (user.IsSupport()) return await _context.Pathways.AnyAsync(p => p.Id == pathwayId);
 
             var userId = user.GetUserId();
             return user.IsInRole(Roles.Supervisor)
@@ -64,7 +66,7 @@ namespace GamP_SCPeriop.Server.Services
         /// </summary>
         public async Task<bool> CanManageEnrollmentAsync(ClaimsPrincipal user, int enrollmentId)
         {
-            if (user.IsAdmin()) return await _context.Enrollments.AnyAsync(e => e.Id == enrollmentId);
+            if (user.IsSupport()) return await _context.Enrollments.AnyAsync(e => e.Id == enrollmentId);
 
             var userId = user.GetUserId();
             return user.IsInRole(Roles.Supervisor)
@@ -102,7 +104,7 @@ namespace GamP_SCPeriop.Server.Services
             // A module that belongs to neither a pathway nor an enrollment is orphaned: only admins touch it
             return enrollmentId.HasValue
                 ? await CanManageEnrollmentAsync(user, enrollmentId.Value)
-                : user.IsAdmin();
+                : user.IsSupport();
         }
 
         /// <summary>

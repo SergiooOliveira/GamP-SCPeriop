@@ -10,7 +10,7 @@ namespace GamP_SCPeriop.Server.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize(Roles = Roles.Admin)]
+    [Authorize(Roles = Roles.TeacherOrSupport)]
     public class BadgeTemplateController : ControllerBase
     {
         private readonly AppDbContext _context;

@@ -21,7 +21,7 @@ namespace GamP_SCPeriop.Shared.Data
         [JsonIgnore]
         public string Password { get; set; } = string.Empty;
 
-        public UserRole Role { get; set; } = UserRole.Supervisionado;
+        public UserRole Role { get; set; } = UserRole.Student;
 
         public string University { get; set; } = "Universidade do Minho";
 

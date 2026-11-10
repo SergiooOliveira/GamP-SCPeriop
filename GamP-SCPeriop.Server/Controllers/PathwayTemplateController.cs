@@ -43,7 +43,7 @@ namespace GamP_SCPeriop.Server.Controllers
         }
 
         [HttpPost]
-        [Authorize(Roles = Roles.Admin)]
+        [Authorize(Roles = Roles.TeacherOrSupport)]
         public async Task<ActionResult<PathwayTemplate>> CreateTemplate(PathwayTemplate template)
         {
             // Only the template itself is created; modules and components have their own endpoints
@@ -56,7 +56,7 @@ namespace GamP_SCPeriop.Server.Controllers
         }
 
         [HttpDelete("{id}")]
-        [Authorize(Roles = Roles.Admin)]
+        [Authorize(Roles = Roles.TeacherOrSupport)]
         public async Task<IActionResult> DeleteTemplate(int id)
         {
             var template = await _context.PathwayTemplates.FindAsync(id);

@@ -30,7 +30,7 @@ namespace GamP_SCPeriop.Server.Controllers
         [Authorize(Roles = Roles.Staff)]
         public async Task<ActionResult<List<Enrollment>>> GetSupervisorEnrollments(int supervisorId)
         {
-            if (!User.IsAdmin() && supervisorId != User.GetUserId()) return Forbid();
+            if (!User.IsSupport() && supervisorId != User.GetUserId()) return Forbid();
 
             var enrollments = await _context.Enrollments
                 .Include(e => e.Student)
@@ -45,7 +45,7 @@ namespace GamP_SCPeriop.Server.Controllers
         public async Task<ActionResult<List<StudentDashboardCardDto>>> GetStudentEnrollments(int studentId)
         {
             // O painel do aluno: só o próprio (ou um admin)
-            if (!User.IsAdmin() && studentId != User.GetUserId()) return Forbid();
+            if (!User.IsSupport() && studentId != User.GetUserId()) return Forbid();
 
             // Start from the enrollments themselves, so a pathway with no modules yet still shows on the dashboard
             var enrollments = await _context.Enrollments
@@ -167,20 +167,20 @@ namespace GamP_SCPeriop.Server.Controllers
         {
             // Supervisors only see the students they have enrolled in their pathways, and only that progress.
             // (To add new students, the pathway page lists every student through api/User/students.)
-            var isAdmin = User.IsAdmin();
+            var isSupport = User.IsSupport();
             var supervisorId = User.GetUserId();
 
             // 1. Extração SQL: Inclui sub-consultas para as datas e para as avaliações reais
             var rawData = await _context.Users
-                .Where(u => u.Role == UserRole.Supervisionado)
-                .Where(u => isAdmin || u.Enrollments.Any(e => e.Pathway!.ProfessorId == supervisorId))
+                .Where(u => u.Role == UserRole.Student)
+                .Where(u => isSupport || u.Enrollments.Any(e => e.Pathway!.ProfessorId == supervisorId))
                 .Select(student => new
                 {
                     student.Id,
                     student.FullName,
                     student.Email,
                     Enrollments = student.Enrollments
-                        .Where(e => isAdmin || e.Pathway.ProfessorId == supervisorId)
+                        .Where(e => isSupport || e.Pathway.ProfessorId == supervisorId)
                         .Select(e => new
                     {
                         EnrollmentId = e.Id,
@@ -253,7 +253,7 @@ namespace GamP_SCPeriop.Server.Controllers
         {
             if (!await _access.CanManagePathwayAsync(User, dto.PathwayId)) return Forbid();
 
-            if (!await _context.Users.AnyAsync(u => u.Id == dto.StudentId && u.Role == UserRole.Supervisionado))
+            if (!await _context.Users.AnyAsync(u => u.Id == dto.StudentId && u.Role == UserRole.Student))
                 return BadRequest("Só é possível inscrever alunos.");
 
             var pathway = await _context.Pathways.FindAsync(dto.PathwayId);

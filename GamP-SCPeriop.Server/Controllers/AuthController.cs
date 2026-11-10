@@ -31,7 +31,7 @@ namespace GamP_SCPeriop.Server.Controllers
 
         // Só os Administradores criam contas (qualquer pessoa podia criar uma conta de Admin)
         [HttpPost("register")]
-        [Authorize(Roles = nameof(UserRole.Admin))]
+        [Authorize(Roles = Roles.Support)]
         public async Task<ActionResult<User>> Register(UserRegisterDto request)
         {
             var emailExists = await _context.Users.AnyAsync(u => u.Email == request.Email);
@@ -119,7 +119,7 @@ namespace GamP_SCPeriop.Server.Controllers
         }
 
         [HttpPost("reset-password")]
-        [Authorize(Roles = nameof(UserRole.Admin))]
+        [Authorize(Roles = Roles.Support)]
         public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto request)
         {
             var user = await _context.Users.FindAsync(request.UserId);

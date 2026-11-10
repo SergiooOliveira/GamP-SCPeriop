@@ -32,7 +32,7 @@ namespace GamP_SCPeriop.Server.Controllers
         public async Task<ActionResult<Pathway>> CreatePathway(PathwayCreateDto dto)
         {
             // Supervisors always own the pathways they create; only admins may create one for someone else
-            if (!User.IsAdmin()) dto.ProfessorId = User.GetUserId();
+            if (!User.IsSupport()) dto.ProfessorId = User.GetUserId();
 
             // Criação (e cópia do molde, se escolhido) partilhada com o gerador de dados de teste
             var pathway = await _pathways.CreatePathwayAsync(dto);
@@ -61,7 +61,7 @@ namespace GamP_SCPeriop.Server.Controllers
         [HttpGet("supervisor/{supervisorId}")]
         public async Task<ActionResult<List<PathwayTagDto>>> GetSupervisorPathways(int supervisorId)
         {
-            if (!User.IsAdmin() && supervisorId != User.GetUserId()) return Forbid();
+            if (!User.IsSupport() && supervisorId != User.GetUserId()) return Forbid();
 
             var pathways = await _context.Pathways
                 .Where(p => p.ProfessorId == supervisorId && !p.IsArchived)

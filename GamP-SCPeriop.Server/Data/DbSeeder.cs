@@ -101,9 +101,9 @@ namespace GamP_SCPeriop.Server.Data
             // BCrypt is slow on purpose, so every test account shares one hash
             var passwordHash = BCrypt.Net.BCrypt.HashPassword(TestPassword);
 
-            var admins = AdminNames.Select(n => NewUser(n, UserRole.Admin, passwordHash)).ToList();
+            var admins = AdminNames.Select(n => NewUser(n, UserRole.Teacher, passwordHash)).ToList();
             var supervisors = SupervisorNames.Select(n => NewUser(n, UserRole.Supervisor, passwordHash)).ToList();
-            var students = StudentNames.Select(n => NewUser(n, UserRole.Supervisionado, passwordHash)).ToList();
+            var students = StudentNames.Select(n => NewUser(n, UserRole.Student, passwordHash)).ToList();
 
             _context.Users.AddRange(admins);
             _context.Users.AddRange(supervisors);

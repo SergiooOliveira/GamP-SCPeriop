@@ -160,29 +160,19 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-    // Empty database: create the first admin from configuration (no default password baked into the code).
+    // No Support account yet: create it from configuration, or promote the account with that email.
     // Set BootstrapAdmin:Email and BootstrapAdmin:Password (e.g. as environment variables BootstrapAdmin__Email / BootstrapAdmin__Password).
-    if (!db.Users.Any())
+    if (!await db.Users.AnyAsync(u => u.Role == UserRole.Support))
     {
-        var adminEmail = builder.Configuration["BootstrapAdmin:Email"];
-        var adminPassword = builder.Configuration["BootstrapAdmin:Password"];
+        var supportEmail = builder.Configuration["BootstrapAdmin:Email"];
+        var created = await SupportAccountBootstrapper.EnsureAsync(
+            db, supportEmail, builder.Configuration["BootstrapAdmin:Password"], builder.Configuration["BootstrapAdmin:FullName"]);
 
-        if (string.IsNullOrWhiteSpace(adminEmail) || string.IsNullOrWhiteSpace(adminPassword) || adminPassword.Length < 8)
-        {
-            app.Logger.LogWarning("The database has no users. Set BootstrapAdmin:Email and BootstrapAdmin:Password (8+ characters) to create the first admin.");
-        }
+        if (created)
+            app.Logger.LogInformation("Support account ready: {Email}.", supportEmail);
         else
-        {
-            db.Users.Add(new User
-            {
-                Email = adminEmail,
-                FullName = builder.Configuration["BootstrapAdmin:FullName"] ?? "Administrador",
-                Password = BCrypt.Net.BCrypt.HashPassword(adminPassword),
-                Role = UserRole.Admin
-            });
-            db.SaveChanges();
-            app.Logger.LogInformation("Created the first admin account {Email}.", adminEmail);
-        }
+            app.Logger.LogWarning("There is no Support account. Set BootstrapAdmin:Email and BootstrapAdmin:Password ({Min}+ characters) to create one.",
+                SupportAccountBootstrapper.MinPasswordLength);
     }
 }
 

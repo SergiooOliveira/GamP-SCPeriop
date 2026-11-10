@@ -92,7 +92,7 @@
                                 <div class="user-pill shadow-sm" style="cursor: pointer;" @onclick="ToggleDropdown">
                                     <div class="user-info">
                                         <div class="fw-bold small">@currentUser.DisplayShortName</div>
-                                        <small class="text-muted">@currentUser.Role</small>
+                                        <small class="text-muted">@currentUser.Role.DisplayName()</small>
                                     </div>
                                     <div class="avatar">@(currentUser.DisplayShortName?.FirstOrDefault() ?? '?')</div>
                                 </div>
@@ -103,7 +103,7 @@
 
                                     <div class="card position-absolute end-0 mt-2 shadow-sm border-0 py-1" style="min-width: 150px; z-index: 100; border-radius: 8px;">
                                        
-                                        @if (currentUser.Role == UserRole.Supervisionado)
+                                        @if (currentUser.Role == UserRole.Student)
                                         {
                                             <button class="btn btn-white text-dark text-start px-3 py-2 w-100 border-0" @onclick='() => Nav.NavigateTo("/badges")'>
                                                 <i class="bi bi-award me-2 text-warning"></i> Conquistas

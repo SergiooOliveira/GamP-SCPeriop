@@ -181,12 +181,6 @@
         if (CurrentUser == null) return "/";
 
         // Supondo que tens uma propriedade Role, ProfileType, ou algo semelhante
-        return CurrentUser.Role switch
-        {
-            UserRole.Admin => "/admin/dashboard",
-            UserRole.Supervisor => "/dashboard",
-            UserRole.Supervisionado => "/my-profile",
-            _ => "/"
-        };
+        return GamP_SCPeriop.Helpers.RoleHome.For(CurrentUser.Role);
     }
 }

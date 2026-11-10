@@ -16,7 +16,7 @@ namespace GamP_SCPeriop.Shared.Entity.Model
         [Required]
         public string FullName { get; set; } = string.Empty;
 
-        public UserRole Role { get; set; } = UserRole.Supervisionado;
+        public UserRole Role { get; set; } = UserRole.Student;
 
         public string University { get; set; } = "IPCA";
 

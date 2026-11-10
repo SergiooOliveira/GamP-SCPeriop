@@ -4,7 +4,7 @@
 @using GamP_SCPeriop.Shared.Entity.Model
 @using GamP_SCPeriop.Shared.Enum
 @using GamP_SCPeriop.Shared.Data
-@attribute [Authorize(Roles = "Admin")]
+@attribute [Authorize(Roles = "Support")]
 @inject HttpClient Http
 @inject NavigationManager Nav
 
@@ -69,7 +69,7 @@
                             <InputSelect @bind-Value="registerModel.Role" class="form-select bg-light border-0">
                                 @foreach (var role in Enum.GetValues<UserRole>())
                                 {
-                                    <option value="@role">@role</option>
+                                    <option value="@role">@role.DisplayName()</option>
                                 }
                             </InputSelect>
                         </div>
@@ -176,7 +176,7 @@
     private void OpenCreateModal()
     {
         // Limpa o formulário sempre que se abre o modal
-        registerModel = new UserRegisterDto { Role = UserRole.Supervisionado };
+        registerModel = new UserRegisterDto { Role = UserRole.Student };
         showCreateModal = true;
     }
 

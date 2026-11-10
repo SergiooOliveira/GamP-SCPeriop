@@ -27,7 +27,7 @@ namespace GamP_SCPeriop.Server.Controllers
             // Used to pick students to enrol: only what's needed to identify them
             var students = await _context.Users
                 .AsNoTracking()
-                .Where(u => u.Role == UserRole.Supervisionado)
+                .Where(u => u.Role == UserRole.Student)
                 .OrderBy(u => u.FullName)
                 .Select(u => new User { Id = u.Id, FullName = u.FullName, Email = u.Email, Role = u.Role, University = u.University })
                 .ToListAsync();
@@ -36,11 +36,11 @@ namespace GamP_SCPeriop.Server.Controllers
         }
 
         [HttpGet]
-        [Authorize(Roles = Roles.Admin)]
+        [Authorize(Roles = Roles.Support)]
         public async Task<ActionResult<List<User>>> GetAllUsers()
         {
             var users = await _context.Users
-                .Where(u => u.Role != UserRole.Admin)
+                .Where(u => u.Role != UserRole.Support)
                 .OrderByDescending(u => u.Id) // Coloca os registos mais recentes no topo
                 .ToListAsync();
 
