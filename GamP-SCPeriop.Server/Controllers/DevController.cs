@@ -39,6 +39,7 @@ namespace GamP_SCPeriop.Server.Controllers
                 .AsNoTracking()
                 .Include(e => e.Pathway)
                     .ThenInclude(p => p!.Professor)
+                .Include(e => e.Supervisor)
                 .ToListAsync();
 
             var enrollmentModules = await _context.EnrollmentModules
@@ -87,7 +88,7 @@ namespace GamP_SCPeriop.Server.Controllers
                         EnrollmentId = e.Id,
                         PathwayId = e.PathwayId,
                         PathwayTitle = e.Pathway?.Title ?? "Sem título",
-                        SupervisorName = e.Pathway?.Professor?.DisplayShortName ?? "Sem supervisor",
+                        SupervisorName = e.Supervisor?.DisplayShortName ?? "Sem supervisor",
                         ProgressPercentage = e.ProgressPercentage,
                         MinimumApprovalScore = e.Pathway?.MinimumApprovalScore ?? 0,
                         CompletedEvaluations = completed,
@@ -96,7 +97,7 @@ namespace GamP_SCPeriop.Server.Controllers
                         Status = EnrollmentStatusHelper.GetStatus(
                             e.ProgressPercentage, e.Pathway?.IsArchived ?? false, e.Pathway?.MinimumApprovalScore ?? 0,
                             modules.Count, scheduled, totalEvaluations, completed,
-                            modules.Min(em => em.StartDate), modules.Max(em => em.EndDate), now)
+                            modules.Min(em => em.StartDate), modules.Max(em => em.EndDate), e.SupervisorId != null, now)
                     }
                 };
             }).ToList();

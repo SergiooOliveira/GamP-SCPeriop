@@ -7,6 +7,7 @@ namespace GamP_SCPeriop.Server.Services
     {
         public const string EmCurso = "Em curso";
         public const string PorIniciar = "Por iniciar";
+        public const string SemSupervisor = "Sem supervisor";
         public const string Pendente = "Pendente";
         public const string Aprovado = "Concluído (Aprovado)";
         public const string Reprovado = "Concluído (Reprovado)";
@@ -21,6 +22,7 @@ namespace GamP_SCPeriop.Server.Services
             int completedEvaluations,
             DateTime? minStartDate,
             DateTime? maxEndDate,
+            bool hasSupervisor,
             DateTime now)
         {
             bool hasModules = totalModules > 0;
@@ -37,6 +39,9 @@ namespace GamP_SCPeriop.Server.Services
                 var minScore = minimumApprovalScore > 0 ? minimumApprovalScore : 65;
                 return progressPercentage >= minScore ? Aprovado : Reprovado;
             }
+
+            // REGRA 1b — no supervisor assigned: the pathway cannot start (nothing can be graded)
+            if (!hasSupervisor) return SemSupervisor;
 
             // REGRA 2 — not fully scheduled, but work has started
             if (hasStartedEvaluations) return EmCurso;
@@ -56,9 +61,10 @@ namespace GamP_SCPeriop.Server.Services
         {
             EmCurso => 1,
             PorIniciar => 2,
-            Pendente => 3,
-            Aprovado => 4,
-            _ => 5 // Concluído (Reprovado) ou outros
+            SemSupervisor => 3,
+            Pendente => 4,
+            Aprovado => 5,
+            _ => 6 // Concluído (Reprovado) ou outros
         };
     }
 }

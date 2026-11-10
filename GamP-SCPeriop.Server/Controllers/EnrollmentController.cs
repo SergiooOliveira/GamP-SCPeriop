@@ -189,6 +189,7 @@ namespace GamP_SCPeriop.Server.Controllers
                         e.ProgressPercentage,
                         e.Pathway.IsArchived,
                         e.Pathway.MinimumApprovalScore,
+                        HasSupervisor = e.SupervisorId != null,
 
                         // FIX 1: count from this enrollment's actual modules, not the live template
                         TotalModules = _context.EnrollmentModules.Count(em => em.EnrollmentId == e.Id),
@@ -234,7 +235,7 @@ namespace GamP_SCPeriop.Server.Controllers
                         e.ProgressPercentage, e.IsArchived, e.MinimumApprovalScore,
                         e.TotalModules, e.ScheduledModules,
                         e.TotalEvaluations, e.CompletedEvaluations,
-                        e.MinStartDate, e.MaxEndDate, now)
+                        e.MinStartDate, e.MaxEndDate, e.HasSupervisor, now)
                 })
                 .OrderBy(p => EnrollmentStatusHelper.GetSortOrder(p.Status))
                 .ThenBy(p => p.Title)
