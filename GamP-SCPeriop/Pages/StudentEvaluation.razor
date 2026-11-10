@@ -756,7 +756,8 @@
     private void OpenExtensionForm(int moduleId, ModuleStage stage, DateTime currentEnd)
     {
         extensionForm = (moduleId, stage);
-        extensionDate = currentEnd.Date.AddDays(7);
+        // A week after the end date, or a week from today if the stage already ended (otherwise it would stay locked)
+        extensionDate = (currentEnd.Date < DateTime.Today ? DateTime.Today : currentEnd.Date).AddDays(7);
         extensionReason = null;
         extensionError = null;
     }
