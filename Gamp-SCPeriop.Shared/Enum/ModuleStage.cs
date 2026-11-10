@@ -14,3 +14,22 @@ namespace GamP_SCPeriop.Shared.Enum
         //Avaliacao = 6
     }
 }
+
+namespace GamP_SCPeriop.Shared.Enum
+{
+    public static class ModuleStageExtensions
+    {
+        /// <summary>
+        /// Name shown on screen and in notifications
+        /// </summary>
+        public static string DisplayName(this ModuleStage stage) => stage switch
+        {
+            ModuleStage.Teorica => "Componente Teórica",
+            ModuleStage.ObservacaoPassiva => "Observação Passiva",
+            ModuleStage.ObservacaoParticipada => "Observação Participada",
+            ModuleStage.PraticaAssistida => "Prática Assistida",
+            ModuleStage.PraticaSupervisionada => "Prática Supervisionada",
+            _ => stage.ToString()
+        };
+    }
+}
