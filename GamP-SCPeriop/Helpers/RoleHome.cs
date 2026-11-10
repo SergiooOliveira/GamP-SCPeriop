@@ -11,7 +11,7 @@ namespace GamP_SCPeriop.Helpers
         {
             UserRole.Support => "/admin/dashboard",
             UserRole.Teacher => "/dashboard",
-            UserRole.Supervisor => "/dashboard",
+            UserRole.Supervisor => "/supervisor/students",
             UserRole.Student => "/my-profile",
             _ => "/"
         };

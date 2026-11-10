@@ -1,0 +1,104 @@
+@page "/supervisor/students"
+@attribute [Authorize(Roles = "Supervisor")]
+@using GamP_SCPeriop.Shared.Entity.Model
+@layout TopNavBarLayout
+@inject HttpClient Http
+@inject NavigationManager Nav
+
+<div class="max-width-container mt-3 px-3 pb-5">
+    <div class="mb-4">
+        <h4 class="fw-bold mb-1">Os meus estudantes</h4>
+        <p class="text-muted small mb-0">Estudantes que os professores lhe atribuíram para avaliar. Abra um percurso para avaliar ou pedir um prolongamento.</p>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="text-center p-5"><div class="spinner-border text-primary" role="status"></div></div>
+    }
+    else if (errorMessage != null)
+    {
+        <div class="alert alert-danger border-0 shadow-sm">@errorMessage</div>
+    }
+    else if (!rows.Any())
+    {
+        <div class="card border-0 shadow-sm p-5 text-center text-muted" style="border-radius: 16px;">
+            <i class="bi bi-people fs-1 mb-2"></i>
+            Ainda não tem estudantes atribuídos.
+        </div>
+    }
+    else
+    {
+        <div class="card border-0 shadow-sm" style="border-radius: 16px;">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead>
+                        <tr class="small text-muted">
+                            <th class="ps-4">Estudante</th>
+                            <th>Percurso</th>
+                            <th>Estado</th>
+                            <th class="pe-4 text-end"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var row in rows)
+                        {
+                            <tr style="cursor: pointer;" @onclick='() => Nav.NavigateTo($"/evaluate/{row.Pathway.EnrollmentId}")'>
+                                <td class="ps-4">
+                                    <div class="fw-semibold">@row.Student.FullName</div>
+                                    <small class="text-muted">@row.Student.Email</small>
+                                </td>
+                                <td>@row.Pathway.Title</td>
+                                <td><span class="badge rounded-pill fw-normal px-3 py-2 @StatusClass(row.Pathway.Status)">@row.Pathway.Status</span></td>
+                                <td class="pe-4 text-end">
+                                    <span class="btn btn-sm text-white" style="background-color: var(--brand);">
+                                        <i class="bi bi-clipboard-check me-1"></i> Avaliar
+                                    </span>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private record Row(StudentManagementDto Student, PathwayTagDto Pathway);
+
+    private List<Row> rows = new();
+    private bool isLoading = true;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var students = await Http.GetFromJsonAsync<List<StudentManagementDto>>("api/Enrollment/assigned") ?? new();
+            rows = students
+                .SelectMany(s => s.ActivePathways.Select(p => new Row(s, p)))
+                .OrderBy(r => r.Student.FullName)
+                .ThenBy(r => r.Pathway.Title)
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Erro a carregar estudantes: {ex.Message}");
+            errorMessage = "Não foi possível carregar os seus estudantes.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private static string StatusClass(string status) => status switch
+    {
+        var s when s.Contains("Reprovado") => "status-reproved",
+        var s when s.Contains("Aprovado") => "status-approved",
+        var s when s.Contains("Em curso") => "status-em-curso",
+        var s when s.Contains("Por iniciar") => "status-por-iniciar",
+        var s when s.Contains("Pendente") => "status-pendente",
+        _ => "bg-warning-subtle text-warning-emphasis"
+    };
+}

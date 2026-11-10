@@ -1,8 +1,10 @@
 ﻿@page "/templates"
 @layout TopNavBarLayout
+@attribute [Authorize(Roles = "Teacher,Support")]
 @inject HttpClient Http
 @inject IJSRuntime JSRuntime
 @inject NavigationManager Nav
+@using GamP_SCPeriop.Shared.Data
 @using GamP_SCPeriop.Shared.Data.Template
 @using GamP_SCPeriop.Shared.Entity.Model
 @using GamP_SCPeriop.Components
@@ -29,7 +31,7 @@
                     <p class="text-muted small mt-1">Cria e gere os moldes dos percursos (Pathways) e as suas regras.</p>
                 </div>
 
-                <button class="btn btn-link text-decoration-none text-muted p-0 mt-1" @onclick='() => Nav.NavigateTo("/admin/dashboard")'>
+                <button class="btn btn-link text-decoration-none text-muted p-0 mt-1" @onclick='() => Nav.NavigateTo(currentUser == null ? "/" : GamP_SCPeriop.Helpers.RoleHome.For(currentUser.Role))'>
                     <i class="bi bi-arrow-left me-1"></i> Voltar ao Dashboard
                 </button>
             </div>
@@ -160,6 +162,9 @@
 }
 
 @code {
+    [CascadingParameter]
+    public User? currentUser { get; set; }
+
     #region [ Variáveis de Estado da Lista ]
     private bool isLoading = true;
     private List<PathwayTemplate> Templates = new();

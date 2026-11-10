@@ -2,6 +2,7 @@
 @page "/supervisor/pathway-builder/{PathwayIdToLoad:int}"
 @page "/supervisor/pathway-builder/student/{EnrollmentIdToLoad:int}"
 @layout TopNavBarLayout
+@attribute [Authorize(Roles = "Teacher,Support")]
 @inject HttpClient Http
 @inject NavigationManager Nav
 @using GamP_SCPeriop.Components

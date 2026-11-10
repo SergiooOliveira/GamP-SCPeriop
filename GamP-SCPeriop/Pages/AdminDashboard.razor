@@ -1,10 +1,11 @@
 ﻿@page "/admin/dashboard"
+@attribute [Authorize(Roles = "Support")]
 @layout TopNavBarLayout
 @inject NavigationManager Nav
 
 <div class="container mt-4">
     <div class="mb-5">
-        <h2 class="fw-bold mb-0">Admin Dashboard</h2>
+        <h2 class="fw-bold mb-0">Painel de Suporte</h2>
     </div>
 
     <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
@@ -45,7 +46,26 @@
                     </h4>
 
                     <p class="text-secondary small mt-auto mb-0">
-                        Cria novas contas de Professores e Alunos e gere os acessos ao sistema.
+                        Cria contas de Professores, Supervisores e Estudantes e gere os acessos ao sistema.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cartão: Percursos (todos os professores) -->
+        <div class="col">
+            <div class="card border-0 h-100 admin-module-card" style="background-color: var(--card-bg)" @onclick='@(() => Nav.NavigateTo("/dashboard"))'>
+                <div class="card-body p-4 d-flex flex-column">
+                    <div class="mb-4 text-warning">
+                        <i class="bi bi-diagram-3-fill" style="font-size: 2.5rem;"></i>
+                    </div>
+
+                    <h4 class="fw-bold text-dark mb-2" style="line-height: 1.2;">
+                        Percursos e Estudantes
+                    </h4>
+
+                    <p class="text-secondary small mt-auto mb-0">
+                        Vê e corrige os percursos de todos os professores, os estudantes e os supervisores atribuídos.
                     </p>
                 </div>
             </div>

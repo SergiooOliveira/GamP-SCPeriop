@@ -1,5 +1,6 @@
 ﻿@page "/dashboard"
-@attribute [Authorize(Roles = "Supervisor")]
+@attribute [Authorize(Roles = "Teacher,Support")]
+@using GamP_SCPeriop.Shared.Enum
 @using GamP_SCPeriop.Components
 @using GamP_SCPeriop.Shared.Entity.Model
 @using GamP_SCPeriop.Shared.Data
@@ -35,7 +36,7 @@
                         <h6 class="fw-bold mb-3 fs-5">@summary.Title</h6>
                         <div class="mb-4 d-flex align-items-baseline">
                             <span class="fs-2 fw-bold me-2">@summary.StudentCount</span>
-                            <span class="text-muted small">Supervisionados</span>
+                            <span class="text-muted small">Estudantes</span>
                         </div>
                     </div>
                 </div>
@@ -100,7 +101,10 @@
                                             <div class="rounded bg-primary bg-opacity-10 p-2 me-3">
                                                 <i class="bi bi-journal-text text-primary"></i>
                                             </div>
-                                            <span class="fw-semibold text-dark fs-6">@pathway.Title</span>
+                                            <div>
+                                                <span class="fw-semibold text-dark fs-6 d-block">@pathway.Title</span>
+                                                <small class="text-muted"><i class="bi bi-person-badge me-1"></i>@(pathway.SupervisorName ?? "Sem supervisor atribuído")</small>
+                                            </div>
                                         </div>
 
                                         <span class="badge rounded-pill @GetStatusColor(pathway.Status) px-3 py-2 fw-normal shadow-sm">
@@ -152,6 +156,20 @@
                             <input type="number" class="form-control border-0 shadow-sm bg-light" style="border-radius: 10px; padding: 12px;" @bind="pathwayDto.MinimumApprovalScore" />
                         </div>
                     </div>
+
+                    @if (isSupport)
+                    {
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold text-secondary small mb-1">Professor responsável</label>
+                            <select class="form-select bg-light border-0 shadow-sm" @bind="selectedTeacherId">
+                                <option value="0">— Escolha um professor —</option>
+                                @foreach (var teacher in teachers)
+                                {
+                                    <option value="@teacher.Id">@teacher.FullName</option>
+                                }
+                            </select>
+                        </div>
+                    }
 
                     <div class="mb-4">
                         <label class="form-label text-muted small fw-bold mb-1">Molde Base (Opcional)</label>
@@ -219,6 +237,11 @@
     private List<PathwayTagDto> unassignedPathways = new();
 
     private int selectedTemplateId = 0;
+
+    // Support creates pathways on behalf of a Teacher
+    private bool isSupport => currentUser?.Role == UserRole.Support;
+    private List<SupervisorOptionDto> teachers = new();
+    private int selectedTeacherId = 0;
     private List<PathwayTemplate> availableTemplates = new();
 
     // --- CREATE PATHWAY VARIABLES ---
@@ -232,6 +255,7 @@
         try
         {
             availableTemplates = await Http.GetFromJsonAsync<List<PathwayTemplate>>("api/PathwayTemplate") ?? new();
+            if (isSupport) teachers = await Http.GetFromJsonAsync<List<SupervisorOptionDto>>("api/User/teachers") ?? new();
             await LoadDashboardData();
 
             // Segurança: Se a API não devolver nada, garante que não fica a null
@@ -251,10 +275,10 @@
     private async Task LoadDashboardData()
     {
         // 1. Fetch ALL available pathways FIRST (This guarantees empty pathways are loaded!)
-        availablePathways = await Http.GetFromJsonAsync<List<PathwayTagDto>>($"api/Pathway/supervisor/{currentUser!.Id}") ?? new();
+        availablePathways = await Http.GetFromJsonAsync<List<PathwayTagDto>>("api/Pathway/owned") ?? new();
 
         // 2. Fetch the Enrollments
-        var fetchedData = await Http.GetFromJsonAsync<List<Enrollment>>($"api/Enrollment/supervisor/{currentUser!.Id}");
+        var fetchedData = await Http.GetFromJsonAsync<List<Enrollment>>("api/Enrollment/owned");
         if (fetchedData != null)
         {
             supervisedEnrollments = fetchedData;
@@ -339,7 +363,9 @@
         isCreatingPathway = true;
 
         Console.WriteLine($"Creating a new pathway with a currentUser.id: {currentUser?.Id}");
-        pathwayDto.ProfessorId = currentUser.Id;
+        // Teachers always own what they create (the server enforces it); Support picks the Teacher
+        pathwayDto.ProfessorId = isSupport ? selectedTeacherId : currentUser!.Id;
+        if (isSupport && selectedTeacherId == 0) { isCreatingPathway = false; return; }
 
         // A TUA NOVA LINHA AQUI: Passa a escolha do Molde para o DTO
         pathwayDto.TemplateId = selectedTemplateId > 0 ? selectedTemplateId : null;
@@ -388,6 +414,7 @@
             var s when s.Contains("em curso") => "status-em-curso border border-primary border-opacity-25",
             var s when s.Contains("pendente") => "status-pendente border border-warning border-opacity-25",
             var s when s.Contains("por iniciar") => "status-por-iniciar border border-secondary border-opacity-25",
+            var s when s.Contains("sem supervisor") => "bg-warning-subtle text-warning-emphasis border border-warning",
             _ => "bg-light text-muted border border-secondary border-opacity-25"
         };
     }

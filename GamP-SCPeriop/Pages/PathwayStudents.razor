@@ -2,6 +2,7 @@
 @using GamP_SCPeriop.Shared.Data
 @using GamP_SCPeriop.Shared.Entity.Model
 @layout TopNavBarLayout
+@attribute [Authorize(Roles = "Teacher,Support")]
 @inject HttpClient Http
 @inject NavigationManager Nav
 

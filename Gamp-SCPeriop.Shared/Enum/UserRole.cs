@@ -24,5 +24,11 @@
             UserRole.Student => "Estudante",
             _ => role.ToString()
         };
+
+        /// <summary>
+        /// True for the exact role names used in login tokens. Old tokens ("Admin", "Supervisionado") are not accepted.
+        /// </summary>
+        public static bool IsKnownRoleName(string? name) =>
+            !string.IsNullOrEmpty(name) && System.Enum.GetNames<UserRole>().Contains(name);
     }
 }

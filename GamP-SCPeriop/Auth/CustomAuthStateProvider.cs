@@ -2,6 +2,7 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.Components.Authorization;
 using Blazored.SessionStorage;
+using GamP_SCPeriop.Shared.Enum;
 
 namespace GamP_SCPeriop.Client.Auth
 {
@@ -36,7 +37,16 @@ namespace GamP_SCPeriop.Client.Auth
 
             try
             {
-                var claims = ParseClaimsFromJwt(token);
+                var claims = ParseClaimsFromJwt(token).ToList();
+
+                // A login from before the role change ("Admin", "Supervisionado") is no longer valid: log in again
+                var role = claims.FirstOrDefault(c => c.Type == ClaimTypes.Role)?.Value;
+                if (!UserRoleExtensions.IsKnownRoleName(role))
+                {
+                    await _sessionStorage.RemoveItemAsync(TokenKey);
+                    return new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity()));
+                }
+
                 var identity = new ClaimsIdentity(claims, "jwt");
                 return new AuthenticationState(new ClaimsPrincipal(identity));
             }
