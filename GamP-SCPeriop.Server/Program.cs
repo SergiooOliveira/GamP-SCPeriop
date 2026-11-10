@@ -69,6 +69,7 @@ builder.Services.AddScoped<TokenService>();
 builder.Services.AddScoped<AccessService>();
 builder.Services.AddScoped<PathwayService>();
 builder.Services.AddScoped<ExtensionRequestService>();
+builder.Services.AddHostedService<SupervisorReminderService>();
 builder.Services.AddScoped<DbSeeder>();
 
 builder.Services.AddDbContext<AppDbContext>(options =>
