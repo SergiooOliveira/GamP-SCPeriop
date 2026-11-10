@@ -1,0 +1,196 @@
+@page "/extension-requests"
+@attribute [Authorize(Roles = "Teacher,Support")]
+@using GamP_SCPeriop.Shared.Entity.Model
+@using GamP_SCPeriop.Shared.Enum
+@layout TopNavBarLayout
+@inject HttpClient Http
+@inject NavigationManager Nav
+
+<div class="max-width-container mt-3 px-3 pb-5">
+    <button class="btn btn-link text-decoration-none text-muted p-0 fw-semibold mb-3" @onclick='() => Nav.NavigateTo("/dashboard")'>
+        <i class="bi bi-arrow-left me-2"></i> Voltar ao Dashboard
+    </button>
+
+    <div class="mb-4">
+        <h4 class="fw-bold mb-1">Pedidos de prolongamento</h4>
+        <p class="text-muted small mb-0">Os supervisores pedem mais tempo para avaliar uma fase. Pode aprovar, aprovar com outra data ou recusar.</p>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="text-center p-5"><div class="spinner-border text-primary" role="status"></div></div>
+    }
+    else if (loadError != null)
+    {
+        <div class="alert alert-danger border-0 shadow-sm">@loadError</div>
+    }
+    else if (!requests.Any())
+    {
+        <div class="card border-0 shadow-sm p-5 text-center text-muted" style="border-radius: 16px;">
+            <i class="bi bi-check2-circle fs-1 mb-2"></i>
+            Não há pedidos pendentes.
+        </div>
+    }
+    else
+    {
+        <div class="d-flex flex-column gap-3">
+            @foreach (var request in requests)
+            {
+                var isOtherDate = otherDateFor == request.Id;
+                var isRejecting = rejectingId == request.Id;
+
+                <div class="card border-0 shadow-sm" style="border-radius: 16px;">
+                    <div class="card-body p-4">
+                        <div class="d-flex justify-content-between flex-wrap gap-2 mb-2">
+                            <div>
+                                <h6 class="fw-bold mb-0">@request.StudentName</h6>
+                                <small class="text-muted">@request.PathwayTitle · @request.ModuleTitle · @request.Stage.DisplayName()</small>
+                            </div>
+                            <small class="text-muted">Pedido por @request.RequestedByName</small>
+                        </div>
+
+                        <p class="mb-2">
+                            Data de fim: <strong>@request.CurrentEndDate.ToString("dd/MM/yyyy")</strong>
+                            <i class="bi bi-arrow-right mx-1"></i>
+                            pedida: <strong>@request.RequestedEndDate.ToString("dd/MM/yyyy")</strong>
+                            <span class="text-muted small">(+@((request.RequestedEndDate - request.CurrentEndDate).Days) dias)</span>
+                        </p>
+                        @if (!string.IsNullOrWhiteSpace(request.Reason))
+                        {
+                            <p class="small text-secondary fst-italic mb-3">“@request.Reason”</p>
+                        }
+
+                        @if (isOtherDate)
+                        {
+                            <div class="d-flex flex-wrap align-items-end gap-2 mb-2">
+                                <div>
+                                    <label class="form-label small mb-1">Aprovar até</label>
+                                    <input type="date" class="form-control form-control-sm" @bind="otherDate" />
+                                </div>
+                                <button class="btn btn-sm btn-success rounded-pill px-3" disabled="@isBusy" @onclick="() => Decide(request, true, otherDate)">Confirmar</button>
+                                <button class="btn btn-sm btn-light rounded-pill px-3" @onclick="ResetForms">Cancelar</button>
+                            </div>
+                        }
+                        else if (isRejecting)
+                        {
+                            <div class="d-flex flex-wrap align-items-end gap-2 mb-2">
+                                <div class="flex-grow-1">
+                                    <label class="form-label small mb-1">Motivo (opcional)</label>
+                                    <input class="form-control form-control-sm" maxlength="500" @bind="rejectNote" />
+                                </div>
+                                <button class="btn btn-sm btn-danger rounded-pill px-3" disabled="@isBusy" @onclick="() => Decide(request, false, null)">Recusar pedido</button>
+                                <button class="btn btn-sm btn-light rounded-pill px-3" @onclick="ResetForms">Cancelar</button>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="d-flex flex-wrap gap-2">
+                                <button class="btn btn-sm btn-success rounded-pill px-3" disabled="@isBusy" @onclick="() => Decide(request, true, null)">
+                                    <i class="bi bi-check-lg me-1"></i>Aprovar
+                                </button>
+                                <button class="btn btn-sm btn-outline-success rounded-pill px-3" @onclick="() => StartOtherDate(request)">
+                                    <i class="bi bi-calendar-event me-1"></i>Aprovar com outra data
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger rounded-pill px-3" @onclick="() => StartReject(request)">
+                                    <i class="bi bi-x-lg me-1"></i>Recusar
+                                </button>
+                            </div>
+                        }
+
+                        @if (errors.TryGetValue(request.Id, out var error))
+                        {
+                            <div class="text-danger small mt-2">@error</div>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private List<ExtensionRequestDto> requests = new();
+    private bool isLoading = true;
+    private string? loadError;
+    private bool isBusy;
+    private Dictionary<int, string> errors = new();
+
+    private int? otherDateFor;
+    private DateTime? otherDate;
+    private int? rejectingId;
+    private string? rejectNote;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            requests = await Http.GetFromJsonAsync<List<ExtensionRequestDto>>("api/ExtensionRequest/pending") ?? new();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Erro a carregar pedidos: {ex.Message}");
+            loadError = "Não foi possível carregar os pedidos.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void StartOtherDate(ExtensionRequestDto request)
+    {
+        ResetForms();
+        otherDateFor = request.Id;
+        // Suggest a date between the current end and the requested one
+        otherDate = request.CurrentEndDate.AddDays(Math.Max(1, (request.RequestedEndDate - request.CurrentEndDate).Days / 2));
+    }
+
+    private void StartReject(ExtensionRequestDto request)
+    {
+        ResetForms();
+        rejectingId = request.Id;
+    }
+
+    private void ResetForms()
+    {
+        otherDateFor = null;
+        otherDate = null;
+        rejectingId = null;
+        rejectNote = null;
+    }
+
+    private async Task Decide(ExtensionRequestDto request, bool approve, DateTime? endDate)
+    {
+        isBusy = true;
+        errors.Remove(request.Id);
+        try
+        {
+            var response = await Http.PutAsJsonAsync($"api/ExtensionRequest/{request.Id}/decision", new ExtensionDecisionDto
+            {
+                Approve = approve,
+                EndDate = endDate,
+                Note = approve ? null : rejectNote
+            });
+
+            if (response.IsSuccessStatusCode)
+            {
+                requests.Remove(request);
+                ResetForms();
+            }
+            else
+            {
+                var message = await response.Content.ReadAsStringAsync();
+                errors[request.Id] = string.IsNullOrWhiteSpace(message) ? "Não foi possível guardar a decisão." : message.Trim('"');
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Erro ao decidir pedido: {ex.Message}");
+            errors[request.Id] = "Não foi possível guardar a decisão.";
+        }
+        finally
+        {
+            isBusy = false;
+        }
+    }
+}

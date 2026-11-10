@@ -23,9 +23,12 @@
                     {
                         <span class="@(successMessage.StartsWith("Erro") ? "text-danger" : "text-success") fw-bold me-3">@successMessage</span>
                     }
+                    @if (CanGrade)
+                    {
                     <button class="btn btn-primary" @onclick="SaveEvaluationsAsync" disabled="@(isSaving || !pendingEvaluations.Any())">
                         @(isSaving ? "A guardar..." : "Guardar Avaliações")
                     </button>
+                    }
                 </div>
             </div>
 
@@ -55,8 +58,24 @@
                         </div>
                         <h3 class="fw-bold mb-1">@firstEnrollment?.Student?.DisplayShortName</h3>
                         <p class="mb-0 text-white-50">Percurso: @firstEnrollment?.Pathway?.Title</p>
+                        <p class="mb-0 text-white-50"><i class="bi bi-person-badge me-1"></i>Supervisor: @(access?.SupervisorName ?? "por atribuir")</p>
                     </div>
                 </div>
+
+                @if (access != null && !access.HasSupervisor)
+                {
+                    <div class="alert alert-warning border-0 shadow-sm mb-4" style="border-radius: 15px;">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        Este estudante ainda não tem supervisor: a avaliação só pode começar depois de o professor atribuir um.
+                    </div>
+                }
+                else if (access != null && !access.CanGrade)
+                {
+                    <div class="alert alert-info border-0 shadow-sm mb-4" style="border-radius: 15px;">
+                        <i class="bi bi-eye me-2"></i>
+                        Modo de consulta: só o supervisor do estudante avalia. Use estas notas para ajustar o percurso, se for preciso.
+                    </div>
+                }
 
                 <!-- MODULE ACCORDION LOOP -->
                 @if (enrollmentModules != null)
@@ -157,7 +176,7 @@
                                             bool isStageClosed = activeTimeline != null &&
                                                                  activeTimeline.EndDate.HasValue &&
                                                                  DateTime.Now.Date > activeTimeline.EndDate.Value.Date;
-                                            bool isStageBlocked = isStageNotStarted || isStageClosed;
+                                            bool isStageBlocked = isStageNotStarted || isStageClosed || !CanGrade;
                                         }
 
                                         <!-- TIMELINE ALERTS: Displays block warning or end date -->
@@ -181,12 +200,66 @@
                                                 {
                                                     <span></span>
                                                 }
+                                                @if (CanRequestExtension && activeTimeline.EndDate.HasValue)
+                                                {
+                                                    var lastRequest = LatestRequest(module.Id, currentStage);
+                                                    @if (lastRequest?.Status == ExtensionRequestStatus.Pending)
+                                                    {
+                                                        <span class="badge rounded-pill bg-info-subtle text-info-emphasis border border-info fw-normal px-3 py-2">
+                                                            <i class="bi bi-hourglass-split me-1"></i>Prolongamento pedido até @lastRequest.RequestedEndDate.ToString("dd/MM/yyyy")
+                                                        </span>
+                                                    }
+                                                    else
+                                                    {
+                                                        @if (lastRequest != null)
+                                                        {
+                                                            <span class="badge rounded-pill fw-normal px-3 py-2 @(lastRequest.Status == ExtensionRequestStatus.Approved ? "bg-success-subtle text-success-emphasis border border-success" : "bg-danger-subtle text-danger-emphasis border border-danger")"
+                                                                  title="@lastRequest.DecisionNote">
+                                                                @(lastRequest.Status == ExtensionRequestStatus.Approved
+                                                                    ? $"Prolongamento aprovado até {lastRequest.DecidedEndDate:dd/MM/yyyy}"
+                                                                    : "Prolongamento recusado")
+                                                            </span>
+                                                        }
+                                                        <button class="btn btn-sm btn-outline-secondary rounded-pill" @onclick="() => OpenExtensionForm(module.Id, currentStage, activeTimeline.EndDate.Value)">
+                                                            <i class="bi bi-calendar-plus me-1"></i>Pedir prolongamento
+                                                        </button>
+                                                    }
+                                                }
                                                 <small class="text-muted fw-bold">
                                                     <i class="bi bi-clock-history me-1"></i> Data Limite da Fase:
                                                     <span class="text-dark">
                                                         @(activeTimeline.EndDate.HasValue ? activeTimeline.EndDate.Value.ToString("dd/MM/yyyy") : "N/D")
                                                     </span>
                                                 </small>
+                                            </div>
+                                        }
+
+                                        @if (extensionForm != null && extensionForm.Value.ModuleId == module.Id && extensionForm.Value.Stage == currentStage)
+                                        {
+                                            <div class="card border-0 bg-light mb-4" style="border-radius: 12px;">
+                                                <div class="card-body p-3">
+                                                    <h6 class="fw-bold mb-3"><i class="bi bi-calendar-plus me-2"></i>Pedir prolongamento de @FormatStageName(currentStage)</h6>
+                                                    <div class="row g-2 align-items-end">
+                                                        <div class="col-sm-4">
+                                                            <label class="form-label small mb-1">Nova data de fim</label>
+                                                            <input type="date" class="form-control form-control-sm" @bind="extensionDate" />
+                                                        </div>
+                                                        <div class="col-sm-8">
+                                                            <label class="form-label small mb-1">Motivo (opcional)</label>
+                                                            <input class="form-control form-control-sm" maxlength="500" @bind="extensionReason" placeholder="Ex: o estudante faltou a dois turnos" />
+                                                        </div>
+                                                    </div>
+                                                    @if (!string.IsNullOrEmpty(extensionError))
+                                                    {
+                                                        <div class="text-danger small mt-2">@extensionError</div>
+                                                    }
+                                                    <div class="d-flex justify-content-end gap-2 mt-3">
+                                                        <button class="btn btn-sm btn-light rounded-pill px-3" @onclick="CloseExtensionForm">Cancelar</button>
+                                                        <button class="btn btn-sm btn-primary rounded-pill px-3" disabled="@isSendingExtension" @onclick="SendExtensionRequest">
+                                                            @(isSendingExtension ? "A enviar..." : "Enviar pedido ao professor")
+                                                        </button>
+                                                    </div>
+                                                </div>
                                             </div>
                                         }
 
@@ -285,6 +358,17 @@
     #region [ Batch Save State ]
 
     private Dictionary<int, EvaluationRequestDto> pendingEvaluations = new();
+
+    // What this user may do here (decided by the server) and the stage extension requests
+    private EnrollmentAccessDto? access;
+    private bool CanGrade => access?.CanGrade == true;
+    private bool CanRequestExtension => access?.CanRequestExtension == true;
+    private List<ExtensionRequestDto> extensionRequests = new();
+    private (int ModuleId, ModuleStage Stage)? extensionForm;
+    private DateTime? extensionDate;
+    private string? extensionReason;
+    private string? extensionError;
+    private bool isSendingExtension;
     private bool isSaving = false;
     private string successMessage = string.Empty;
 
@@ -309,7 +393,9 @@
         try
         {
             isLoading = true;
+            access = await Http.GetFromJsonAsync<EnrollmentAccessDto>($"api/Enrollment/{EnrollmentId}/access");
             enrollmentModules = await Http.GetFromJsonAsync<List<EnrollmentModule>>($"api/Evaluation/enrollment/{EnrollmentId}");
+            extensionRequests = await Http.GetFromJsonAsync<List<ExtensionRequestDto>>($"api/ExtensionRequest/enrollment/{EnrollmentId}") ?? new();
 
             if (enrollmentModules != null && enrollmentModules.Any())
             {
@@ -660,6 +746,69 @@
 
     #endregion
 
+    #region [ Extension Requests ]
+
+    private ExtensionRequestDto? LatestRequest(int moduleId, ModuleStage stage) =>
+        extensionRequests.Where(r => r.ModuleId == moduleId && r.Stage == stage)
+            .OrderByDescending(r => r.CreatedAt)
+            .FirstOrDefault();
+
+    private void OpenExtensionForm(int moduleId, ModuleStage stage, DateTime currentEnd)
+    {
+        extensionForm = (moduleId, stage);
+        extensionDate = currentEnd.Date.AddDays(7);
+        extensionReason = null;
+        extensionError = null;
+    }
+
+    private void CloseExtensionForm() => extensionForm = null;
+
+    private async Task SendExtensionRequest()
+    {
+        if (extensionForm == null || extensionDate == null)
+        {
+            extensionError = "Escolha a nova data de fim.";
+            return;
+        }
+
+        isSendingExtension = true;
+        extensionError = null;
+        try
+        {
+            var response = await Http.PostAsJsonAsync("api/ExtensionRequest", new ExtensionRequestCreateDto
+            {
+                EnrollmentId = EnrollmentId,
+                ModuleId = extensionForm.Value.ModuleId,
+                Stage = extensionForm.Value.Stage,
+                RequestedEndDate = extensionDate.Value,
+                Reason = extensionReason
+            });
+
+            if (response.IsSuccessStatusCode)
+            {
+                var created = await response.Content.ReadFromJsonAsync<ExtensionRequestDto>();
+                if (created != null) extensionRequests.Add(created);
+                extensionForm = null;
+            }
+            else
+            {
+                var message = await response.Content.ReadAsStringAsync();
+                extensionError = string.IsNullOrWhiteSpace(message) ? "Não foi possível enviar o pedido." : message.Trim('"');
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Erro ao pedir prolongamento: {ex.Message}");
+            extensionError = "Não foi possível enviar o pedido.";
+        }
+        finally
+        {
+            isSendingExtension = false;
+        }
+    }
+
+    #endregion
+
     #region [ Navigation ]
 
     /// <summary>
@@ -667,7 +816,11 @@
     /// </summary>
     private void GoBack()
     {
-        if (firstEnrollment != null && firstEnrollment.PathwayId > 0)
+        if (access?.CanEdit != true)
+        {
+            Nav.NavigateTo("/supervisor/students");
+        }
+        else if (firstEnrollment != null && firstEnrollment.PathwayId > 0)
         {
             Nav.NavigateTo($"/pathway/{firstEnrollment.PathwayId}/students");
         }
